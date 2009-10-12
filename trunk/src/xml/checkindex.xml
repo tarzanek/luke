@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog text=" Check Index" name="checkindex" icon="/img/luke.gif" modal="true"
+	columns="1" top="8" left="8" bottom="8" right="8" gap="3" close="remove(checkindex)"
+	resizable="true">
+	<panel columns="2" gap="2">
+                <label text="Current directory:"/>
+                <label font="bold" name="dirName" text="?"/>
+        </panel>
+	<panel gap="2" columns="2" weightx="1" halign="fill">
+        	<button rowspan="2" weightx="1" halign="left" valign="center" text="Check Index" action="checkIndex(checkindex)"/>
+	       <label font="10" text="NOTE: Checking a large index takes long time."/>
+	       <label font="10" text="Make sure all external IndexWriters are closed."/>
+	</panel>
+        <label text="Results of checking:"/>
+        <textarea font="bold" editable="false" border="false" rows="1" wrap="true" halign="fill" weightx="1"
+        name="ckRes" text="?"/>
+	<label text="Diagnostic output:"/>
+	<textarea name="msg" editable="false" rows="15" weightx="1" halign="fill" weighty="1" valign="fill">
+        </textarea>
+        <panel name="fixPanel" visible="false" border="true" text="Fix Index"
+        columns="2" left="8" right="4" top="4" bottom="4" gap="2" weightx="1" halign="fill">
+               <label colspan="2" text="Attempt to fix the problems found during checking."/>
+               <button rowspan="2" valign="center" halign="left" text="Fix Index" action="fixIndex(checkindex)"/>
+               <label name="warn" foreground="#ff0000" font="bold" text="  WARNING: this operation may cause data loss"/>
+               <label name="warn" foreground="#ff0000" font="bold" text="  Make sure you have a backup of this index!"/>
+               <label text="Results of fixing:"/>
+               <label name="fixRes" text="?" font="bold"/>
+        </panel>
+	<panel halign="right" gap="6" right="8">
+	       <button type="default" text="Close" halign="center" action="remove(checkindex)"/>
+	</panel>
+</dialog>

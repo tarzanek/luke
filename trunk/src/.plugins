@@ -1,0 +1,6 @@
+org.getopt.luke.plugins.AnalyzerToolPlugin
+org.getopt.luke.plugins.HadoopPlugin
+org.getopt.luke.plugins.ScriptingPlugin
+org.getopt.luke.plugins.SimilarityDesignerPlugin
+org.getopt.luke.plugins.VocabAnalysisPlugin
+org.getopt.luke.plugins.ZipfAnalysisPlugin

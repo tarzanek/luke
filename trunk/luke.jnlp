@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<jnlp spec="1.0+" codebase="http://www.getopt.org/luke" href="luke.jnlp">
+	<information>
+		<title>Luke - Lucene Index Toolbox</title>
+		<vendor>Andrzej Bialecki</vendor>
+		<homepage href="http://www.getopt.org/luke" />
+		<description>Lucene Index Toolbox</description>
+		<icon href="luke.gif"/>
+	</information>
+	<security>
+		<all-permissions/>
+	</security>
+	<resources>
+		<j2se version="1.5+" />
+		<jar href="lukeall-0.9.9.jar" />
+	</resources>
+	<application-desc main-class="org.getopt.luke.Luke" />
+</jnlp>

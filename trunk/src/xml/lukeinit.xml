@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dialog name="lukeinit" columns="1" modal="true" gap="8" top="3" bottom="3"
+	left="3" right="3" text="Path to Index directory:" icon="/img/luke.gif"
+	close="remove(lukeinit)" resizable="true" init="setupInit(lukeinit)">
+	<panel gap="4" columns="3">
+		<label text="Path:"/>
+		<combobox name="path" columns="70" editable="true" perform="openOk(lukeinit)"/>
+		<button text="Browse..." action="openBrowse(path)"/>
+		<label text=""/>
+    <label font="10" text="Hint: Luke can open multiple indexes in subdirectories."/>
+	</panel>
+	<checkbox name="ro" text="Open in Read-Only mode"/>
+	<checkbox name="force" text="Force unlock, if locked"/>
+	<separator/>
+	<label text="Expert options:"/>
+	<panel gap="6" columns="1" bottom="2" left="10" right="2">
+	           <panel gap="2" halign="fill" weightx="1">
+              <label font="10" text="Directory (one of predefined, or full class name):"/>
+              <combobox name="dirImpl" weightx="1" halign="fill" font="10" editable="true" text="FSDirectory">
+                 <choice font="10" name="fs" text="FSDirectory"/>
+                 <choice font="10" name="mmap" text="MMapDirectory"/>
+                 <choice font="10" name="niofs" text="NIOFSDirectory"/>
+              </combobox>
+	           </panel>
+              <checkbox name="ram" font="10" text="Load into RAMDirectory"/>
+              <checkbox font="10" name="cbKeepCommits" text="Keep all commit points" selected="true"/>
+              <checkbox font="10" name="cbNoReader" text="Don't open IndexReader (when opening corrupted index)"/>
+              <checkbox font="10" name="cbSlowIO" text="Slow IO - avoid and track expensive IO operations"/>
+              <panel gap="2">
+                <label font="10" text="Custom TermInfos divisor:"/>
+                <textfield font="10" columns="4" name="tiiDiv" text="1"/>
+              </panel>
+        </panel>
+	<separator/>
+	<panel weightx="1" halign="right" gap="8" top="3" right="3" bottom="2">
+		<button text="OK" action="openOk(lukeinit)"/>
+		<button text="Cancel" action="remove(lukeinit)"/>
+	</panel>
+</dialog>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog name="wait" text="  " columns="1" gap="2" modal="true"
+  top="5" bottom="5" left="5" right="5">
+	<label foreground="#aa0000" font="bold" text="Wait - slow IO in progress."/>
+</dialog>

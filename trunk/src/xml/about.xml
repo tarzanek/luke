@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dialog modal="true" name="about" columns="1" gap="8" icon="/img/luke.gif" text=" About" left="4" right="4" bottom="4" top="4" close="remove(about)">
+	<label halign="center" valign="center" text="v 0.9.9 (2009-09-30)" font="10" icon="/img/luke-big.gif"/>
+	<button type="link" tooltip="Go to Luke home page" action="goUrl(this)" halign="center" property="url=http://www.getopt.org/luke" foreground="#5aaa88" text="Lucene Index Toolbox" font="18 bold"/>
+	<label halign="center" font="13" text="Created by Andrzej Bialecki &lt;ab@getopt.org&gt;"/>
+	<label halign="center" font="italic 11" text="In tribute to the creators and developers of the best Java search library."/>
+	<button type="link" icon="/img/lucene.gif" tooltip="Go to Lucene home page" action="goUrl(this)" halign="center" property="url=http://lucene.apache.org/" foreground="#5aaa88" text="Apache Lucene - home page"/>
+	<label halign="center" font="11" name="lver" text=""/>
+	<textarea columns="55" rows="3" editable="false" font="10" border="false" wrap="true" text="Luke is distributed under Apache Software License. Please see http://www.apache.org/LICENSE-2.0 for details.&#10;This software includes Thinlet library (http://thinlet.sourceforge.net)"/>
+</dialog>

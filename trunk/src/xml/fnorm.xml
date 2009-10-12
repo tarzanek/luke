@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog text=" Field norm" name="fNorm" icon="/img/luke.gif" modal="true"
+	columns="1" top="8" left="8" bottom="8" right="8" gap="3" close="remove(fNorm)"
+	resizable="true">
+	<panel columns="2" weightx="1" halign="fill" gap="3">
+                <label text="Document id: "/>
+                <label name="docNum" font="bold"/>
+		<label text="Field name: "/>
+		<label name="fld" font="bold"/>
+		<label text="Current field norm: "/>
+		<label name="curNorm" font="bold"/>
+		<label text="Updated field norm: "/>
+		<textfield name="newNorm" action="displayNewNorm(fNorm)" />
+		<label text="Encoded value rounded to:"/>
+		<label name="encNorm"/>
+	</panel>
+	<separator/>
+	<label text="Set new norm value on this field in:"/>
+	<checkbox group="fgroup" name="fDoc" selected="true" text="this document only"/>
+	<checkbox group="fgroup" name="fAll" text="all documents"/>
+	<checkbox group="fgroup" name="fList" text="list of documents:"/>
+	<textfield name="frange" weightx="1" halign="fill"/>
+	<label font="10" text="Example: 0,12,45-90,17,123,30-32"/>
+        <panel weightx="1" halign="right" top="6" bottom="6" right="6" gap="8">
+                <button text="Set norm" halign="center" action="setNorm(fNorm)"/>
+                <button type="default" text="Cancel" halign="center" action="remove(fNorm)"/>
+        </panel>
+</dialog>

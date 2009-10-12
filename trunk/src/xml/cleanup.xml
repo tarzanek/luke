@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog text=" Review cleanup" name="cleanup2" icon="/img/luke.gif" modal="true"
+	columns="1" top="8" left="8" bottom="8" right="8" gap="5" close="remove(cleanup2)"
+	resizable="true">
+	<panel weightx="1" halign="fill" gap="3">
+        	<label icon="/img/info.gif" weightx="1" halign="fill" text="Review files to be deleted:"/>
+        	<button font="10" text="Keep" tooltip="Do NOT delete this file" action="toggleKeep(filesTable)"/>
+        </panel>
+	<table name="filesTable" halign="fill" selection="multiple" valign="fill" weightx="1" weighty="1" width="500" height="150">
+		<header>
+			<column text="Size"/>
+			<column text="Unit"/>
+			<column text="Name"/>
+		</header>
+	</table>
+	<panel halign="right" gap="6" right="8">
+        	<button text=" Delete " halign="center" action="_actionCleanup(filesTable)"/>
+	       <button type="default" text="Cancel" halign="center" action="remove(cleanup2)"/>
+	</panel>
+</dialog>

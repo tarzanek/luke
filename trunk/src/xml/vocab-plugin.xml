@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<panel name="vocab-plugin" columns="1" gap="4" halign="fill"
+	valign="fill" weightx="1" weighty="1">
+	<panel gap="4">
+		<label text="Indexed fields: " />
+		<combobox name="fields" enabled="true" editable="false" selected="0" halign="fill" weightx="1" action="analyze"/>
+		<button text="Show" action="analyze"/>
+		<checkbox text="cumulative" name="cumul" selected="true" action="analyze"/>
+	</panel>
+	<panel columns="2" weightx="1" weighty="1" halign="fill" valign="fill">
+		<panel columns="1" weighty="1" valign="fill">
+			<label name="maxpct"/>
+			<label valign="center" weighty="1" text="%"/>
+			<label text="0 %"/>
+		</panel>
+		<panel gap="2" halign="fill" valign="fill" weightx="1" weighty="1">
+			<bean name="vocabchart" bean="org.getopt.luke.plugins.VocabChart" weightx="1" halign="fill" weighty="1" valign="fill"/> 
+		</panel>
+	</panel>
+	<panel weightx="1" halign="fill">
+		<label text="doc = 0"/>
+		<label halign="center" weightx="1" name="middoc"/>
+		<label name="maxdoc"/>
+	</panel>
+</panel>

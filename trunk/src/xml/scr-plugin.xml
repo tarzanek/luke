@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<panel columns="1" halign="fill" valign="fill" weightx="1" weighty="1" gap="3">
+	<textarea halign="fill" weightx="1" wrap="true" border="false" editable="false"
+		rows="1" font="10" text="This is a JavaScript interactive shell. Scripts use Rhino JavaScript syntax (multiline scripts are supported). Luke framework is available to the plugin (e.g. Luke application is visible as 'app'). Press Help for more details."/>
+	<separator/>
+	<panel halign="fill" weightx="1" gap="4" left="2" right="2" top="2" bottom="2">
+		<checkbox name="cbWrap" text="Wrap long lines" action="setWrap(this,console)"/>
+		<button text="Reset Shell" action="reset"/>
+		<button text="Clear Console" action="clear"/>
+		<button text="Help" action="actionHelp(console)"/>
+		<separator/>
+		<label text=" " halign="fill" weightx="1"/>
+		<button text="Run sample" action="actionSample"/>
+	</panel>
+	<textarea name="console" insert="ins(this)" remove="rem(this)" caret="car(this)" font="monospaced 11" halign="fill" valign="fill" weightx="1" weighty="1"/>
+</panel>

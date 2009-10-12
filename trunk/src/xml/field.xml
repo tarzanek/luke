@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog text=" Field data" name="fData" icon="/img/luke.gif" modal="true"
+	columns="2" top="8" left="8" bottom="8" right="8" gap="15" close="remove(fData)"
+	resizable="true">
+	<panel columns="2" weightx="1" halign="fill" gap="3">
+		<label text="Field name: "/>
+		<label name="fld" font="bold"/>
+		<label text="Field length: "/>
+		<label name="len" font="bold"/>
+		<label name="unit"/>
+	</panel>
+	<panel columns="1" weightx="1" halign="fill" gap="3">
+		<label text="Show content as:"/>
+		<combobox name="cbData" editable="false" columns="12" selected="0" action="_showData(fData)">
+			<choice name="cbUtf" text="String UTF-8"/>
+			<choice name="cbDef" text="String default enc."/>
+			<choice name="cbHex" text="Hex dump"/>
+			<choice name="cbDate" text="Date / Time"/>
+			<choice name="cbNum" text="Number"/>
+			<choice name="cbInt" text="Array of int"/>
+			<choice name="cbFloat" text="Array of float"/>
+		</combobox>
+	</panel>
+	<textarea colspan="2" font="courier" width="370" height="150" wrap="false" weightx="1" weighty="1" halign="fill" valign="fill" editable="false" border="true" name="fDataText"/>
+	<button colspan="2" type="default" text=" OK " halign="center" action="remove(fData)"/>
+</dialog>

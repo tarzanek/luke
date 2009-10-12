@@ -1,0 +1,131 @@
+<project name="Luke" default="dist">
+	<defaultexcludes add="**/CVS"/>
+	<property name="build.dir" value="build"/>
+	<property name="build.ver" value="0.9.9"/>
+	<property name="dist.dir" value="dist"/>
+	<property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
+	<property name="jarallfile" value="${build.dir}/lukeall-${build.ver}.jar"/>
+	<property name="jarminfile" value="${build.dir}/lukemin-${build.ver}.jar"/>
+	<property name="srczip" value="${dist.dir}/luke-src-${build.ver}.zip"/>
+	<property name="srctgz" value="${dist.dir}/luke-src-${build.ver}.tgz"/>
+	<target name="init">
+		<tstamp/>
+		<mkdir dir="${build.dir}"/>
+		<mkdir dir="${dist.dir}"/>
+	</target>
+
+	<target name="clean">
+		<delete dir="${build.dir}"/>
+		<delete dir="${dist.dir}"/>
+	</target>	
+	
+	<target name="compile" depends="init">
+		<javac classpath="${classpath}"
+			sourcepath=""
+			source="1.5"
+			target="1.5"
+			srcdir="src"
+			destdir="${build.dir}">
+			<classpath>
+      			<fileset dir="lib">
+        			<include name="**/*.jar"/>
+      			</fileset>
+			</classpath>
+			<include name="**/*.java" />
+		</javac>
+	</target>
+
+	<target name="javadoc" depends="init">
+		<javadoc sourcepath="src" packagenames="org.*" destdir="${build.dir}/api">
+			<classpath>
+      				<fileset dir="lib">
+        				<include name="**/*.jar"/>
+      				</fileset>
+			</classpath>
+		</javadoc>
+	</target>
+	
+	<target depends="compile" name="jar">
+		<copy todir="${build.dir}">
+			<fileset dir="src/">
+				<include name="**/*.gif"/>
+				<include name="**/*.png"/>
+				<include name="**/*.xml"/>
+				<include name="**/*.js"/>
+				<include name=".plugins"/>
+			</fileset>
+		</copy>
+		<jar basedir="${build.dir}"
+			jarfile="${jarfile}"
+			includes="img/,org/,thinlet/,xml/"
+				excludes="org/getopt/luke/plugins,**/*.js,**/Thumbs.db">
+			<manifest>
+				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
+				<attribute name="Classpath" value="lucene-core-2.9.0.jar;js.jar;lucene-misc-2.9.0.jar;lucene-snowball-2.9.0.jar"/>
+			</manifest>
+		</jar>
+		<unjar dest="${build.dir}">
+			<fileset dir="lib" includes="lucene-*.jar"/>
+		</unjar>
+		<jar basedir="${build.dir}"
+			jarfile="${jarminfile}"
+			includes=".plugins,img/,org/,thinlet/,xml/"
+		        excludes="org/mozilla/,org/getopt/luke/plugins,**/*.js">
+			<manifest>
+				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
+				<attribute name="Classpath" value="lucene-core-2.9.0.jar;lucene-misc-2.9.0.jar"/>
+			</manifest>
+		</jar>
+		<unjar dest="${build.dir}">
+			<fileset dir="lib" includes="js.jar"/>
+			<fileset dir="lib" includes="*misc*.jar"/>
+			<fileset dir="lib" includes="*snowball*.jar"/>
+		</unjar>
+		<unjar dest="${build.dir}">
+			<fileset dir="lib" includes="hadoop/*.jar"/>
+		</unjar>
+		<unjar dest="${build.dir}">
+			<fileset dir="lib" includes="lucene-*.jar"/>
+			<patternset>
+				<include name="META-INF/MANIFEST.MF"/>
+			</patternset>
+		</unjar>
+		<manifest file="${build.dir}/META-INF/MANIFEST.MF" mode="update">
+			<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
+		</manifest>
+		<jar basedir="${build.dir}"
+			jarfile="${jarallfile}"
+			manifest="${build.dir}/META-INF/MANIFEST.MF"
+			includes="META-INF/*,.plugins,img/,net/,com/,org/,thinlet/,xml/,**/*.properties,**/*.xml" >
+		</jar>
+	</target>
+	
+	<target name="dist" depends="clean,jar">
+		<fileset dir=".">
+			<patternset id="distfiles">
+				<exclude name="eclipse/**"/>
+				<exclude name="extras/**"/>
+				<exclude name="sandbox/**"/>
+				<exclude name="index/**"/>
+			    <exclude name="${build.dir}/**"/>
+				<exclude name="${dist.dir}/**"/>
+			</patternset>
+		</fileset>
+		<copy todir="${dist.dir}">
+			<fileset dir="lib"/>
+			<fileset file="${jarfile}"/>
+			<fileset file="${jarallfile}"/>
+			<fileset file="${jarminfile}"/>
+		</copy>
+		<zip destfile="${srczip}">
+			<fileset dir=".">
+				<patternset refid="distfiles"/>
+			</fileset>
+		</zip>
+		<tar compression="gzip" destfile="${srctgz}">
+			<tarfileset dir=".">
+				<patternset refid="distfiles"/>
+			</tarfileset>
+		</tar>
+	</target>
+</project>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog text=" Edit Document" name="editdoc" icon="/img/luke.gif" modal="true"
+	columns="1" gap="2"	resizable="true" left="2" right="2" top="2"
+	width="550" height="400" close="remove(editdoc)">
+	<panel weightx="1" halign="fill" gap="1">
+		<label font="bold" name="docNum"/>
+		<label text=" " weightx="1" halign="fill"/>
+		<label text="New field name: "/>
+		<textfield name="fNewName" columns="10"/>
+		<button font="10" text="Add" action="actionEditAddField(editdoc)"/>
+	</panel>
+	<label font="10" icon="/img/info.gif" foreground="#00a000" text="NOTE: unstored fields are reconstructed, some errors may be present!"/>
+	<panel scrollable="true" weightx="1" weighty="1" halign="fill"
+		valign="fill">
+		<tabbedpane name="editTabs" weightx="1" weighty="1" halign="fill"
+			valign="fill" placement="left"/>
+	</panel>
+	<panel weightx="1" halign="fill" gap="2">
+		<label text="Use Analyzer:"/>
+		<combobox name="cbAnalyzers" editable="true" weightx="1" halign="fill"/>
+	</panel>
+	<panel weightx="1" halign="right" top="6" bottom="6" right="6" gap="8">
+		<button text="Add to index" halign="center" action="actionEditAdd(editdoc)"/>
+		<button name="bDelAdd" text="Delete old &amp; Add" halign="center" action="actionEditReplace(editdoc)"/>
+		<label text="  "/>
+		<button type="default" text="Cancel" halign="center" action="remove(editdoc)"/>
+	</panel>
+</dialog>

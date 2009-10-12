@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<panel columns="1" halign="fill" valign="fill" weightx="1" weighty="1">
+	<textarea halign="fill" weightx="1" wrap="true" border="false" editable="false"
+		rows="1" font="10" text="Here you can design a custom implementation of Similarity. Scripts use Rhino JavaScript syntax. Scripts can be saved and loaded. Once a valid implementation is compiled, you can select it in the 'Search' panel."/>
+	<separator/>
+		<menubar valign="top">
+			<menu text="Script">
+				<menuitem text="New" action="actionNew"/>
+				<menuitem text="Open..." action="actionOpenFile"/>
+				<menuitem text="Save Script" action="actionSaveFile"/>
+			</menu>
+			<menu text="Compiler">
+			    <checkboxmenuitem group="cbComp" name="cbCompComp" selected="true" text="Create Optimized Code"/>
+			    <checkboxmenuitem group="cbComp" name="cbCompInt" text="Create Interpreted Code"/>
+			</menu>
+			<menu text="Load Samples">
+				<menuitem text="DefaultSimilarity.js" action="actionLoadSample(this)"/>
+				<menuitem text="WikipediaSimilarity.js" action="actionLoadSample(this)"/>
+				<menuitem text="VerboseSimilarity.js" action="actionLoadSample(this)"/>
+			</menu>
+		</menubar>
+	<panel halign="fill" weightx="1" gap="4" top="2" bottom="2" left="2">
+		<label text="Output of 'print()':"/>
+		<combobox name="selOutput" editable="false" selected="0" action="invalidate">
+			<choice text="(no output)"/>
+			<choice text="System.out"/>
+			<choice text="System.err"/>
+		</combobox>
+		<separator/>
+		<label text="  "/>
+		<button font="bold" name="bComp" icon="/img/script.gif" text="Compile" action="actionCompileSimilarity"/>
+		<label name="simStatus" font="bold"/>
+	</panel>
+	<textarea name="simText" font="monospaced" insert="invalidate" remove="invalidate" halign="fill" valign="fill" weightx="1" weighty="1"/>
+</panel>

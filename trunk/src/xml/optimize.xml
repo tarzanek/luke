@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog text=" Optimize Index" name="optimize" icon="/img/luke.gif" modal="true"
+	columns="1" top="8" left="8" bottom="8" right="8" gap="3" close="remove(optimize)"
+	resizable="true">
+        <panel columns="2" gap="2">
+                <label text="Current directory:"/>
+                <label font="bold" name="dirName" text="?"/>
+        </panel>
+        <label font="10" text="Note: Fully optimizing a large index takes long time."/>
+        <label text=" "/>
+        <checkbox weightx="1" halign="fill" group="ckOpt" name="optCompound" text="Use Compound file format" selected="true"/>
+        <checkbox weightx="1" halign="fill" group="ckOpt" name="optStandard" text="Use Standard file format"/>
+        <label weightx="1" halign="fill" text=" "/>
+        <label text=" Expert options:"/>
+        <panel gap="3" columns="2">
+           <label font="10" halign="left" text="  Term Index Interval:"/>
+           <spinbox font="10" halign="left" columns="4" text="128" name="tii"/>
+           <label font="10" halign="left" text="  Max num. of segments:"/>
+           <spinbox font="10" halign="left" columns="4" text="1" name="segnum"/>
+        </panel>
+        <checkbox font="10" group="ckOpt" name="optExpunge" text="Just expunge deleted docs without re-merging"/>
+        <label weightx="1" halign="fill" text=" "/>
+	<panel gap="2">
+	       <label text="Current status:"/>
+	       <label name="stat" font="italic" text="Idle"/>
+	</panel>
+	<textarea name="msg" editable="false" rows="15" weightx="1" halign="fill" weighty="1" valign="fill">
+        </textarea>
+	<panel halign="right" gap="6" right="8">
+               <button name="optimizeButton" text="Optimize" action="optimize(optimize)"/>
+	       <button type="default" name="closeButton" text="Close" action="remove(optimize)"/>
+	</panel>
+</dialog>

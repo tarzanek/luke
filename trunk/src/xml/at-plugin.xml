@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<panel name="at-plugin" columns="1" gap="4" halign="fill" valign="fill" weightx="1"
+	 weighty="1">
+	<label text="Available analyzers found on the current classpath:" />
+	<combobox name="analyzers" enabled="true" editable="true" selected="0" halign="fill" weightx="1"/>
+	<label text="Text to be analyzed:" />
+	<textarea name="inputText" wrap="true" text="Welcome to the analysis viewer. This tool is used to demonstrate how different analyzers process text into tokens. You can edit this text to try different input such as numbers like 23231.23 or characters (mharwood@apache.org). Once happy, select an Analyzer from the list of analyzers found on the current classpath and then hit the Analyze button. The tokens produced are shown below and when you select them the right panel shows their attributes, and the corresponding span in the original text is highlighted." rows="5" weightx="1"/>
+	<panel columns="2">
+		<button text="Analyze" alignment="left" tooltip="Save changes to this record" action="analyze"/>
+	</panel>
+
+	<splitpane halign="fill" divider="150" valign="fill" weightx="1" weighty="1">
+		<panel columns="1" weighty="1" weightx="0" valign="fill" halign="fill">  	 
+			<label text="Tokens created by the analyzer:" weightx="1" halign="fill"/>
+			<list name="resultsList" selection="single" weighty="1" valign="fill" weightx="1" halign="fill" action="tokenChange"/>
+		</panel>
+		<panel columns="1" gap="6" weighty="1" weightx="1" halign="fill" valign="fill">
+			<label text="Token attributes:" />
+			<table name="tokenAtts" weighty="1" weightx="1" halign="fill" valign="fill">
+			 <header>
+			   <column text="Class" width="170"/>
+         <column text="Implementation" width="130"/>
+         <column text="Value"/>
+			 </header>
+			</table>
+		</panel>
+	</splitpane>
+</panel>

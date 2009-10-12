@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog text=" Term Vector" name="vector" icon="/img/luke.gif" modal="true"
+	columns="2" top="8" left="8" bottom="8" right="8" gap="15" close="remove(vector)"
+	resizable="true">
+	<label icon="/img/info.gif" text="Term vector for the field:"/>
+	<label name="fld" font="bold"/>
+	<table colspan="2" name="vTable" halign="fill" valign="fill" weightx="1" weighty="1" width="500" height="150">
+		<header>
+			<column text="Term"/>
+			<column text="Freq." width="45"/>
+			<column text="Positions"/>
+			<column text="Offsets"/>
+		</header>
+	</table>
+	<button type="default" text=" OK " halign="center" action="remove(vector)"/>
+	<button text="Copy to Clipboard" halign="center" action="clipTV(vTable)"/>
+</dialog>

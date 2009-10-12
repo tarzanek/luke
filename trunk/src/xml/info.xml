@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog resizable="true" text=" Information" name="infoDlg" icon="/img/luke.gif" modal="true" columns="2" top="8" left="8" bottom="8" right="8" gap="15" close="remove(infoDlg)">
+	<label icon="/img/info.gif"/>
+	<textarea wrap="true" editable="false" border="false" name="msg" columns="45" rows="4"/>
+	<button type="default" text=" OK " colspan="2" halign="center" action="remove(infoDlg)"/>
+</dialog>

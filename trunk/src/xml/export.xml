@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog text=" Export Index" name="export" icon="/img/luke.gif" modal="true"
+	columns="1" top="8" left="8" bottom="8" right="8" gap="4" close="remove(export)"
+	resizable="true">
+	<panel gap="2" halign="fill" weightx="1">
+                <label text="Output file:"/>
+                <textfield name="path" text="" halign="fill" weightx="1"/>
+                <button text="Browse..." action="saveBrowse(path,startButton)"/>
+        </panel>
+        <checkbox name="ckOver" text="Overwrite if exists"/>
+        <checkbox name="ckGzip" text="Gzip compressed"/>
+        <checkbox name="ckRanges" text="Export only ranges of documents:"/>
+        <panel gap="2" columns="1" weightx="1" halign="fill" left="8" right="0" top="0" bottom="0">
+                <textfield weightx="1" halign="fill" name="ranges"/>
+                <label font="10" text="Example: 0,12,45-90,17,123,30-32"/>
+        </panel>
+        <label text=" " />
+        <label font="10" text="NOTE: Exporting a large index takes long time. Output contains only STORED fields."/>
+        <label text=" " />
+        <panel gap="2">
+                <label text="Progress:"/>
+                <label name="counter"/>
+        </panel>
+        <progressbar name="bar" halign="fill" weightx="1"/>
+        <panel gap="2">
+                <label text="Messages:"/>
+                <label name="msg"/>
+        </panel>
+        <label text=" " />
+        <separator/>
+	<panel halign="right" gap="6" right="8">
+               <button text="Start export" name="startButton" enabled="true" action="export(export)"/>
+               <button text="Abort export" name="abortButton" visible="false" action="abortExport(export)"/>
+	       <button type="default" name="closeButton" text="Close" action="remove(export)"/>
+	</panel>
+</dialog>

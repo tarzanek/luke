@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<panel name="editfield"	columns="1" gap="2" left="4" right="2">
+	<panel gap="2" weightx="1" halign="fill">
+		<label text="Boost:"/>
+		<textfield name="fBoost" columns="6"/>
+		<label text=" " weightx="1" halign="fill"/>
+		<button font="10" icon="/img/delete.gif" height="16" width="90" text="Delete Field" action="actionEditDeleteField(editfield)"/>
+	</panel>
+	<panel columns="5" halign="fill" weightx="1" gap="6">
+		<checkbox name="cbStored" text="Stored (" font="10"/>
+                <checkbox name="cbCmp" text="compressed)" font="10"/>
+		<checkbox name="cbIndexed" text="Indexed" font="10"/>
+		<checkbox name="cbTokenized" text="Tokenized" font="10"/>
+                <checkbox name="cbBin" text="Binary (hex)" font="10"/>
+		<panel colspan="3" gap="3">
+			<checkbox name="cbTVF" text="Term Vector (" font="10"/>
+			<checkbox name="cbTVFp" text="positions, " font="10"/>
+			<checkbox name="cbTVFo" text="offsets)" font="10"/>
+		</panel>
+                <checkbox name="cbONorms" text="Omit Norms" font="10"/>
+                <checkbox name="cbOTF" text="Omit TF" font="10"/>
+	</panel>
+	<label name="fType" font="bold"/>
+	<tabbedpane halign="fill" valign="fill" weightx="1" weighty="1">
+		<tab name="stored" text="Stored original">
+			<textarea name="sText" rows="7" wrap="true" weightx="1" weighty="1" halign="fill" valign="fill"/>
+		</tab>
+		<tab name="restored" text="RESTORED copy">
+			<textarea name="rText" rows="7" wrap="true" weightx="1" weighty="1" halign="fill" valign="fill"/>
+		</tab>
+	</tabbedpane>
+</panel>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dialog name="selfont" columns="1" modal="true" gap="8" top="3" bottom="3"
+	left="3" right="3" text="Display font" icon="/img/luke.gif"
+	close="remove(selfont)" init="setupSelFont(selfont)">
+	<panel columns="2" gap="4">
+		<label text="Select one of available fonts:"/>
+		<label text="Size:"/>
+		<combobox name="fonts" columns="40" editable="false" action="selectFont(selfont)"/>
+		<spinbox name="fsize" columns="3" editable="true" text="12" action="selectFont(selfont)" perform="selectFont(selfont)"/>
+	</panel>
+	<panel text="Preview" font="bold" background="#f0ffff" border="true" scrollable="true" top="4" bottom="4" left="4" right="4"
+		weightx="1" halign="fill" weighty="1" valign="fill" name="fpreview" columns="1" gap="2">
+	    <menubar weightx="1" halign="fill">
+	    	<menu text="File">
+	    	    <menuitem text="New"/>
+	    	    <menuitem text="Open"/>
+	    	    <menuitem text="Save"/>
+	    	</menu>
+	    	<menu text="Edit">
+	    		<checkboxmenuitem text="Checkbox 1"/>
+	    		<checkboxmenuitem text="Checkbox 2"/>
+	    		<separator/>
+	    		<checkboxmenuitem group="radio" text="Radio 1"/>
+	    		<checkboxmenuitem group="radio" text="Radio 2"/>
+	    	</menu>
+	    </menubar>
+	    <panel gap="2" halign="fill" weightx="1">
+	    	<label text="Label"/>
+			<textfield text="This is a textfield" halign="fill" weightx="1"/>
+		</panel>
+		<splitpane halign="fill" valign="fill" weightx="1" weighty="1">
+			<tree line="false" angle="true">
+				<node text="Root 1">
+					<node text="Branch 1">
+						<node text="Leaf"/>
+					</node>
+					<node text="Branch 2">
+						<node text="Leaf"/>
+						<node text="Leaf"/>
+					</node>
+					<node text="Leaf"/>
+				</node>
+				<node text="Root 2"/>
+			</tree>
+			<table>
+				<header>
+					<column text="Col A"/>
+					<column text="Col B"/>
+					<column text="Col C"/>
+				</header>
+				<row>
+					<cell text="Cell A1"/>
+					<cell text="Cell B1"/>
+					<cell text="Cell C1"/>
+				</row>
+				<row>
+					<cell text="Cell A2"/>
+					<cell text="Cell B2"/>
+					<cell text="Cell C2"/>
+				</row>
+				<row>
+					<cell text="Cell A3"/>
+					<cell text="Cell B3"/>
+					<cell text="Cell C3"/>
+				</row>
+				<row>
+					<cell text="Cell A4"/>
+					<cell text="Cell B4"/>
+					<cell text="Cell C4"/>
+				</row>
+			</table>
+		</splitpane>
+	</panel>
+	<separator/>
+	<panel weightx="1" halign="right" gap="8" top="3" right="3" bottom="2">
+		<button text="OK" action="actionSetFont(selfont)"/>
+		<button text="Cancel" action="remove(selfont)"/>
+	</panel>
+</dialog>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog text=" Term Positions" name="positions" icon="/img/luke.gif" modal="true"
+	columns="3" top="8" left="8" bottom="8" right="8" gap="15" close="remove(positions)"
+	resizable="true">
+	<panel columns="2" halign="fill" weightx="1" gap="2">
+		<label halign="right" text="Document #:"/>
+		<label name="docNum" font="bold"/>
+		<label halign="right" text="Term positions for term: "/>
+		<label name="term" font="bold"/>
+		<label halign="right" text="Frequency:"/>
+		<label name="freq" font="bold"/>
+	</panel>
+	<separator/>
+	<panel columns="1" halign="fill" weightx="1" gap="2">
+		<label text="Show payload as:"/>
+		<combobox name="cbPay" editable="false" columns="12" selected="0" action="_showPayloads(positions)">
+			<choice name="cbUtf" text="String UTF-8"/>
+			<choice name="cbDef" text="String default enc."/>
+			<choice name="cbHex" text="Hex dump"/>
+			<choice name="cbInt" text="Array of int"/>
+			<choice name="cbFloat" text="Array of float"/>
+		</combobox>
+	</panel>
+	<table colspan="3" name="pTable" halign="fill" valign="fill" weightx="1" weighty="1">
+		<header>
+			<column text="Pos." width="35"/>
+			<column text="Payload"/>
+		</header>
+	</table>
+	<button type="default" text=" OK " halign="center" action="remove(positions)"/>
+	<button colspan="2" text="Copy to Clipboard" halign="center" action="clipPositions(pTable)"/>
+</dialog>
