@@ -56,8 +56,15 @@ import org.apache.lucene.search.similar.MoreLikeThis;
 import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.Spans;
 import org.apache.lucene.store.*;
+import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.Version;
 import org.getopt.luke.DocReconstructor.Reconstructed;
+import org.getopt.luke.decoders.BinaryDecoder;
+import org.getopt.luke.decoders.DateDecoder;
+import org.getopt.luke.decoders.Decoder;
+import org.getopt.luke.decoders.NumDoubleDecoder;
+import org.getopt.luke.decoders.NumLongDecoder;
+import org.getopt.luke.decoders.StringDecoder;
 import org.getopt.luke.plugins.ScriptingPlugin;
 
 import thinlet.FrameLauncher;
@@ -98,6 +105,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private IndexCommit currentCommit = null;
   private Similarity similarity = null;
   private Object lastST;
+  private HashMap<String, Decoder> decoders = new HashMap<String, Decoder>();
+  private Decoder defDecoder = new StringDecoder();
   
   /** Default salmon theme. */
   public static final int THEME_DEFAULT     = 0;
@@ -614,6 +623,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     ram = getBoolean(find(dialog, "ram"), "selected");
     keepCommits = getBoolean(find(dialog, "cbKeepCommits"), "selected");
     slowAccess = getBoolean(find(dialog, "cbSlowIO"), "selected");
+    decoders.clear();
     currentCommit = null;
     Prefs.addToMruList(pName);
     syncMRU(path);
@@ -1121,6 +1131,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
         setChoice(cell, "alignment", "right");
         add(row, cell);
       }
+      cell = create("cell");
+      setChoice(cell, "alignment", "right");
+      Decoder dec = decoders.get(s);
+      if (dec == null) dec = defDecoder;
+      setString(cell, "text", dec.toString());
+      add(row, cell);
       // populate combos
       Object choice = create("choice");
       add(fCombo, choice);
@@ -1360,7 +1376,16 @@ public class Luke extends Thinlet implements ClipboardOwner {
             setString(cell, "text", " <" + tis[i].term.field() + "> ");
             add(row, cell);
             cell = create("cell");
-            setString(cell, "text", "  " + tis[i].term.text());
+            Decoder dec = decoders.get(tis[i].term.field());
+            if (dec == null) dec = defDecoder;
+            String s;
+            try {
+              s = dec.decode(ir, tis[i].term.field(), tis[i].term.text());
+            } catch (Exception e) {
+              showStatus("ERROR in field '" + tis[i].term.field() + "': " + e.getMessage());
+              s = tis[i].term.text();
+            }
+            setString(cell, "text", "  " + s);
             add(row, cell);
           }
         } catch (Exception e) {
@@ -2465,6 +2490,13 @@ public class Luke extends Thinlet implements ClipboardOwner {
         text = Util.bytesToHex(f.getBinaryValue(), f.getBinaryOffset(),
             f.getBinaryLength(), false);
       }
+      Decoder dec = decoders.get(f.name());
+      if (dec == null) dec = defDecoder;
+      try {
+        text = dec.decode(ir, f.name(), text);
+      } catch (Exception e) {
+        showStatus("ERROR in '" + f.name() + "': " + e.getMessage());
+      }
       setString(cell, "text", Util.escape(text));
     } else {
       setString(cell, "text", "<not present or not stored>");
@@ -2501,6 +2533,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
           String[] terms = tfv.getTerms();
           int[] freqs = tfv.getTermFrequencies();
           TermPositionVector tpv = null;
+          Decoder dec = decoders.get(fName);
+          if (dec == null) dec = defDecoder;
           if (tfv instanceof TermPositionVector) tpv = (TermPositionVector)tfv;
           for (int i = 0; i < terms.length; i++) {
             IntPair ip = new IntPair(freqs[i], terms[i]);
@@ -2517,7 +2551,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
             add(vTable, r);
             putProperty(r, "tf", tvs[i]);
             Object cell = create("cell");
-            setString(cell, "text", Util.escape(tvs[i].text));
+            setString(cell, "text", Util.escape(dec.decode(ir, fName, tvs[i].text)));
             add(r, cell);
             cell = create("cell");
             setString(cell, "text", String.valueOf(tvs[i].cnt));
@@ -2752,7 +2786,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
     } else if (enc.equals("cbNum")) {
       try {
-        long num = NumberTools.stringToLong(f.stringValue());
+        long num = NumericUtils.prefixCodedToLong(f.stringValue());
         value = String.valueOf(num);
         len = 1;
       } catch (Exception e) {
@@ -2934,7 +2968,15 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          String text = getString(fText, "text");
+          String text;
+          Term rawTerm = (Term)getProperty(fText, "term");
+          text = getString(fText, "text");
+          if (rawTerm != null) {
+            String s = (String)getProperty(fText, "decText");
+            if (s.equals(text)) {
+              text = rawTerm.text();
+            }
+          }
           String fld = getString(fCombo, "text");
           TermEnum te = null;
           if (text == null || text.trim().equals("")) text = "";
@@ -2963,10 +3005,22 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          String text = getString(fText, "text");
+          String text;
+          Term rawTerm = (Term)getProperty(fText, "term");
+          text = getString(fText, "text");
+          if (rawTerm != null) {
+            String s = (String)getProperty(fText, "decText");
+            if (s.equals(text)) {
+              text = rawTerm.text();
+            }
+          }
           String fld = getString(fCombo, "text");
           if (text == null || text.trim().equals("")) return;
           Term t = new Term(fld, text);
+          if (ir.docFreq(t) == 0) { // missing term
+            TermEnum te = ir.terms(t);
+            t = te.term();
+          }
           _showTerm(fCombo, fText, t);
         } catch (Exception e) {
           e.printStackTrace();
@@ -2997,8 +3051,20 @@ public class Luke extends Thinlet implements ClipboardOwner {
         break;
       }
     }
+    Decoder dec = decoders.get(t.field());
+    if (dec == null) dec = defDecoder;
+    String s = null;
+    try {
+      s = dec.decode(ir, t.field(), t.text());
+    } catch (Exception e) {
+      showStatus("ERROR: " + e.getMessage());
+      s = t.text();
+    }
     setString(fText, "text", t.text());
+    Object rawText = find("decText");
+    setString(rawText, "text", s);
     putProperty(fText, "term", t);
+    putProperty(fText, "decText", s);
     putProperty(fText, "td", null);
     setString(find("tdNum"), "text", "?");
     setString(find("tFreq"), "text", "?");
@@ -3876,11 +3942,20 @@ public class Luke extends Thinlet implements ClipboardOwner {
     StringBuffer vals = new StringBuffer();
     for (int j = 0; j < idxFields.length; j++) {
       cell = create("cell");
+      Decoder dec = decoders.get(idxFields[j]);
+      if (dec == null) dec = defDecoder;
       String[] values = doc.getValues(idxFields[j]);
       vals.setLength(0);
       if (values != null) for (int k = 0; k < values.length; k++) {
         if (k > 0) vals.append(' ');
-        vals.append(Util.escape(values[k]));
+        String v;
+        try {
+          v = dec.decode(ir, idxFields[j], values[k]);
+        } catch (Exception e) {
+          showStatus("ERROR in field '" + idxFields[j] + "' docid=" + docId + ": " + e.getMessage());
+          v = values[k];
+        }
+        vals.append(Util.escape(v));
       }
       setString(cell, "text", vals.toString());
       add(row, cell);
@@ -4205,6 +4280,31 @@ public class Luke extends Thinlet implements ClipboardOwner {
     setFont(f);
     courier = new Font("Courier", getFont().getStyle(), getFont().getSize());
     repaint();
+  }
+  
+  public void actionSetDecoder(Object fList, Object combo) {
+    Object row = getSelectedItem(fList);
+    String fName = (String)getProperty(row, "fName");
+    Object choice = getSelectedItem(combo);
+    String decName = getString(choice, "name");
+    Decoder dec = null;
+    if (decName.equals("s")) {
+      dec = new StringDecoder();
+    } else if (decName.equals("b")) {
+      dec = new BinaryDecoder();
+    } else if (decName.equals("d")) {
+      dec = new DateDecoder();
+    } else if (decName.equals("nl")) {
+      dec = new NumLongDecoder();
+    } else if (decName.equals("nd")) {
+      dec = new NumDoubleDecoder();
+    } else {
+      dec = defDecoder;
+    }
+    decoders.put(fName, dec);
+    Object cell = getItem(row, 3);
+    setString(cell, "text", dec.toString());
+    repaint(fList);
   }
   
   /**

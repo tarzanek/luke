@@ -59,15 +59,27 @@
 				<separator/>
 				<label halign="fill" text="Select fields from the list below, and press button to view top terms in these fields. No selection means all fields."/>
 				<splitpane weightx="1" weighty="1" halign="fill" valign="fill">
-				  <panel columns="1" gap="2" valign="fill" weighty="1">
-						<label text="Available fields and term counts per field:"/>
+				  <panel columns="1" gap="2" valign="fill" halign="fill" weighty="1" weightx="1">
+            <label text="Available fields and term counts per field:" halign="fill" weightx="1"/>
 						<table name="fList" selection="multiple" weighty="1" valign="fill" weightx="1" halign="fill">
 						  <header>
 						          <column text="Name" sort="ascent"/>
 						          <column text="Term count" alignment="center"/>
 						          <column text=" % " alignment="center"/>
+						          <column text=" Decoder" alignment="center"/>
 						  </header>
 						</table>
+            <panel gap="2" weightx="1" halign="right">
+              <label font="10" text="Select a field and set its value decoder: "/>
+              <combobox name="cbDec" font="10" editable="false" selected="0">
+                <choice font="10" name="s" text="string utf8"/>
+                <choice font="10" name="d" text="date"/>
+                <choice font="10" name="nl" text="numeric-long"/>
+                <choice font="10" name="nd" text="numeric-double"/>
+                <choice font="10" name="b" text="binary"/>
+              </combobox>
+              <button text="Set" action="actionSetDecoder(fList, cbDec)"/>
+            </panel>
 				  </panel>
 				  <panel columns="2" gap="6" valign="fill" weighty="1" halign="fill" weightx="1">
 					<panel columns="1" gap="4" valign="fill" top="35">
@@ -140,6 +152,9 @@
 						<panel gap="2" halign="fill" weightx="1" bottom="3">
 							<label text="Doc freq of this term:"/>
 							<label name="dFreq" text="?"/>
+							<separator/>
+							<label text="Decoded value:"/>
+							<textfield name="decText" halign="fill" weightx="1" editable="false"/>
 						</panel>
 						<separator/>
 						<panel text="Browse documents with this term" columns="1" gap="4" halign="right" weightx="1">
