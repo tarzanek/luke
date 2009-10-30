@@ -77,6 +77,8 @@
                 <choice font="10" name="nl" text="numeric-long"/>
                 <choice font="10" name="nd" text="numeric-double"/>
                 <choice font="10" name="b" text="binary"/>
+                <choice font="10" name="od" text="(old DateField)"/>
+                <choice font="10" name="on" text="(old NumberTools)"/>
               </combobox>
               <button text="Set" action="actionSetDecoder(fList, cbDec)"/>
             </panel>
@@ -111,7 +113,7 @@
 			</panel>
 		</tab>
 		<tab name="docsTab" text="Documents" icon="/img/docs.gif">
-			<panel gap="4" weightx="1" halign="fill" weighty="1" valign="fill" columns="1" top="4" bottom="2" left="2" right="2">
+			<panel gap="6" weightx="1" halign="fill" weighty="1" valign="fill" columns="1" top="4" bottom="2" left="2" right="2">
 				<panel halign="fill" columns="3" weightx="1" gap="4">
 					<panel columns="1" halign="fill" weightx="1" gap="3">
 						<label font="bold" text="Browse by document number:"/>
@@ -142,40 +144,44 @@
 					<panel halign="fill" columns="1" weightx="1" gap="2">
 						<label font="bold" text="Browse by term:"/>
 						<label  font="10" text="(Hint: enter a substring and press Next to start at the nearest term)."/>
-						<panel gap="4" halign="fill" weightx="1">
+						<panel gap="4" columns="5" halign="fill" weightx="1">
 							<button text="First Term" action="showFirstTerm(fCombo,fText)"/>
 							<label text="Term:"/>
 							<combobox name="fCombo" columns="12" editable="false" selected="0"/>
 							<textfield name="fText" columns="20" halign="fill" weightx="1" perform="showTerm(fCombo, fText)"/>
 							<button icon="/img/next.png" text="Next Term" action="showNextTerm(fCombo,fText)"/>
-						</panel>
-						<panel gap="2" halign="fill" weightx="1" bottom="3">
-							<label text="Doc freq of this term:"/>
-							<label name="dFreq" text="?"/>
-							<separator/>
-							<label text="Decoded value:"/>
-							<textfield name="decText" halign="fill" weightx="1" editable="false"/>
+							<!-- second row -->
+							<label colspan="3" halign="right" text="Decoded value:"/>
+              <textfield colspan="2" name="decText" halign="fill" border="false" weightx="1" editable="false"/>
 						</panel>
 						<separator/>
-						<panel text="Browse documents with this term" columns="1" gap="4" halign="right" weightx="1">
-							<panel gap="4">
-								<button text="First Doc" action="showFirstTermDoc(fText)"/>
-								<button icon="/img/next.png" text="Next Doc" action="showNextTermDoc(fText)"/>
-								<button text="Show All Docs" tooltip="Show all docs with this term" action="showAllTermDoc(fText)"/>
-								<button text="Delete All Docs" icon="/img/delete.gif" tooltip="Delete all docs with this term (NO WARNING!)" action="deleteTermDoc(fText)"/>
-							</panel>
-							<panel gap="3" halign="fill" weightx="1">
-								<label text="Document:" halign="right"/>
-								<label name="tdNum" text="?"/>
-								<label text=" of "/>
-								<label name="tdMax" text="?"/>
-								<label text="  "/>
-								<separator/>
-								<label text=" Term freq in this doc:" halign="right"/>
-								<label name="tFreq" text="?"/>
-								<label text="  " halign="fill" weightx="1"/>
-								<button name="bPos" text="Show Positions" action="showPositions(fText)"/>
-							</panel>
+						<panel halign="fill" weightx="1" gap="4" columns="2">
+						  <panel gap="2">
+                <label font="bold" text="Browse documents with this term  "/>
+                <label text="( "/>
+                <label name="dFreq" text="0"/>         
+                <label halign="left" text=" documents)"/>
+  					  </panel>
+  					  <panel columns="1" rowspan="2">
+                <button text="Show All Docs" tooltip="Show all docs with this term" action="showAllTermDoc(fText)"/>
+                <button text="Delete All Docs" icon="/img/delete.gif" tooltip="Delete all docs with this term (NO WARNING!)" action="deleteTermDoc(fText)"/>
+  					  </panel>
+              <panel columns="3" gap="4" halign="center" weightx="1">
+                <panel gap="2" halign="right" valign="center">
+                  <label text="Document:" halign="right"/>
+                  <label name="tdNum" text="?"/>
+                  <label text=" of "/>
+                  <label name="tdMax" text="?"/>
+                </panel>
+                <button text="First Doc" action="showFirstTermDoc(fText)"/>
+                <button icon="/img/next.png" text="Next Doc" action="showNextTermDoc(fText)"/>
+                <label colspan="3" font="10" text=" "/>
+                <label text=" Term freq in this doc:" halign="right"/>
+                <panel gap="6" colspan="2" halign="left">
+                  <label name="tFreq" text="?"/>
+                  <button halign="left" name="bPos" text="Show Positions" action="showPositions(fText)"/>
+                </panel>
+              </panel>
 						</panel>
 					</panel>
 				</panel>
@@ -267,32 +273,32 @@
                                                 </panel>
   					      </tab>
   					      <tab text="QueryParser">
-						  <panel weighty="1" weightx="1" valign="fill" halign="fill"
-						   columns="2" gap="4" top="2" bottom="2" left="2" right="2">
+						        <panel weighty="1" weightx="1" valign="fill" halign="fill"
+						                  columns="2" gap="4" top="2" bottom="2" left="2" right="2">
 						          <label font="bold" text="Additional QueryParser settings:"/>
         						  <checkbox colspan="2" action="showParsed" name="ckWild" text="Allow leading * in wildcard queries"/>
-                                                          <checkbox colspan="2" action="showParsed" name="ckPosIncr" text="Enable positionIncrements"/>
-                                                          <checkbox colspan="2" action="showParsed" name="ckLoExp" text="Lowercase expanded terms in wildcard / prefix queries"/>
-                                                          <label colspan="2" text=" "/>
-	               					  <label text="Set Date resolution:"/>
-			             			  <combobox editable="false" name="cbDateRes" text="millisecond" selected="0"
+                      <checkbox colspan="2" action="showParsed" name="ckPosIncr" text="Enable positionIncrements"/>
+                      <checkbox colspan="2" action="showParsed" name="ckLoExp" text="Lowercase expanded terms in wildcard / prefix queries"/>
+                      <label colspan="2" text=" "/>
+	               			<label text="Set Date resolution:"/>
+			             		<combobox editable="false" name="cbDateRes" text="millisecond" selected="0"
 			             			     perform="showParsed">
-					           	       <choice text="millisecond"/>
-                                                               <choice text="second"/>
-                                                               <choice text="minute"/>
-                                                               <choice text="hour"/>
-                                                               <choice text="day"/>
-                                                               <choice text="month"/>
-                                                               <choice text="year"/>
+					           	  <choice text="millisecond"/>
+                        <choice text="second"/>
+                        <choice text="minute"/>
+                        <choice text="hour"/>
+                        <choice text="day"/>
+                        <choice text="month"/>
+                        <choice text="year"/>
 						          </combobox>
 						          <label text="Default query operator:"/>
 						          <combobox editable="false" perform="showParsed" name="cbOp" text="OR" selected="0">
-                                                               <choice text="OR"/>
-                                                               <choice text="AND"/>
+                        <choice text="OR"/>
+                        <choice text="AND"/>
 						          </combobox>
-                                                          <label text="BooleanQuery maxClauseCount:"/>
-                                                          <spinbox name="bqMaxCount" columns="6" text="1024"/> 
-					            </panel>
+                      <label text="BooleanQuery maxClauseCount:"/>
+                      <spinbox name="bqMaxCount" columns="6" text="1024"/> 
+					          </panel>
 					      </tab>
 					      <tab text="Similarity">
 						<panel columns="2" gap="4" halign="fill" weightx="1" weighty="1" valign="fill" top="2" left="2" right="2" bottom="2">

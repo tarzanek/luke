@@ -2032,12 +2032,15 @@ public class Thinlet extends Container implements Runnable, Serializable {
     private void paintField(Graphics g, int clipx, int clipy, int clipwidth, int clipheight, Object component,
             int width, int height, boolean focus, boolean enabled, boolean hidden, int left) {
         boolean editable = getBoolean(component, "editable", true);
-        paintRect(g, 0, 0, width, height, enabled ? c_border : c_disable, editable ? c_textbg : c_bg, true, true, true,
+        boolean border = getBoolean(component, "border", true);
+        Color borderColor = border ? (enabled ? c_border : c_disable) : c_bg;
+        paintRect(g, 0, 0, width, height, borderColor, editable ? c_textbg : c_bg, true, true, true,
                 true, true);
         g.clipRect(1 + left, 1, width - left - 2, height - 2);
 
         String text = getString(component, "text", "");
         int offset = getInteger(component, ":offset", 0);
+        Color c = getColor(component, "foreground");
         Font currentfont = (Font) get(component, "font");
         if (currentfont != null) {
             g.setFont(currentfont);
@@ -2086,6 +2089,9 @@ public class Thinlet extends Container implements Runnable, Serializable {
             // and fatter cursor
         }
         g.setColor(enabled ? c_text : c_disable);
+        if (c != null) {
+          g.setColor(c);
+        }
 
         if (hidden) {
             int fh = fm.charWidth('*');
@@ -2412,9 +2418,9 @@ public class Thinlet extends Container implements Runnable, Serializable {
                         if (clipx < x + iwidth) {
                             boolean cellenabled = enabled && getBoolean(cell, "enabled", true);
                             paint(cell, r.x + x, r.y, iwidth, r.height - 1, g, clipx, clipy, clipwidth, clipheight,
-                                    false, false, false, false, 1, 1, 1, 1, false, cellenabled ? 'e' : 'd', "left",
+                                    false, false, false, false, 1, 4, 1, 4, false, cellenabled ? 'e' : 'd', "left",
                                     false, false);
-                            g.setColor(c_bg);
+                            g.setColor(c_border);
                             g.drawLine(r.x + x + iwidth, r.y, r.x + x + iwidth, r.y + r.height);
                         }
                         i++;
@@ -7135,6 +7141,7 @@ public class Thinlet extends Container implements Runnable, Serializable {
                         { "integer", "columns", "validate", integer0 },
                         { "choice", "alignment", "validate", leftcenterright },
                         { "boolean", "editable", "paint", Boolean.TRUE },
+                        { "boolean", "border", "validate", Boolean.TRUE },
                         { "integer", "start", "layout", integer0 },
                         { "integer", "end", "layout", integer0 },
                         { "method", "action" },
