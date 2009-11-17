@@ -66,7 +66,28 @@ public class AnalyzerToolPlugin extends LukePlugin {
     }
     app.setInteger(combobox, "selected", 0);
     app.setString(combobox, "text", firstClass);
+    Object api = app.find(myUi, "api");
+    if (TokenStream.getOnlyUseNewAPI()) {
+      app.setString(api, "text", "ONLY NEW");
+    } else {
+      app.setString(api, "text", "old");
+    }
     return true;
+  }
+  
+  public void apiSwitch() {
+    if (TokenStream.getOnlyUseNewAPI()) {
+      TokenStream.setOnlyUseNewAPI(false);
+    } else {
+      TokenStream.setOnlyUseNewAPI(true);
+    }
+    Object api = app.find(myUi, "api");
+    if (TokenStream.getOnlyUseNewAPI()) {
+      app.setString(api, "text", "ONLY NEW");
+    } else {
+      app.setString(api, "text", "old");
+    }
+    analyze();
   }
 
   public void analyze() {
@@ -98,9 +119,12 @@ public class AnalyzerToolPlugin extends LukePlugin {
     } catch (Throwable t) {
       app.showStatus("Error analyzing:" + t.getMessage());
     }
+    tokenChange();
   }
 
   public void tokenChange() {
+    Object table = app.find(myUi, "tokenAtts");
+    app.removeAll(table);
     Object list = app.find("resultsList");
     Object row = app.getSelectedItem(list);
     if (row == null) {
@@ -110,8 +134,6 @@ public class AnalyzerToolPlugin extends LukePlugin {
     if (as == null) {
       return;
     }
-    Object table = app.find(myUi, "tokenAtts");
-    app.removeAll(table);
     Iterator it = as.getAttributeClassesIterator();
     while (it.hasNext()) {
       Class cl = (Class)it.next();

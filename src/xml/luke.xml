@@ -84,12 +84,13 @@
             </panel>
 				  </panel>
 				  <panel columns="2" gap="6" valign="fill" weighty="1" halign="fill" weightx="1">
-					<panel columns="1" gap="4" valign="fill" top="35">
+					<panel columns="1" gap="8" valign="fill" weighty="1" top="35">
 						<button text="Show top terms &gt;&gt;" action="actionTopTerms(nTerms)"/>
 						<label text="Number of top terms:"/>
 						<spinbox columns="5" name="nTerms" halign="center" text="50" value="50" minimum="0" maximum="999999"/>
 						<panel valign="fill" weighty="1"/>
 						<textarea halign="fill" border="false" wrap="true" font="10" text="Hint: use Shift-Click to select ranges, or Ctrl-Click to select multiple fields (or unselect all)."/>
+            <textarea halign="fill" border="false" wrap="true" font="10" text="Tokens marked in red indicate decoding errors, likely due to a mismatched decoder."/>
 					</panel>
 					<panel columns="1" gap="2" valign="fill" weighty="1" halign="fill" weightx="1">
 						<label text="Top ranking terms. (Right-click for more options)"/>

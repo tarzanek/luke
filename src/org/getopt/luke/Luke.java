@@ -4308,6 +4308,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   public void actionSetDecoder(Object fList, Object combo) {
     Object row = getSelectedItem(fList);
+    if (row == null) {
+      return;
+    }
     String fName = (String)getProperty(row, "fName");
     Object choice = getSelectedItem(combo);
     String decName = getString(choice, "name");
@@ -4439,7 +4442,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 0.9.9 (2009-09-30)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 0.9.9.1 (2009-11-20)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

@@ -8,14 +8,21 @@
 	<panel columns="2">
 		<button text="Analyze" alignment="left" tooltip="Save changes to this record" action="analyze"/>
 	</panel>
-
 	<splitpane halign="fill" divider="150" valign="fill" weightx="1" weighty="1">
-		<panel columns="1" weighty="1" weightx="0" valign="fill" halign="fill">  	 
+		<panel columns="1" weighty="1" weightx="1" valign="fill" halign="fill">  	 
 			<label text="Tokens created by the analyzer:" weightx="1" halign="fill"/>
 			<list name="resultsList" selection="single" weighty="1" valign="fill" weightx="1" halign="fill" action="tokenChange"/>
 		</panel>
 		<panel columns="1" gap="6" weighty="1" weightx="1" halign="fill" valign="fill">
-			<label text="Token attributes:" />
+      <panel weightx="1" halign="fill" gap="3">
+        <label text="Token attributes:" />
+        <label text=" " halign="fill" weightx="1"/>
+        <separator/>
+        <label text="Currently using"/>
+        <label font="bold" name="api" text="NEW"/>
+        <label text="API "/>
+        <button text="Switch" font="10" action="apiSwitch"/>
+      </panel>
 			<table name="tokenAtts" weighty="1" weightx="1" halign="fill" valign="fill">
 			 <header>
 			   <column text="Class" width="170"/>
