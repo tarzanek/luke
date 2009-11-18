@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <panel name="hadoop" columns="1" gap="6" halign="fill" valign="fill" weightx="1"
 	 weighty="1">
-	<textarea wrap="true" rows="3" border="false" text="Open index located on any file system supported by Hadoop (0.19.2). This plugin also opens partial indexes (part-NNNNN) usually created in map-reduce jobs."/>
+	<textarea wrap="true" rows="3" border="false" text="Open index located on any file system supported by Hadoop (0.20.1). This plugin also opens partial indexes (part-NNNNN) usually created in map-reduce jobs."/>
   <label font="10" foreground="#ff0000" text="NOTE: index access through this plugin is always read-only!"/>
 	<label text="Index URI path (supported schemas: file, hdfs, kfs, s3, s3n):" />
 	<panel columns="2" gap="2" weightx="1" halign="fill">
