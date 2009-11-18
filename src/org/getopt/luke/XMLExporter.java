@@ -245,6 +245,10 @@ public class XMLExporter extends Observable {
         for (Object p : ic.getFileNames()) {
           bw.write("   <file name='" + p.toString() + "'/>\n");
         }
+        Map userData = ic.getUserData();
+        if (userData != null && userData.size() > 0) {
+          bw.write("   <userData size='" + userData.size() + "'>" + userData.toString() + "</userData>\n");
+        }
         bw.write("  </commit>\n");
       }
       bw.write(" </commits>\n");

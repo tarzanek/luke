@@ -6,12 +6,13 @@ public class BinaryDecoder implements Decoder {
 
   @Override
   public String decode(String fieldName, Object value) throws Exception {
+    byte[] data;
     if (value instanceof byte[]) {
-      byte[] data = (byte[])value;
-      return Util.bytesToHex(data, 0, data.length, false);
+      data = (byte[])value;
     } else {
-      return value.toString();
+      data = value.toString().getBytes();
     }
+    return Util.bytesToHex(data, 0, data.length, false);
   }
   
   public String toString() {

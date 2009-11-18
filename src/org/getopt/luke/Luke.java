@@ -30,6 +30,7 @@ import java.lang.reflect.Method;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.zip.GZIPOutputStream;
 
 import javax.swing.JFileChooser;
@@ -678,8 +679,67 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_READONLY);
       return;
     }
+    if (!IndexGate.hasChanges(ir)) {
+      showStatus("No changes - commit ignored.");
+      return;
+    }
+    Object dialog = addComponent(this, "/xml/commit.xml", null, null);
+    Map userData = ir.getCommitUserData();
+    TreeMap ud = new TreeMap(userData);
+    putProperty(dialog, "userData", ud);
+    _showUserData(dialog);
+  }
+  
+  private void _showUserData(Object dialog) {
+    Object table = find(dialog, "data");
+    removeAll(table);
+    Map<Object,Object> ud = (Map)getProperty(dialog, "userData");
+    for (Entry e : ud.entrySet()) {
+      Object row = create("row");
+      putProperty(row, "key", e.getKey());
+      add(table, row);
+      Object cell = create("cell");
+      setString(cell, "text", e.getKey().toString());
+      add(row, cell);
+      cell = create("cell");
+      setString(cell, "text", e.getValue().toString());
+      add(row, cell);
+    }
+  }
+  
+  public void putUserData(Object dialog) {
+    Object key = find(dialog, "key");
+    Object value = find(dialog, "value");
+    String k = getString(key, "text");
+    String v = getString(value, "text");
+    if (k.equals("")) {
+      showStatus("Cannot add empty key.");
+      return;
+    }    
+    Map<Object,Object> ud = (Map)getProperty(dialog, "userData");
+    ud.put(k, v);
+    _showUserData(dialog);
+  }
+  
+  public void deleteUserData(Object dialog) {
+    Object table = find(dialog, "data");
+    Map ud = (Map)getProperty(dialog, "userData");
+    Object[] rows = getSelectedItems(table);
+    if (rows == null || rows.length == 0) {
+      return;
+    }
+    for (Object row : rows) {
+      Object key = getProperty(row, "key");
+      ud.remove(key);
+    }
+    _showUserData(dialog);
+  }
+  
+  public void commitUserData(Object dialog) {
+    Map userData = (Map)getProperty(dialog, "userData");
+    remove(dialog);
     try {
-      ir.flush();
+      ir.flush(userData);
       initOverview();
       showFiles(dir, Collections.EMPTY_LIST);
     } catch (Exception e) {
@@ -1073,10 +1133,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
         if (userDataMap != null && !userDataMap.isEmpty()) {
           userData = ir.getCommitUserData().toString();
         } else {
-          userData = "N/A";
+          userData = "--";
         }
       } catch (UnsupportedOperationException uoe) {
-        userData = "N/A";
+        userData = "(not supported)";
       }
       setString(iUser, "text", userData);
       final Object nTerms = find("nTerms");
@@ -1185,7 +1245,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       return;
     }
     Collection commits = IndexReader.listCommits(dir);
-    // commits are ordered from oldest to newest
+    // commits are ordered from oldest to newest ?
     Iterator it = commits.iterator();
     int rowNum = 0;
     while (it.hasNext()) {
@@ -1218,6 +1278,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
       add(row, cell);
       cell = create("cell");
       setString(cell, "text", new Date(commit.getTimestamp()).toString());
+      add(row, cell);
+      cell = create("cell");
+      Map userData = commit.getUserData();
+      if (userData != null && !userData.isEmpty()) {
+        setString(cell, "text", userData.toString());
+      } else {
+        setString(cell, "text", "--");
+      }
       add(row, cell);
     }
   }

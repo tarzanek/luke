@@ -198,7 +198,7 @@ public class IndexGate {
     public String capabilities = "N/A";
   }
   
-  public boolean hasChanges(IndexReader ir) {
+  public static boolean hasChanges(IndexReader ir) {
     if (ir == null) {
       return false;
     }

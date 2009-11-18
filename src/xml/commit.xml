@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<dialog resizable="true" text=" Commit user data" name="commit" icon="/img/luke.gif" modal="true" columns="1" top="8" left="8" bottom="8" right="8" gap="4" close="remove(commit)">
+  <panel halign="fill" weightx="1">
+    <label text="Current commit data:" halign="fill" weightx="1"/>
+    <label font="10" text="Selected keys:"/>
+    <button font="10" text="Delete" action="deleteUserData(commit)"/>
+  </panel>
+  <table name="data" halign="fill" valign="fill" weightx="1" weighty="1">
+    <header>
+      <column text="  Key  " width="150"/>
+      <column text="  Value" width="200"/>
+    </header>
+  </table>
+  <label text="Put new key/value or change existing:"/>
+  <panel halign="fill" weightx="1" gap="4">
+    <label text="Key:"/>
+    <textfield name="key" weightx="1" halign="fill" columns="20"/>
+    <label text="Value:"/>
+    <textfield name="value" weightx="1" halign="fill" columns="30"/>
+    <button text="Put" action="putUserData(commit)"/>
+  </panel>
+  <label text=" "/>
+  <separator/>
+  <panel halign="right" weightx="1" gap="8">
+    <button text=" Commit " action="commitUserData(commit)"/>
+    <button type="default" text=" Cancel " halign="center" action="remove(commit)"/>
+  </panel>
+</dialog>
