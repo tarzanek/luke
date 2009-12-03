@@ -21,6 +21,7 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.Searcher;
 import org.apache.lucene.search.Similarity;
+import org.apache.lucene.search.Explanation.IDFExplanation;
 import org.getopt.luke.LukePlugin;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
@@ -274,6 +275,7 @@ class CustomSimilarity extends DefaultSimilarity {
   }
   
   // A
+  @Override
   public float coord(int arg0, int arg1) {
     Object[] args = new Object[]{new Integer(arg0), new Integer(arg1)};
     Object res = abstractMethods[M_A_COORD].call(cx, scope, scope, args);
@@ -286,47 +288,23 @@ class CustomSimilarity extends DefaultSimilarity {
     return f;
   }
   
-  public float idf(Collection arg0, Searcher arg1) throws IOException {
+  @Override
+  public IDFExplanation idfExplain(Collection<Term> terms, Searcher searcher) throws IOException {
     Function func = otherMethods[M_IDF_CS];
-    if (func == null) return super.idf(arg0, arg1);
-    Object[] args = new Object[]{arg0, arg1};
+    if (func == null) return super.idfExplain(terms, searcher);
+    Object[] args = new Object[]{terms, searcher};
     Object res = func.call(cx, scope, scope, args);
-    float f = 0.0f;
-    try {
-      f = Float.parseFloat(res.toString());
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return f;
+    return (IDFExplanation)res;
   }
   
-  // A
-  public float idf(int arg0, int arg1) {
-    Object[] args = new Object[]{new Integer(arg0), new Integer(arg1)};
+  @Override
+  public IDFExplanation idfExplain(Term term, Searcher searcher)
+          throws IOException {
+    Object[] args = new Object[]{term, searcher};
     Object res = abstractMethods[M_A_IDF].call(cx, scope, scope, args);
-    float f = 0.0f;
-    try {
-      f = Float.parseFloat(res.toString());
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return f;
+    return (IDFExplanation)res;
   }
 
-  public float idf(Term arg0, Searcher arg1) throws IOException {
-    Function func = otherMethods[M_IDF_TS];
-    if (func == null) return super.idf(arg0, arg1);
-    Object[] args = new Object[]{arg0, arg1};
-    Object res = func.call(cx, scope, scope, args);
-    float f = 0.0f;
-    try {
-      f = Float.parseFloat(res.toString());
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return f;
-  }
-  
   // A
   public float lengthNorm(String arg0, int arg1) {
     Object[] args = new Object[]{arg0, new Integer(arg1)};

@@ -107,7 +107,7 @@ public class FsDirectory extends Directory {
     }
   }
 
-  public String[] list() throws IOException {
+  public String[] listAll() throws IOException {
     FileStatus[] fstats = fs.listStatus(directory);
     Path[] files = FileUtil.stat2Paths(fstats);
     if (files == null) return null;

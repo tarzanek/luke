@@ -67,29 +67,9 @@ public class AnalyzerToolPlugin extends LukePlugin {
     app.setInteger(combobox, "selected", 0);
     app.setString(combobox, "text", firstClass);
     Object api = app.find(myUi, "api");
-    if (TokenStream.getOnlyUseNewAPI()) {
-      app.setString(api, "text", "ONLY NEW");
-    } else {
-      app.setString(api, "text", "old");
-    }
     return true;
   }
   
-  public void apiSwitch() {
-    if (TokenStream.getOnlyUseNewAPI()) {
-      TokenStream.setOnlyUseNewAPI(false);
-    } else {
-      TokenStream.setOnlyUseNewAPI(true);
-    }
-    Object api = app.find(myUi, "api");
-    if (TokenStream.getOnlyUseNewAPI()) {
-      app.setString(api, "text", "ONLY NEW");
-    } else {
-      app.setString(api, "text", "old");
-    }
-    analyze();
-  }
-
   public void analyze() {
     try {
       Object combobox = app.find(myUi, "analyzers");

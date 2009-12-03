@@ -7,8 +7,7 @@
 		<button font="10" icon="/img/delete.gif" height="16" width="90" text="Delete Field" action="actionEditDeleteField(editfield)"/>
 	</panel>
 	<panel columns="5" halign="fill" weightx="1" gap="6">
-		<checkbox name="cbStored" text="Stored (" font="10"/>
-                <checkbox name="cbCmp" text="compressed)" font="10"/>
+		<checkbox colspan="2" name="cbStored" text="Stored" font="10"/>
 		<checkbox name="cbIndexed" text="Indexed" font="10"/>
 		<checkbox name="cbTokenized" text="Tokenized" font="10"/>
                 <checkbox name="cbBin" text="Binary (hex)" font="10"/>

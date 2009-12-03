@@ -61,6 +61,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermEnum;
 
+import java.io.File;
 import java.util.Hashtable;
 
 /**
@@ -73,7 +74,7 @@ public class HighFreqTerms {
     public static int defaultNumTerms = 100;
     
     public static void main(String[] args) throws Exception {
-        Directory dir = FSDirectory.getDirectory(args[0]);
+        Directory dir = FSDirectory.open(new File(args[0]));
         TermInfo[] terms = getHighFreqTerms(IndexReader.open(dir), null, new String[]{"body"});
         for (int i = 0; i < terms.length; i++) {
             System.out.println(i + ".\t" + terms[i].term);
@@ -104,7 +105,7 @@ public class HighFreqTerms {
             }
             if (junkWords != null && junkWords.get(terms.term().text()) != null) continue;
             if (terms.docFreq() > minFreq) {
-                tiq.put(new TermInfo(terms.term(), terms.docFreq()));
+                tiq.insertWithOverflow(new TermInfo(terms.term(), terms.docFreq()));
                 if (tiq.size() >= numTerms) 		     // if tiq overfull
                 {
                     tiq.pop();				     // remove lowest in tiq
@@ -120,13 +121,12 @@ public class HighFreqTerms {
     }
 }
 
-final class TermInfoQueue extends PriorityQueue {
+final class TermInfoQueue extends PriorityQueue<TermInfo> {
     TermInfoQueue(int size) {
         initialize(size);
     }
-    protected final boolean lessThan(Object a, Object b) {
-        TermInfo termInfoA = (TermInfo)a;
+    protected final boolean lessThan(TermInfo a, TermInfo b) {
         TermInfo termInfoB = (TermInfo)b;
-        return termInfoA.docFreq < termInfoB.docFreq;
+        return a.docFreq < b.docFreq;
     }
 }

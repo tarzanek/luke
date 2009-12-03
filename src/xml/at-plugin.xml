@@ -17,11 +17,6 @@
       <panel weightx="1" halign="fill" gap="3">
         <label text="Token attributes:" />
         <label text=" " halign="fill" weightx="1"/>
-        <separator/>
-        <label text="Currently using"/>
-        <label font="bold" name="api" text="NEW"/>
-        <label text="API "/>
-        <button text="Switch" font="10" action="apiSwitch"/>
       </panel>
 			<table name="tokenAtts" weighty="1" weightx="1" halign="fill" valign="fill">
 			 <header>

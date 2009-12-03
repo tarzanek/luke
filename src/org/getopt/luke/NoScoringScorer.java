@@ -13,8 +13,22 @@ public class NoScoringScorer extends Scorer {
 
   @Override
   public float score() throws IOException {
-    // TODO Auto-generated method stub
     return 1.0f;
+  }
+
+  @Override
+  public int advance(int doc) throws IOException {
+    return 0;
+  }
+
+  @Override
+  public int docID() {
+    return 0;
+  }
+
+  @Override
+  public int nextDoc() throws IOException {
+    return 0;
   }
 
 }

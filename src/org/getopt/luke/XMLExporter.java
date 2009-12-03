@@ -10,6 +10,7 @@ import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
 
 public class XMLExporter extends Observable {
   private IndexReader reader;
@@ -227,8 +228,8 @@ public class XMLExporter extends Observable {
     bw.write(" <directoryImpl>" + indexInfo.getDirImpl() + "</directoryImpl>\n");
     Directory dir = indexInfo.getDirectory();
     if (dir != null) {
-      bw.write(" <files count='" + dir.list().length + "'>\n");
-      String[] files = dir.list();
+      bw.write(" <files count='" + dir.listAll().length + "'>\n");
+      String[] files = dir.listAll();
       Arrays.sort(files);
       for (String file : files) {
         bw.write("  <file name='" + file +
@@ -280,7 +281,8 @@ public class XMLExporter extends Observable {
       System.err.println("\t\tExample: 0-5,15,32-100,101,103,105-500");
       System.exit(-1);
     }
-    if (!IndexReader.indexExists(args[0])) {
+    Directory dir = FSDirectory.open(new File(args[0]));
+    if (!IndexReader.indexExists(dir)) {
       throw new Exception("There is no valid Lucene index here: '" + args[0] + "'");
     }
     File out = null;
@@ -304,7 +306,7 @@ public class XMLExporter extends Observable {
         throw new Exception("Unknown argument: '" + args[i] + "'");
       }
     }
-    IndexReader reader = IndexReader.open(args[0]);
+    IndexReader reader = IndexReader.open(dir);
     XMLExporter exporter = new XMLExporter(reader, args[0]);
     OutputStream os;
     if (out == null) {

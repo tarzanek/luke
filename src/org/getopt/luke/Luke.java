@@ -911,26 +911,20 @@ public class Luke extends Thinlet implements ClipboardOwner {
       throw new Exception("Index directory doesn't exist.");
     }
     FSDirectory res = null;
-    java.lang.reflect.Field impl = FSDirectory.class.getDeclaredField("IMPL");
-    impl.setAccessible(true);
-    if (defaultDirImpl == null) {
-      defaultDirImpl = (Class)impl.get(null);
+    if (dirImpl == null || dirImpl.equals(FSDirectory.class.getName())) {
+      return FSDirectory.open(f);
     }
-    if (dirImpl != null) {
-      try {
-        Class implClass = Class.forName(dirImpl);
-        impl.set(null, implClass);
-      } catch (Exception e) {
-        errorMsg("Invalid directory implementation class: " + dirImpl);
-        return null;
-      }
-      res = FSDirectory.getDirectory(file);
-      if (res != null) return res;
-    } else {
-      impl.set(null, defaultDirImpl);
+    try {
+      Class implClass = Class.forName(dirImpl);
+      Constructor<FSDirectory> constr = implClass.getConstructor(File.class);
+      res = constr.newInstance(f);
+    } catch (Exception e) {
+      errorMsg("Invalid directory implementation class: " + dirImpl);
+      return null;
     }
+    if (res != null) return res;
     // fall-back to FSDirectory.
-    if (res == null) return FSDirectory.getDirectory(file);
+    if (res == null) return FSDirectory.open(f);
     return null;
   }
   
@@ -1112,10 +1106,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setString(iCaps, "text", formatCaps);
       Object iTiiDiv = find(pOver, "iTiiDiv");
       String divText = "N/A";
-      try {
-        divText = String.valueOf(ir.getTermInfosIndexDivisor());
-      } catch (UnsupportedOperationException uoe) {
-      }
+      // not available in Lucene 3.0
+//      try {
+//        divText = String.valueOf(ir.getTermInfosIndexDivisor());
+//      } catch (UnsupportedOperationException uoe) {
+//      }
       setString(iTiiDiv, "text", divText);
       Object iCommit = find(pOver, "iCommit");
       String commitText = "N/A";
@@ -1318,7 +1313,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       add(filesTable, row);
       return;
     }
-    String[] physFiles = dir.list();
+    String[] physFiles = dir.listAll();
     List<String> files = new ArrayList();
     if (commits != null && commits.size() > 0) {
       for (int i = 0; i < commits.size(); i++) {
@@ -2194,7 +2189,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
               Object rText = find(editfield, "rText");
               Object fBoost = find(editfield, "fBoost");
               Object cbStored = find(editfield, "cbStored");
-              Object cbCmp = find(editfield, "cbCmp");
+              //Object cbCmp = find(editfield, "cbCmp");
               Object cbBin = find(editfield, "cbBin");
               Object cbIndexed = find(editfield, "cbIndexed");
               Object cbTokenized = find(editfield, "cbTokenized");
@@ -2221,7 +2216,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
                 setString(sText, "text", text);
                 setString(fBoost, "text", String.valueOf(f.getBoost()));
                 setBoolean(cbStored, "selected", f.isStored());
-                setBoolean(cbCmp, "selected", f.isCompressed());
+                // Lucene 3.0 doesn't support compressed fields
+                //setBoolean(cbCmp, "selected", false);
                 setBoolean(cbIndexed, "selected", f.isIndexed());
                 setBoolean(cbTokenized, "selected", f.isTokenized());
                 setBoolean(cbTVF, "selected", f.isTermVectorStored());
@@ -2315,8 +2311,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         tv = Field.TermVector.NO;
       }
       Field f;
-      Store stored = getBoolean(cbStored, "selected") ?
-          (getBoolean(cbCmp, "selected") ? Field.Store.COMPRESS : Field.Store.YES) :
+      Store stored = getBoolean(cbStored, "selected") ? Field.Store.YES :
             Field.Store.NO;
       Index indexed = getBoolean(cbIndexed, "selected") ?
           (getBoolean(cbTokenized, "selected") ? Field.Index.ANALYZED : Field.Index.NOT_ANALYZED) :
@@ -3486,7 +3481,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         defField = "DEFAULT";
       }
     }
-    QueryParser qp = new QueryParser(defField, analyzer);
+    QueryParser qp = new QueryParser(Version.LUCENE_CURRENT, defField, analyzer);
     Object ckWild = find(srchOpts, "ckWild");
     Object ckPosIncr = find(srchOpts, "ckPosIncr");
     Object ckLoExp = find(srchOpts, "ckLoExp");
@@ -3745,16 +3740,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
         setString(n1, "text", "FilteredTermEnum: Exception " + e.getMessage());
         add(n, n1);
       }
-    } else if (clazz.equals("RangeQuery")) {
-      RangeQuery rq = (RangeQuery)q;
-      setString(n, "text", getString(n, "text") + ", inclusive=" + rq.isInclusive());
+    } else if (clazz.equals("TermRangeQuery")) {
+      TermRangeQuery rq = (TermRangeQuery)q;
+      setString(n, "text", getString(n, "text") + ", inclLower=" + rq.includesLower() + ", inclUpper=" + rq.includesUpper());
       Object n1 = create("node");
-      setString(n1, "text", "lowerTerm: field='" + rq.getLowerTerm().field() +
-              "' text='" + rq.getLowerTerm().text() + "'");
+      setString(n1, "text", "lowerTerm=" + rq.getField() + ":" + rq.getLowerTerm() + "'");
       add(n, n1);
       n1 = create("node");
-      setString(n1, "text", "upperTerm: field='" + rq.getUpperTerm().field() +
-              "' text='" + rq.getUpperTerm().text() + "'");
+      setString(n1, "text", "upperTerm=" + rq.getField() + ":" + rq.getUpperTerm() + "'");
       add(n, n1);
     } else if (q instanceof SpanQuery) {
       SpanQuery sq = (SpanQuery)q;
@@ -4230,8 +4223,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
       long count = ranges.cardinality();
       DocIdSetIterator it = ranges.iterator();
-      while (it.next()) {
-        ir.deleteDocument(it.doc());
+      int doc;
+      while ((doc = it.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
+        ir.deleteDocument(doc);
       }
       showDoc(find("docNum"));
       initOverview();
@@ -4510,7 +4504,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 0.9.9.1 (2009-11-20)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 1.0.0 (2009-12-05)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

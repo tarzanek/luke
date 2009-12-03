@@ -155,7 +155,7 @@ public class Util {
     else flags.append("-");
     if (f != null && f.isStorePositionWithTermVector()) flags.append("p");
     else flags.append("-");
-    if (f != null && f.getOmitTf()) flags.append("f");
+    if (f != null && f.getOmitTermFreqAndPositions()) flags.append("f");
     else flags.append("-");
     if (f != null && f.getOmitNorms()) flags.append("O");
     else flags.append("-");
@@ -163,8 +163,10 @@ public class Util {
     else flags.append("-");
     if (f != null && f.isBinary()) flags.append("B");
     else flags.append("-");
-    if (f != null && f.isCompressed()) flags.append("C");
-    else flags.append("-");
+    // not supported in Lucene 3.0
+    //if (f != null && f.isCompressed()) flags.append("C");
+    //else
+    flags.append("-");
     return flags.toString();
   }
   
@@ -188,13 +190,13 @@ public class Util {
     resolutionMap.put(Resolution.YEAR.toString(), Resolution.YEAR);
   }
   
-  public static long calcTotalFileSize(String path, Directory fsdir) {
+  public static long calcTotalFileSize(String path, Directory fsdir) throws Exception {
     long totalFileSize = 0L;
     String[] files = null;
     if (fsdir instanceof FSDirectory) {
-      files = ((FSDirectory)fsdir).list();
+      files = ((FSDirectory)fsdir).listAll();
     } else if (fsdir instanceof MMapDirectory) {
-      files = ((MMapDirectory)fsdir).list();
+      files = ((MMapDirectory)fsdir).listAll();
     }
     if (files == null) return totalFileSize;
     for (int i = 0; i < files.length; i++) {
