@@ -1,6 +1,7 @@
 package org.getopt.luke.plugins;
 
 import java.io.StringReader;
+import java.lang.reflect.Constructor;
 import java.util.Iterator;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -15,6 +16,7 @@ import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.index.Payload;
 import org.apache.lucene.util.Attribute;
 import org.apache.lucene.util.AttributeSource;
+import org.apache.lucene.util.Version;
 import org.getopt.luke.LukePlugin;
 import org.getopt.luke.Util;
 
@@ -66,7 +68,19 @@ public class AnalyzerToolPlugin extends LukePlugin {
     }
     app.setInteger(combobox, "selected", 0);
     app.setString(combobox, "text", firstClass);
-    Object api = app.find(myUi, "api");
+    Object aVersion = app.find(myUi, "aVersion");
+    app.removeAll(aVersion);
+    Version[] values = Version.values();
+    for (int i = 0; i < values.length; i++) {
+      Version v = values[i];
+      Object choice = app.create("choice");
+      app.setString(choice, "text", v.toString());
+      app.putProperty(choice, "version", v);
+      app.add(aVersion, choice);
+      if (v.equals(Version.LUCENE_CURRENT)) {
+        app.setInteger(aVersion, "selected", i);
+      }
+    }
     return true;
   }
   
@@ -76,15 +90,23 @@ public class AnalyzerToolPlugin extends LukePlugin {
       Object resultsList = app.find(myUi, "resultsList");
       Object inputText = app.find(myUi, "inputText");
       String classname = app.getString(combobox, "text");
+      Object choice = app.getSelectedItem(app.find(myUi, "aVersion"));
+      Version v = (Version)app.getProperty(choice, "version");
       Class clazz = Class.forName(classname);
       Analyzer analyzer = null;
       try {
-        analyzer = (Analyzer) clazz.newInstance();
-
+        Constructor<Analyzer> c = clazz.getConstructor(Version.class);
+        analyzer = c.newInstance(v);
       } catch (Throwable t) {
-        app
-                .showStatus("Couldn't instantiate analyzer - public zero-argument constructor required");
-        return;
+        try {
+          // no constructor with Version ?
+          analyzer = (Analyzer)clazz.newInstance();
+        } catch (Throwable t1) {
+          t1.printStackTrace();
+          app
+                .showStatus("Couldn't instantiate analyzer - public 0-arg or 1-arg constructor(Version) required");
+          return;
+        }
       }
       TokenStream ts = analyzer.tokenStream("text", new StringReader(app
               .getString(inputText, "text")));

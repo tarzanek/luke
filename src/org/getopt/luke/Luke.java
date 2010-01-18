@@ -3427,28 +3427,46 @@ public class Luke extends Thinlet implements ClipboardOwner {
     String arg = getString(find(srchOpts, "snoName"), "text");
     if (arg == null) arg = "";
     try {
-      Constructor zeroArg, oneArg;
+      Constructor zeroArg = null, zeroArgV = null, oneArg = null, oneArgV = null;
       try {
-        zeroArg = Class.forName(sAType).getConstructor(new Class[0]);
+        zeroArgV = Class.forName(sAType).getConstructor(new Class[]{Version.class});
       } catch (NoSuchMethodException e) {
-        zeroArg = null;
+        zeroArgV = null;
+        try {
+          zeroArg = Class.forName(sAType).getConstructor(new Class[0]);
+        } catch (NoSuchMethodException e1) {
+          zeroArg = null;
+        }
       }
       try {
-        oneArg = Class.forName(sAType).getConstructor(new Class[]{String.class});
+        oneArgV = Class.forName(sAType).getConstructor(new Class[]{Version.class, String.class});
       } catch (NoSuchMethodException e) {
-        oneArg = null;
+        oneArgV = null;
+        try {
+          oneArg = Class.forName(sAType).getConstructor(new Class[]{String.class});
+        } catch (NoSuchMethodException e1) {
+          oneArg = null;
+        }
       }
       if (arg.length() == 0) {
-        if (zeroArg != null) {
-          res = (Analyzer)zeroArg.newInstance(new Object[0]);
+        if (zeroArgV != null) {
+          res = (Analyzer)zeroArgV.newInstance(Version.LUCENE_CURRENT);
+        } else if (zeroArg != null) {
+          res = (Analyzer)zeroArg.newInstance();
+        } else if (oneArgV != null) {
+          res = (Analyzer)oneArgV.newInstance(new Object[]{Version.LUCENE_CURRENT, arg});
         } else if (oneArg != null) {
           res = (Analyzer)oneArg.newInstance(new Object[]{arg});
         } else {
-          throw new Exception("Must have a zero-arg or (String) constructor");
+          throw new Exception("Must have a zero-arg or (Version) or (Version, String) constructor");
         }
       } else {
-        if (oneArg != null) {
+        if (oneArgV != null) {
+          res = (Analyzer)oneArgV.newInstance(new Object[]{Version.LUCENE_CURRENT, arg});
+        } else if (oneArg != null) {
           res = (Analyzer)oneArg.newInstance(new Object[]{arg});
+        } else if (zeroArgV != null) {
+          res = (Analyzer)zeroArgV.newInstance(new Object[]{Version.LUCENE_CURRENT});
         } else if (zeroArg != null) {
           res = (Analyzer)zeroArg.newInstance(new Object[0]);
         } else {

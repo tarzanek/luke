@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <panel name="at-plugin" columns="1" gap="4" halign="fill" valign="fill" weightx="1"
 	 weighty="1">
-	<label text="Available analyzers found on the current classpath:" />
-	<combobox name="analyzers" enabled="true" editable="true" selected="0" halign="fill" weightx="1"/>
+	<panel gap="2" weightx="1" halign="fill" columns="2">
+   <label text="Available analyzers found on the current classpath:" />
+   <label text="Compatibility:"/>
+   <combobox name="analyzers" enabled="true" editable="true" selected="0" halign="fill" weightx="1"/>
+   <combobox name="aVersion" enabled="true" editable="false" selected="0" halign="fill" weightx="1"/>
+	</panel>
 	<label text="Text to be analyzed:" />
 	<textarea name="inputText" wrap="true" text="Welcome to the analysis viewer. This tool is used to demonstrate how different analyzers process text into tokens. You can edit this text to try different input such as numbers like 23231.23 or characters (mharwood@apache.org). Once happy, select an Analyzer from the list of analyzers found on the current classpath and then hit the Analyze button. The tokens produced are shown below and when you select them the right panel shows their attributes, and the corresponding span in the original text is highlighted." rows="5" weightx="1"/>
 	<panel columns="2">
