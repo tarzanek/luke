@@ -163,10 +163,6 @@ public class Util {
     else flags.append("-");
     if (f != null && f.isBinary()) flags.append("B");
     else flags.append("-");
-    // not supported in Lucene 3.0
-    //if (f != null && f.isCompressed()) flags.append("C");
-    //else
-    flags.append("-");
     return flags.toString();
   }
   
