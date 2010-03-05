@@ -53,12 +53,21 @@ import org.apache.lucene.misc.SweetSpotSimilarity;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.BooleanClause.Occur;
+import org.apache.lucene.search.payloads.PayloadNearQuery;
+import org.apache.lucene.search.payloads.PayloadTermQuery;
 import org.apache.lucene.search.similar.MoreLikeThis;
+import org.apache.lucene.search.spans.SpanFirstQuery;
+import org.apache.lucene.search.spans.SpanNearQuery;
+import org.apache.lucene.search.spans.SpanNotQuery;
+import org.apache.lucene.search.spans.SpanOrQuery;
 import org.apache.lucene.search.spans.SpanQuery;
+import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.search.spans.Spans;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.Version;
+import org.apache.lucene.xmlparser.CoreParser;
+import org.apache.lucene.xmlparser.CorePlusExtensionsParser;
 import org.getopt.luke.DocReconstructor.Reconstructed;
 import org.getopt.luke.decoders.BinaryDecoder;
 import org.getopt.luke.decoders.DateDecoder;
@@ -99,7 +108,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private Object slowmsg = null;
   private Analyzer stdAnalyzer = new StandardAnalyzer(Version.LUCENE_CURRENT);
   private Analyzer analyzer = null;
-  private QueryParser qp = null;
+  //private QueryParser qp = null;
   private boolean readOnly = false;
   private boolean ram = false;
   private boolean keepCommits = false;
@@ -3481,25 +3490,31 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Prefs.setProperty(Prefs.P_ANALYZER, res.getClass().getName());
     return res;
   }
-
-  /**
-   * Create a QueryParser instance that corresponds to values selected in the UI,
-   * such as analyzer class name and arguments, and default field.
-   * @return
-   */
-  public QueryParser createQueryParser() {
-    Object srchOpts = find("srchOptTabs");
-    analyzer = createAnalyzer(srchOpts);
-    String defField = getString(find(srchOpts, "defFld"), "text");
+  
+  protected String getDefaultField(Object srchOptTabs) {
+    String defField = getString(find(srchOptTabs, "defFld"), "text");
     if (defField == null || defField.trim().equals("")) {
       if (ir != null) {
         defField = idxFields[0];
-        setString(find(srchOpts, "defFld"), "text", defField);
+        setString(find(srchOptTabs, "defFld"), "text", defField);
       } else {
         defField = "DEFAULT";
       }
     }
+    return defField;
+  }
+
+  /**
+   * Create a Query instance that corresponds to values selected in the UI,
+   * such as analyzer class name and arguments, and default field.
+   * @return
+   */
+  public Query createQuery(String queryString) throws Exception {
+    Object srchOpts = find("srchOptTabs");
+    analyzer = createAnalyzer(srchOpts);
+    String defField = getDefaultField(srchOpts);
     QueryParser qp = new QueryParser(Version.LUCENE_CURRENT, defField, analyzer);
+    Object ckXmlParser = find(srchOpts, "ckXmlParser");
     Object ckWild = find(srchOpts, "ckWild");
     Object ckPosIncr = find(srchOpts, "ckPosIncr");
     Object ckLoExp = find(srchOpts, "ckLoExp");
@@ -3527,7 +3542,13 @@ public class Luke extends Thinlet implements ClipboardOwner {
     qp.setLowercaseExpandedTerms(getBoolean(ckLoExp, "selected"));
     qp.setDateResolution(resolution);
     qp.setDefaultOperator(op);
-    return qp;
+    if (getBoolean(ckXmlParser, "selected")) {
+      CoreParser cp = new CorePlusExtensionsParser(analyzer, qp);
+      Query q = cp.parse(new ByteArrayInputStream(queryString.getBytes("UTF-8")));
+      return q;
+    } else {
+      return qp.parse(queryString);
+    }
   }
   
   public Similarity createSimilarity(Object srchOpts) {
@@ -3616,14 +3637,15 @@ public class Luke extends Thinlet implements ClipboardOwner {
     _explainStructure(tree, q);
   }
   
-  private void _explainStructure(Object node, Query q) {
-    String clazz = q.getClass().getName();
-    int idx = clazz.lastIndexOf('.');
-    clazz = clazz.substring(idx + 1);
+  private void _explainStructure(Object parent, Query q) {
+    String clazz = q.getClass().getSimpleName();
     float boost = q.getBoost();
     Object n = create("node");
-    add(node, n);
-    String msg = clazz + ": boost=" + df.format(boost);
+    add(parent, n);
+    String msg = clazz;
+    if (boost != 1.0f) {
+      msg += ": boost=" + df.format(boost);
+    }
     setFont(n, getFont().deriveFont(Font.BOLD));
     setString(n, "text", msg);
     if (clazz.equals("TermQuery")) {
@@ -3767,47 +3789,119 @@ public class Luke extends Thinlet implements ClipboardOwner {
       n1 = create("node");
       setString(n1, "text", "upperTerm=" + rq.getField() + ":" + rq.getUpperTerm() + "'");
       add(n, n1);
+    } else if (q instanceof FilteredQuery) {
+      FilteredQuery fq = (FilteredQuery)q;
+      Object n1 = create("node");
+      setString(n1, "text", "Filter: " + fq.getFilter().toString());
+      add(n, n1);
+      _explainStructure(n, fq.getQuery());
     } else if (q instanceof SpanQuery) {
       SpanQuery sq = (SpanQuery)q;
+      Class sqlass = sq.getClass();
       setString(n, "text", getString(n, "text") + ", field=" + sq.getField());
-      HashSet terms = new HashSet();
-      sq.extractTerms(terms);
-      Object n1 = null;
-      if (terms != null) {
-        n1 = create("node");
-        setString(n1, "text", "Matched terms (" + terms.size() + "):");
+      if (sqlass == SpanOrQuery.class) {
+        SpanOrQuery soq = (SpanOrQuery)sq;
+        setString(n, "text", getString(n, "text") + ", " + soq.getClauses().length + " clauses");
+        for (SpanQuery sq1 : soq.getClauses()) {
+          _explainStructure(n, sq1);
+        }
+      } else if (sqlass == SpanFirstQuery.class) {
+        SpanFirstQuery sfq = (SpanFirstQuery)sq;
+        setString(n, "text", getString(n, "text") + ", end=" + sfq.getEnd() + ", match:");
+        _explainStructure(n, sfq.getMatch());
+      } else if (q instanceof SpanNearQuery) { // catch also known subclasses
+        SpanNearQuery snq = (SpanNearQuery)sq;
+        setString(n, "text", getString(n, "text") + ", slop=" + snq.getSlop());
+        if (snq instanceof PayloadNearQuery) {
+          try {
+            java.lang.reflect.Field function = PayloadNearQuery.class.getDeclaredField("function");
+            function.setAccessible(true);
+            Object func = function.get(snq);
+            setString(n, "text", getString(n, "text") + ", func=" + func.getClass().getSimpleName());
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+        }
+        for (SpanQuery sq1 : snq.getClauses()) {
+          _explainStructure(n, sq1);
+        }
+      } else if (sqlass == SpanNotQuery.class) {
+        SpanNotQuery snq = (SpanNotQuery)sq;
+        Object n1 = create("node");
         add(n, n1);
-        Iterator it = terms.iterator();
-        while(it.hasNext()) {
-          Object n2 = create("node");
-          Term t = (Term)it.next();
-          setString(n2, "text", "field='" + t.field() + "' text='" + t.text() + "'");
-          add(n1, n2);
+        setString(n1, "text", "Include:");
+        _explainStructure(n1, snq.getInclude());
+        n1 = create("node");
+        add(n, n1);
+        setString(n1, "text", "Exclude:");
+        _explainStructure(n1, snq.getExclude());
+      } else if (q instanceof SpanTermQuery) {
+        SpanTermQuery stq = (SpanTermQuery)sq;
+        setString(n, "text", getString(n, "text") + ", term=" + stq.getTerm());        
+        if (stq instanceof PayloadTermQuery) {
+          try {
+            java.lang.reflect.Field function = PayloadTermQuery.class.getDeclaredField("function");
+            function.setAccessible(true);
+            Object func = function.get(stq);
+            setString(n, "text", getString(n, "text") + ", func=" + func.getClass().getSimpleName());
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
         }
       } else {
-        n1 = create("node");
-        setString(n1, "text", "<no terms matched>");
-        add(n, n1);
+        String defField = getDefaultField(find("srchOptTabs"));
+        setString(n, "text", "class=" + q.getClass().getName() + ", " + getString(n, "text") + ", toString=" + q.toString(defField));
+        HashSet<Term> terms = new HashSet<Term>();
+        sq.extractTerms(terms);
+        Object n1 = null;
+        if (terms != null) {
+          n1 = create("node");
+          setString(n1, "text", "Matched terms (" + terms.size() + "):");
+          add(n, n1);
+          Iterator<Term> it = terms.iterator();
+          while(it.hasNext()) {
+            Object n2 = create("node");
+            Term t = it.next();
+            setString(n2, "text", "field='" + t.field() + "' text='" + t.text() + "'");
+            add(n1, n2);
+          }
+        } else {
+          n1 = create("node");
+          setString(n1, "text", "<no terms matched>");
+          add(n, n1);
+        }
       }
-      try {
-        Spans spans = sq.getSpans(ir);
-        n1 = create("node");
-        setString(n1, "text", "Spans:");
-        add(n, n1);
-        do {
-          Object n2 = create("node");
-          setString(n2, "text", "doc=" + spans.doc() +
-                  ", start=" + spans.start() + ", end=" + spans.end());
-          add(n1, n2);
-        } while (spans.next());
-      } catch (Exception e) {
-        n1 = create("node");
-        setString(n1, "text", "Spans Exception: " + e.getMessage());
-        add(n, n1);
+      if (ir != null) {
+        Object n1 = null;
+        try {
+          Spans spans = sq.getSpans(ir);
+          if (spans != null) {
+            n1 = create("node");
+            int cnt = 0;
+            while (spans.next()) {
+              Object n2 = create("node");
+              setString(n2, "text", "doc=" + spans.doc() +
+                      ", start=" + spans.start() + ", end=" + spans.end());
+              add(n1, n2);
+              cnt++;
+            }
+            if (cnt > 0) {
+              add(n, n1);
+              setString(n1, "text", "Spans (" + cnt + "):");
+              setBoolean(n1, "expanded", false);
+            }
+          }
+        } catch (Exception e) {
+          e.printStackTrace();
+          n1 = create("node");
+          setString(n1, "text", "Spans Exception: " + e.getMessage());
+          add(n, n1);
+        }
       }
     } else {
       Object n1 = create("node");
-      setString(n1, "text", q.getClass().getName() + ": " + q.toString());
+      String defField = getDefaultField(find("srchOptTabs"));
+      setString(n1, "text", q.getClass().getName() + ": " + q.toString(defField));
       add(n, n1);
     }
   }
@@ -3827,9 +3921,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
     } else {
       setBoolean(qFieldParsed, "enabled", true);
     }
-    QueryParser qp = createQueryParser();
     try {
-      Query q = qp.parse(queryS);
+      Query q = createQuery(queryS);
       setString(qFieldParsed, "text", q.toString());
       putProperty(qField, "qParsed", q);
       q = q.rewrite(ir);
@@ -3855,7 +3948,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus("FAILED: Empty query.");
       return;
     }
-    qp = createQueryParser();
     Object srchOpts = find("srchOptTabs");
     // query parser opts
     Similarity sim = createSimilarity(srchOpts);
@@ -3872,7 +3964,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     removeAll(sTable);
     Query q = null;
     try {
-      q = qp.parse(queryS);
+      q = createQuery(queryS);
       is.setSimilarity(sim);
       showParsed();
       _search(q, is, col, sTable, repeat);
@@ -4522,7 +4614,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 1.0.0 (2009-12-23)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 1.0.1 (2010-03-05)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

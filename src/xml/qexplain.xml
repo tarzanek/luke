@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<dialog text=" Query Structure" name="qexplain" icon="/img/luke.gif" modal="true" columns="1" top="8" left="8" bottom="8" right="8" gap="15" close="remove(qexplain)">
+<dialog text=" Query Structure" name="qexplain" icon="/img/luke.gif" modal="true" columns="1" top="8" left="8" bottom="8" right="8" gap="15" resizable="true" close="remove(qexplain)">
 	<label icon="/img/info.gif" text="Structure of the query:"/>
 	<tree name="qTree" halign="fill" valign="fill" weightx="1" weighty="1" line="false" angle="true" width="500" height="250"/>
 	<button type="default" text=" OK " halign="center" action="remove(qexplain)"/>

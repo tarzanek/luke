@@ -13,7 +13,7 @@
 	</security>
 	<resources>
 		<j2se version="1.5+" />
-		<jar href="lukeall-0.9.9.jar" />
+		<jar href="lukeall-1.0.1.jar" />
 	</resources>
 	<application-desc main-class="org.getopt.luke.Luke" />
 </jnlp>

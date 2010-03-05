@@ -275,6 +275,7 @@
   					      <tab text="QueryParser">
 						        <panel weighty="1" weightx="1" valign="fill" halign="fill"
 						                  columns="2" gap="4" top="2" bottom="2" left="2" right="2">
+						          <checkbox colspan="2" action="showParsed" name="ckXmlParser" text="Use XML Query Parser"/>        
 						          <label font="bold" text="Additional QueryParser settings:"/>
         						  <checkbox colspan="2" action="showParsed" name="ckWild" text="Allow leading * in wildcard queries"/>
                       <checkbox colspan="2" action="showParsed" name="ckPosIncr" text="Enable positionIncrements"/>
