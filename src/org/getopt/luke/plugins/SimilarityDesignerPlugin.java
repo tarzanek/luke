@@ -288,21 +288,36 @@ class CustomSimilarity extends DefaultSimilarity {
     return f;
   }
   
-  @Override
-  public IDFExplanation idfExplain(Collection<Term> terms, Searcher searcher) throws IOException {
-    Function func = otherMethods[M_IDF_CS];
-    if (func == null) return super.idfExplain(terms, searcher);
-    Object[] args = new Object[]{terms, searcher};
-    Object res = func.call(cx, scope, scope, args);
-    return (IDFExplanation)res;
+  private static class FakeIDFExplanation extends IDFExplanation {
+    float idf;
+    public FakeIDFExplanation(float idf) {
+      this.idf = idf;
+    }
+
+    @Override
+    public String explain() {
+      return "fake explanation";
+    }
+
+    @Override
+    public float getIdf() {
+      return idf;
+    }
+    
   }
   
   @Override
   public IDFExplanation idfExplain(Term term, Searcher searcher)
           throws IOException {
-    Object[] args = new Object[]{term, searcher};
+    int numDocs = searcher.maxDoc();
+    int docFreq = searcher.docFreq(term);
+    Object[] args = new Object[]{new Integer(docFreq), new Integer(numDocs)};
     Object res = abstractMethods[M_A_IDF].call(cx, scope, scope, args);
-    return (IDFExplanation)res;
+    if (res instanceof Number) { // back-compat
+      return new FakeIDFExplanation(((Number)res).floatValue());
+    } else {
+      return (IDFExplanation)res;      
+    }
   }
 
   // A
