@@ -2,11 +2,11 @@ package org.getopt.luke.decoders;
 
 import org.apache.lucene.util.NumericUtils;
 
-public class NumLongDecoder implements Decoder {
+public class NumIntDecoder implements Decoder {
 
   @Override
   public String decodeTerm(String fieldName, Object value) {
-    return Long.toString(NumericUtils.prefixCodedToLong(value.toString()));
+    return Integer.toString(NumericUtils.prefixCodedToInt(value.toString()));
   }
   
   @Override
@@ -15,7 +15,7 @@ public class NumLongDecoder implements Decoder {
   }
   
   public String toString() {
-    return "numeric-long";
+    return "numeric-int";
   }
 
 }

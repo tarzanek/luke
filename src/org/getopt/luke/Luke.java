@@ -73,11 +73,15 @@ import org.getopt.luke.decoders.BinaryDecoder;
 import org.getopt.luke.decoders.DateDecoder;
 import org.getopt.luke.decoders.Decoder;
 import org.getopt.luke.decoders.NumDoubleDecoder;
+import org.getopt.luke.decoders.NumFloatDecoder;
+import org.getopt.luke.decoders.NumIntDecoder;
 import org.getopt.luke.decoders.NumLongDecoder;
 import org.getopt.luke.decoders.OldDateFieldDecoder;
 import org.getopt.luke.decoders.OldNumberToolsDecoder;
 import org.getopt.luke.decoders.StringDecoder;
 import org.getopt.luke.plugins.ScriptingPlugin;
+import org.getopt.luke.xmlQuery.XmlQueryParserFactory;
+import org.getopt.luke.xmlQuery.CorePlusExtensionsParserFactory;
 
 import thinlet.FrameLauncher;
 import thinlet.Thinlet;
@@ -1454,7 +1458,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
             if (dec == null) dec = defDecoder;
             String s;
             try {
-              s = dec.decode(tis[i].term.field(), tis[i].term.text());
+              s = dec.decodeTerm(tis[i].term.field(), tis[i].term.text());
             } catch (Throwable e) {
               s = tis[i].term.text();
               setColor(cell, "foreground", Color.RED);
@@ -2567,7 +2571,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
       Decoder dec = decoders.get(f.name());
       if (dec == null) dec = defDecoder;
       try {
-        text = dec.decode(f.name(), text);
+        if (f.isStored()) {
+          text = dec.decodeStored(f.name(), text);
+        } else {
+          text = dec.decodeTerm(f.name(), text);
+        }
       } catch (Throwable e) {
         setColor(cell, "foreground", Color.RED);
       }
@@ -2627,7 +2635,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
             Object cell = create("cell");
             String s;
             try {
-              s = dec.decode(fName, tvs[i].text);
+              s = dec.decodeTerm(fName, tvs[i].text);
             } catch (Throwable e) {
               s = tvs[i].text;
               setColor(cell, "foreground", Color.RED);
@@ -3137,7 +3145,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     String s = null;
     boolean decodeErr = false;
     try {
-      s = dec.decode(t.field(), t.text());
+      s = dec.decodeTerm(t.field(), t.text());
     } catch (Throwable e) {
       s = e.getMessage();
       decodeErr = true;
@@ -3543,7 +3551,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
     qp.setDateResolution(resolution);
     qp.setDefaultOperator(op);
     if (getBoolean(ckXmlParser, "selected")) {
-      CoreParser cp = new CorePlusExtensionsParser(analyzer, qp);
+      
+      CoreParser cp = createParser(defField,analyzer);
       Query q = cp.parse(new ByteArrayInputStream(queryString.getBytes("UTF-8")));
       return q;
     } else {
@@ -3551,7 +3560,19 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
   }
   
-  public Similarity createSimilarity(Object srchOpts) {
+  private CoreParser createParser(String defaultField, Analyzer analyzer ) throws Exception
+  {
+	if(xmlQueryParserFactoryClassName==null)
+	{
+		//Use the default
+		return  new CorePlusExtensionsParser(defaultField,analyzer);
+	}
+	//Use a user-defined parser (classname passed in -xmlQueryParserFactory command-line parameter
+	XmlQueryParserFactory parserFactory=(XmlQueryParserFactory) Class.forName(xmlQueryParserFactoryClassName).newInstance();
+	return parserFactory.createParser(defaultField,analyzer);
+  }
+
+public Similarity createSimilarity(Object srchOpts) {
     Object ckSimDef = find(srchOpts, "ckSimDef");
     Object ckSimSweet = find(srchOpts, "ckSimSweet");
     Object ckSimOther = find(srchOpts, "ckSimOther");
@@ -4142,7 +4163,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         if (k > 0) vals.append(' ');
         String v;
         try {
-          v = dec.decode(idxFields[j], values[k]);
+          v = dec.decodeStored(idxFields[j], values[k]);
         } catch (Throwable e) {
           v = values[k];
           decodeErr = true;
@@ -4197,6 +4218,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   }
 
   private DecimalFormat df = new DecimalFormat("0.0000");
+  private String xmlQueryParserFactoryClassName=CorePlusExtensionsParserFactory.class.getName();
 
   private void addNode(Object tree, Explanation expl) {
     Object node = create("node");
@@ -4497,6 +4519,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       dec = new NumLongDecoder();
     } else if (decName.equals("nd")) {
       dec = new NumDoubleDecoder();
+    } else if (decName.equals("ni")) {
+      dec = new NumIntDecoder();
+    } else if (decName.equals("nff")) {
+      dec = new NumFloatDecoder();
     } else if (decName.equals("od")) {
       dec = new OldDateFieldDecoder();
     } else if (decName.equals("on")) {
@@ -4614,18 +4640,20 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 1.0.1 (2010-03-05)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 1.0.1 (2010-04-01)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;
       String pName = null;
       String script = null;
+      String xmlQueryParserFactoryClassName = null;
       for (int i = 0; i < args.length; i++) {
         if (args[i].equalsIgnoreCase("-ro")) ro = true;
         else if (args[i].equalsIgnoreCase("-force")) force = true;
         else if (args[i].equalsIgnoreCase("-ramdir")) ramdir = true;
         else if (args[i].equalsIgnoreCase("-index")) pName = args[++i];
         else if (args[i].equalsIgnoreCase("-script")) script = args[++i];
+        else if (args[i].equalsIgnoreCase("-xmlQueryParserFactory")) xmlQueryParserFactoryClassName = args[++i];
         else {
           System.err.println("Unknown argument: " + args[i]);
           usage();
@@ -4634,6 +4662,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         }
       }
       if (pName != null) luke.openIndex(pName, force, null, ro, ramdir, false, null, 1);
+      if(xmlQueryParserFactoryClassName != null) luke.setParserFactoryClassName(xmlQueryParserFactoryClassName);
       if (script != null) {
         LukePlugin plugin = luke.getPlugin("org.getopt.luke.plugins.ScriptingPlugin");
         if (plugin == null) {
@@ -4648,7 +4677,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
     return luke;
   }
   
-  /**
+  private void setParserFactoryClassName(String xmlQueryParserFactoryClassName)  {
+	  this.xmlQueryParserFactoryClassName = xmlQueryParserFactoryClassName;	
+  }
+
+/**
    * Main method. If you just want to instantiate Luke from other classes or scripts,
    * use {@link #startLuke(String[])} instead.
    * @param args
@@ -4664,11 +4697,15 @@ public class Luke extends Thinlet implements ClipboardOwner {
     System.err.println("\t-index path_to_index\topen this index");
     System.err.println("\t-ro\topen index read-only");
     System.err.println("\t-force\tforce unlock if the index is locked (use with caution)");
+    System.err.println("\t-xmlQueryParserFactory\tFactory for loading custom XMLQueryParsers. E.g.:");
+    System.err.println("\t\t\torg.getopt.luke.xmlQuery.CoreParserFactory (default)");
+    System.err.println("\t\t\torg.getopt.luke.xmlQuery.CorePlusExtensionsParserFactory");
     System.err.println("\t-mmap\tuse MMapDirectory");
     System.err.println("\t-script filename\trun this script using the ScriptingPlugin.");
     System.err.println("\t\tIf an index name is specified, the index is open prior to");
     System.err.println("\t\tstarting the script. Note that you need to escape special");
     System.err.println("\t\tcharacters twice - first for shell and then for JavaScript.");
+    
   }
   
   /*
