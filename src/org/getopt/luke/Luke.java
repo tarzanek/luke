@@ -73,6 +73,8 @@ import org.getopt.luke.decoders.BinaryDecoder;
 import org.getopt.luke.decoders.DateDecoder;
 import org.getopt.luke.decoders.Decoder;
 import org.getopt.luke.decoders.NumDoubleDecoder;
+import org.getopt.luke.decoders.NumFloatDecoder;
+import org.getopt.luke.decoders.NumIntDecoder;
 import org.getopt.luke.decoders.NumLongDecoder;
 import org.getopt.luke.decoders.OldDateFieldDecoder;
 import org.getopt.luke.decoders.OldNumberToolsDecoder;
@@ -1454,7 +1456,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
             if (dec == null) dec = defDecoder;
             String s;
             try {
-              s = dec.decode(tis[i].term.field(), tis[i].term.text());
+              s = dec.decodeTerm(tis[i].term.field(), tis[i].term.text());
             } catch (Throwable e) {
               s = tis[i].term.text();
               setColor(cell, "foreground", Color.RED);
@@ -2567,7 +2569,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
       Decoder dec = decoders.get(f.name());
       if (dec == null) dec = defDecoder;
       try {
-        text = dec.decode(f.name(), text);
+        if (f.isStored()) {
+          text = dec.decodeStored(f.name(), text);
+        } else {
+          text = dec.decodeTerm(f.name(), text);
+        }
       } catch (Throwable e) {
         setColor(cell, "foreground", Color.RED);
       }
@@ -2627,7 +2633,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
             Object cell = create("cell");
             String s;
             try {
-              s = dec.decode(fName, tvs[i].text);
+              s = dec.decodeTerm(fName, tvs[i].text);
             } catch (Throwable e) {
               s = tvs[i].text;
               setColor(cell, "foreground", Color.RED);
@@ -3137,7 +3143,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     String s = null;
     boolean decodeErr = false;
     try {
-      s = dec.decode(t.field(), t.text());
+      s = dec.decodeTerm(t.field(), t.text());
     } catch (Throwable e) {
       s = e.getMessage();
       decodeErr = true;
@@ -4142,7 +4148,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         if (k > 0) vals.append(' ');
         String v;
         try {
-          v = dec.decode(idxFields[j], values[k]);
+          v = dec.decodeStored(idxFields[j], values[k]);
         } catch (Throwable e) {
           v = values[k];
           decodeErr = true;
@@ -4497,6 +4503,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       dec = new NumLongDecoder();
     } else if (decName.equals("nd")) {
       dec = new NumDoubleDecoder();
+    } else if (decName.equals("ni")) {
+      dec = new NumIntDecoder();
+    } else if (decName.equals("nff")) {
+      dec = new NumFloatDecoder();
     } else if (decName.equals("od")) {
       dec = new OldDateFieldDecoder();
     } else if (decName.equals("on")) {

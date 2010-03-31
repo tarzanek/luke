@@ -74,7 +74,9 @@
               <combobox name="cbDec" font="10" editable="false" selected="0">
                 <choice font="10" name="s" text="string utf8"/>
                 <choice font="10" name="d" text="date"/>
+                <choice font="10" name="ni" text="numeric-int"/>
                 <choice font="10" name="nl" text="numeric-long"/>
+                <choice font="10" name="nf" text="numeric-float"/>
                 <choice font="10" name="nd" text="numeric-double"/>
                 <choice font="10" name="b" text="binary"/>
                 <choice font="10" name="od" text="(old DateField)"/>
