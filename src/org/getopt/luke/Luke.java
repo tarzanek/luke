@@ -4521,7 +4521,7 @@ public Similarity createSimilarity(Object srchOpts) {
       dec = new NumDoubleDecoder();
     } else if (decName.equals("ni")) {
       dec = new NumIntDecoder();
-    } else if (decName.equals("nff")) {
+    } else if (decName.equals("nf")) {
       dec = new NumFloatDecoder();
     } else if (decName.equals("od")) {
       dec = new OldDateFieldDecoder();
