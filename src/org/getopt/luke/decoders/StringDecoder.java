@@ -1,5 +1,7 @@
 package org.getopt.luke.decoders;
 
+import org.apache.lucene.document.Fieldable;
+
 public class StringDecoder implements Decoder {
 
   @Override
@@ -8,8 +10,8 @@ public class StringDecoder implements Decoder {
   }
   
   @Override
-  public String decodeStored(String fieldName, Object value) {
-    return decodeTerm(fieldName, value);
+  public String decodeStored(String fieldName, Fieldable value) {
+    return decodeTerm(fieldName, value.stringValue());
   }
 
   public String toString() {

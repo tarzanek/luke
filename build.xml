@@ -61,7 +61,7 @@
 				excludes="org/getopt/luke/plugins,**/*.js,**/Thumbs.db">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="lucene-core-3.0.1.jar;js.jar;lucene-misc-3.0.1.jar;lucene-snowball-3.0.1.jar"/>
+				<attribute name="Classpath" value="lucene-core-3.1-dev.jar;js.jar;lucene-misc-3.1-dev.jar"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">
@@ -73,19 +73,21 @@
 		        excludes="org/mozilla/,org/getopt/luke/plugins,**/*.js">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="lucene-core-3.0.1.jar;lucene-misc-3.0.1.jar"/>
+				<attribute name="Classpath" value="lucene-core-3.1-dev.jar;lucene-misc-3.1-dev.jar"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">
 			<fileset dir="lib" includes="js.jar"/>
-			<fileset dir="lib" includes="*misc*.jar"/>
-			<fileset dir="lib" includes="*snowball*.jar"/>
+			<fileset dir="lib" includes="lucene*.jar"/>
 		</unjar>
 		<unjar dest="${build.dir}">
 			<fileset dir="lib" includes="hadoop/*.jar"/>
 		</unjar>
 		<unjar dest="${build.dir}">
-			<fileset dir="lib" includes="lucene-*.jar"/>
+			<fileset dir="lib" includes="solr/*.jar"/>
+		</unjar>
+		<unjar dest="${build.dir}">
+			<fileset dir="lib" includes="lucene-core-*.jar"/>
 			<patternset>
 				<include name="META-INF/MANIFEST.MF"/>
 			</patternset>

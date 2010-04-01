@@ -1,6 +1,7 @@
 package org.getopt.luke.decoders;
 
 import org.apache.lucene.document.DateField;
+import org.apache.lucene.document.Fieldable;
 
 public class OldDateFieldDecoder implements Decoder {
 
@@ -10,8 +11,8 @@ public class OldDateFieldDecoder implements Decoder {
   }
   
   @Override
-  public String decodeStored(String fieldName, Object value) throws Exception {
-    return decodeTerm(fieldName, value);
+  public String decodeStored(String fieldName, Fieldable value) throws Exception {
+    return decodeTerm(fieldName, value.stringValue());
   }
   
   public String toString() {

@@ -1,5 +1,6 @@
 package org.getopt.luke.decoders;
 
+import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.util.NumericUtils;
 
 public class NumLongDecoder implements Decoder {
@@ -10,8 +11,8 @@ public class NumLongDecoder implements Decoder {
   }
   
   @Override
-  public String decodeStored(String fieldName, Object value) {
-    return value.toString();
+  public String decodeStored(String fieldName, Fieldable value) {
+    return value.stringValue();
   }
   
   public String toString() {

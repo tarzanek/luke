@@ -43,6 +43,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.document.NumberTools;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
@@ -78,6 +79,7 @@ import org.getopt.luke.decoders.NumIntDecoder;
 import org.getopt.luke.decoders.NumLongDecoder;
 import org.getopt.luke.decoders.OldDateFieldDecoder;
 import org.getopt.luke.decoders.OldNumberToolsDecoder;
+import org.getopt.luke.decoders.SolrDecoder;
 import org.getopt.luke.decoders.StringDecoder;
 import org.getopt.luke.plugins.ScriptingPlugin;
 import org.getopt.luke.xmlQuery.XmlQueryParserFactory;
@@ -184,6 +186,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     try {
       Class[] an = ClassFinder.getInstantiableSubclasses(Analyzer.class);
       if (an == null || an.length == 0) {
+        System.err.println("No analyzers???");
         analyzers = defaultAnalyzers;
       } else {
         HashSet<Class> uniq = new HashSet<Class>(Arrays.asList(an));
@@ -194,10 +197,21 @@ public class Luke extends Thinlet implements ClipboardOwner {
     } catch (Exception e) {
       e.printStackTrace();
     }
+    initSolrTypes();
     loadPlugins();
-    
   }
 
+  private void initSolrTypes() {
+    // add Solr field decoders
+    String[] solrTypes = SolrDecoder.getTypes();
+    Object cbDec =  find("cbDec");
+    for (String s : solrTypes) {
+      Object choice = create("choice");
+      setString(choice, "name", s);
+      setString(choice, "text", s);
+      add(cbDec, choice);
+    }    
+  }
   /**
    * Set color theme for the UI.
    * @param which one of the predefined themes. For custom themes use {@link Thinlet#setColors(int, int, int, int, int, int, int, int, int)}.
@@ -989,6 +1003,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   private void initOverview() {
     try {
+      initSolrTypes();
       courier = new Font("Courier", getFont().getStyle(), getFont().getSize());
       lastST = find("lastST");
       setBoolean(find("bReload"), "enabled", true);
@@ -1460,6 +1475,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
             try {
               s = dec.decodeTerm(tis[i].term.field(), tis[i].term.text());
             } catch (Throwable e) {
+              //e.printStackTrace();
               s = tis[i].term.text();
               setColor(cell, "foreground", Color.RED);
             }
@@ -2572,7 +2588,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       if (dec == null) dec = defDecoder;
       try {
         if (f.isStored()) {
-          text = dec.decodeStored(f.name(), text);
+          text = dec.decodeStored(f.name(), f);
         } else {
           text = dec.decodeTerm(f.name(), text);
         }
@@ -4156,7 +4172,7 @@ public Similarity createSimilarity(Object srchOpts) {
       cell = create("cell");
       Decoder dec = decoders.get(idxFields[j]);
       if (dec == null) dec = defDecoder;
-      String[] values = doc.getValues(idxFields[j]);
+      Fieldable[] values = doc.getFieldables(idxFields[j]);
       vals.setLength(0);
       boolean decodeErr = false;
       if (values != null) for (int k = 0; k < values.length; k++) {
@@ -4165,7 +4181,8 @@ public Similarity createSimilarity(Object srchOpts) {
         try {
           v = dec.decodeStored(idxFields[j], values[k]);
         } catch (Throwable e) {
-          v = values[k];
+          e.printStackTrace();
+          v = values[k].stringValue();
           decodeErr = true;
         }
         vals.append(Util.escape(v));
@@ -4521,12 +4538,19 @@ public Similarity createSimilarity(Object srchOpts) {
       dec = new NumDoubleDecoder();
     } else if (decName.equals("ni")) {
       dec = new NumIntDecoder();
-    } else if (decName.equals("nff")) {
+    } else if (decName.equals("nf")) {
       dec = new NumFloatDecoder();
     } else if (decName.equals("od")) {
       dec = new OldDateFieldDecoder();
     } else if (decName.equals("on")) {
       dec = new OldNumberToolsDecoder();
+    } else if (decName.startsWith("solr.")) {
+      try {
+        dec = new SolrDecoder(decName);
+      } catch (Exception e) {
+        e.printStackTrace();
+        errorMsg("Error setting decoder: " + e.toString());
+      }
     } else {
       dec = defDecoder;
     }
