@@ -5,8 +5,11 @@ import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
+import org.apache.lucene.index.codecs.CodecProvider;
+import org.apache.lucene.index.codecs.standard.StandardCodec;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.getopt.luke.KeepAllIndexDeletionPolicy;
@@ -32,18 +35,24 @@ public class IndexGate {
     knownExtensions.put(IndexFileNames.FIELD_INFOS_EXTENSION, "field names / infos");
     knownExtensions.put(IndexFileNames.FIELDS_EXTENSION, "stored fields data");
     knownExtensions.put(IndexFileNames.FIELDS_INDEX_EXTENSION, "stored fields index data");
-    knownExtensions.put(IndexFileNames.FREQ_EXTENSION, "term frequency postings data");
     knownExtensions.put(IndexFileNames.GEN_EXTENSION, "generation number - global file");
     knownExtensions.put(IndexFileNames.NORMS_EXTENSION, "norms data for all fields");
     knownExtensions.put(IndexFileNames.PLAIN_NORMS_EXTENSION, "per-field norms data");
-    knownExtensions.put(IndexFileNames.PROX_EXTENSION, "term position postings data");
     knownExtensions.put(IndexFileNames.SEGMENTS, "per-commit list of segments");
     knownExtensions.put(IndexFileNames.SEPARATE_NORMS_EXTENSION, "separate per-field norms data");
-    knownExtensions.put(IndexFileNames.TERMS_EXTENSION, "terms dictionary");
-    knownExtensions.put(IndexFileNames.TERMS_INDEX_EXTENSION, "terms dictionary index");
     knownExtensions.put(IndexFileNames.VECTORS_DOCUMENTS_EXTENSION, "term vectors document data");
     knownExtensions.put(IndexFileNames.VECTORS_FIELDS_EXTENSION, "term vector field data");
     knownExtensions.put(IndexFileNames.VECTORS_INDEX_EXTENSION, "term vectors index");
+    CodecProvider codecs = CodecProvider.getDefault();
+    HashSet<String> std = new HashSet<String>();
+    StandardCodec.getStandardExtensions(std);
+    for (String ext : codecs.getAllExtensions()) {
+      if (knownExtensions.containsKey(ext)) {
+        continue;
+      } else {
+        knownExtensions.put(ext, "codec-specific data" + (std.contains(ext) ? " (StandardCodec)" : ""));
+      }
+    }
 
     try {
       deletable = IndexFileDeleter.class.getDeclaredField("deletable");
@@ -139,6 +148,10 @@ public class IndexGate {
       res.capabilities = "lock-less, single norms, shared doc store, checksum, del count, omitTf, user data, diagnostics";
       res.genericName = "Lucene 2.9";
       break;
+    case SegmentInfos.FORMAT_FLEX_POSTINGS:
+      res.capabilities = "lock-less, single norms, shared doc store, checksum, del count, omitTf, user data, diagnostics, flex";
+      res.genericName = "Lucene 3.1";
+      break;
     default:
       res.capabilities = "unknown";
       res.genericName = "Lucene 1.3 or prior";
@@ -168,14 +181,14 @@ public class IndexGate {
   public static void deletePendingFiles(Directory dir, IndexDeletionPolicy policy) throws Exception {
     SegmentInfos infos = new SegmentInfos();
     infos.read(dir);
-    IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, infoStream, null);
+    IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, infoStream, null, CodecProvider.getDefault());
     deleter.close();
   }
   
   public static List<String> getDeletableFiles(Directory dir) throws Exception {
     SegmentInfos infos = new SegmentInfos();
     infos.read(dir);
-    IndexFileDeleter deleter = new IndexFileDeleter(dir, new KeepAllIndexDeletionPolicy(), infos, infoStream, null);
+    IndexFileDeleter deleter = new IndexFileDeleter(dir, new KeepAllIndexDeletionPolicy(), infos, infoStream, null, CodecProvider.getDefault());
     return (List<String>)deletable.get(deleter);
   }
   

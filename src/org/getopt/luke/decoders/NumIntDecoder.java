@@ -1,13 +1,15 @@
 package org.getopt.luke.decoders;
 
 import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 
 public class NumIntDecoder implements Decoder {
 
   @Override
   public String decodeTerm(String fieldName, Object value) {
-    return Integer.toString(NumericUtils.prefixCodedToInt(value.toString()));
+    BytesRef ref = new BytesRef(value.toString());
+    return Integer.toString(NumericUtils.prefixCodedToInt(ref));
   }
   
   @Override

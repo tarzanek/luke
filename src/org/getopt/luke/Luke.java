@@ -65,6 +65,7 @@ import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.search.spans.Spans;
 import org.apache.lucene.store.*;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.xmlparser.CoreParser;
@@ -73,8 +74,6 @@ import org.getopt.luke.DocReconstructor.Reconstructed;
 import org.getopt.luke.decoders.BinaryDecoder;
 import org.getopt.luke.decoders.DateDecoder;
 import org.getopt.luke.decoders.Decoder;
-import org.getopt.luke.decoders.NumDoubleDecoder;
-import org.getopt.luke.decoders.NumFloatDecoder;
 import org.getopt.luke.decoders.NumIntDecoder;
 import org.getopt.luke.decoders.NumLongDecoder;
 import org.getopt.luke.decoders.OldDateFieldDecoder;
@@ -2891,7 +2890,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
     } else if (enc.equals("cbNum")) {
       try {
-        long num = NumericUtils.prefixCodedToLong(f.stringValue());
+        long num = NumericUtils.prefixCodedToLong(new BytesRef(f.stringValue()));
         value = String.valueOf(num);
         len = 1;
       } catch (Exception e) {
@@ -4534,12 +4533,8 @@ public Similarity createSimilarity(Object srchOpts) {
       dec = new DateDecoder();
     } else if (decName.equals("nl")) {
       dec = new NumLongDecoder();
-    } else if (decName.equals("nd")) {
-      dec = new NumDoubleDecoder();
     } else if (decName.equals("ni")) {
       dec = new NumIntDecoder();
-    } else if (decName.equals("nf")) {
-      dec = new NumFloatDecoder();
     } else if (decName.equals("od")) {
       dec = new OldDateFieldDecoder();
     } else if (decName.equals("on")) {
