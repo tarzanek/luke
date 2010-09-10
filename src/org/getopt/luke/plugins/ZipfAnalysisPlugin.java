@@ -6,10 +6,10 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermDocs;
-import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.index.IndexReader.FieldOption;
+import org.apache.lucene.index.TermsEnum;
 import org.getopt.luke.LukePlugin;
 import org.getopt.luke.SlowThread;
 
@@ -101,9 +101,8 @@ public class ZipfAnalysisPlugin extends LukePlugin {
     SlowThread st = new SlowThread(app) {
       public void execute() {
         try {
-          Term startTerm = new Term(field, "");
           int numBuckets = 100;
-          TermEnum te = ir.terms(startTerm);
+          TermsEnum te = MultiFields.getTerms(ir, field).iterator();
           ArrayList terms = new ArrayList();
 
           // most terms occur very infrequently - just keep group totals for the DFs
@@ -121,18 +120,14 @@ public class ZipfAnalysisPlugin extends LukePlugin {
           // too much ram)
 
           int numUniqueTerms = 0;
-          while (te.next()) {
-            Term currTerm = te.term();
-            if (currTerm.field() != startTerm.field()) {
-              break;
-            }
+          while (te.next() != null) {
             numUniqueTerms++;
             int df = te.docFreq();
             if (df <= longTailDfEnd) {
               int i = df - longTailDfStart;
               longTailTermDfCounts[i]++;
             } else {
-              terms.add(new TermCount(currTerm, df));
+              terms.add(new TermCount(new Term(field, te.term().utf8ToString()), df));
             }
           }
 

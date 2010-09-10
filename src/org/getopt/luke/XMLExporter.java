@@ -2,6 +2,7 @@ package org.getopt.luke;
 
 import java.io.*;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.zip.GZIPOutputStream;
 
 import org.apache.lucene.document.Document;
@@ -11,6 +12,8 @@ import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 public class XMLExporter extends Observable {
   private IndexReader reader;
@@ -19,6 +22,7 @@ public class XMLExporter extends Observable {
   private boolean running = false;
   private ProgressNotification pn = new ProgressNotification();
   private List<String> fieldNames;
+  private Similarity similarity = Similarity.getDefault();
   
   public XMLExporter(IndexReader reader, String indexPath) {
     this.reader = reader;
@@ -66,6 +70,7 @@ public class XMLExporter extends Observable {
     if (delta == 0) delta = 1;
     int cnt = 0;
     bw = new BufferedWriter(new OutputStreamWriter(output, "UTF-8"));
+    Bits deleted = MultiFields.getDeletedDocs(reader);
     try {
       // write out XML preamble
       if (preamble) {
@@ -96,7 +101,7 @@ public class XMLExporter extends Observable {
             notifyObservers(pn);
             break;
           }
-          if (reader.isDeleted(i)) continue; // skip deleted docs
+          if (deleted.get(i)) continue; // skip deleted docs
           doc = reader.document(i);
           // write out fields
           writeDoc(bw, i, doc);
@@ -150,7 +155,7 @@ public class XMLExporter extends Observable {
       }
       bw.write("<field name='" + fields[0].name());
       if (reader.hasNorms(fields[0].name())) {
-        bw.write("' norm='" + Similarity.decodeNorm(reader.norms(fields[0].name())[docNum]));
+        bw.write("' norm='" + similarity.decodeNormValue(reader.norms(fields[0].name())[docNum]));
       } 
       bw.write("' flags='" + Util.fieldFlags(fields[0]) + "'>\n");
       for (Field f : fields) {
@@ -172,7 +177,7 @@ public class XMLExporter extends Observable {
   
   private void writeTermVector(BufferedWriter bw, TermFreqVector tfv) throws Exception {
     bw.write("<tv size='" + tfv.size() + "'>\n");
-    String[] terms = tfv.getTerms();
+    BytesRef[] terms = tfv.getTerms();
     int[] freqs = tfv.getTermFrequencies();
     for (int k = 0; k < terms.length; k++) {
       int[] posArray = null;
@@ -198,7 +203,7 @@ public class XMLExporter extends Observable {
         }
         sb.append("'");
       }
-      bw.write("<t text='" + terms[k] + "' freq='" + freqs[k] + "'" + sb.toString() + "/>\n");
+      bw.write("<t text='" + terms[k].utf8ToString() + "' freq='" + freqs[k] + "'" + sb.toString() + "/>\n");
     }
     bw.write("</tv>\n");
   }
@@ -246,7 +251,7 @@ public class XMLExporter extends Observable {
         for (Object p : ic.getFileNames()) {
           bw.write("   <file name='" + p.toString() + "'/>\n");
         }
-        Map userData = ic.getUserData();
+        Map<String,String> userData = ic.getUserData();
         if (userData != null && userData.size() > 0) {
           bw.write("   <userData size='" + userData.size() + "'>" + userData.toString() + "</userData>\n");
         }
@@ -254,10 +259,13 @@ public class XMLExporter extends Observable {
       }
       bw.write(" </commits>\n");
     }
-    bw.write(" <topTerms count='" + indexInfo.getTopTerms().length + "'>\n");
-    for (TermInfo ti : indexInfo.getTopTerms()) {
-      bw.write("  <term field='" + ti.term.field() + "' text='" + ti.term.text() +
-          "' docFreq='" + ti.docFreq + "'/>\n");
+    TermStats[] topTerms = indexInfo.getTopTerms();
+    if (topTerms != null) {
+      bw.write(" <topTerms count='" + topTerms.length + "'>\n");
+      for (TermStats ts : topTerms) {
+        bw.write("  <term field='" + ts.field + "' text='" + ts.termtext.utf8ToString() +
+          "' docFreq='" + ts.docFreq + "'/>\n");
+      }
     }
     bw.write(" </topTerms>\n");
     bw.write("</info>\n");    

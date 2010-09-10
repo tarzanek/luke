@@ -6,6 +6,8 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.FieldOption;
+import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 /**
  * This class attempts to reconstruct all fields from a document
@@ -23,6 +25,7 @@ public class DocReconstructor extends Observable {
   private String[] fieldNames = null;
   private IndexReader reader = null;
   private int numTerms;
+  private Bits deleted;
   
   /**
    * Prepare a document reconstructor.
@@ -54,13 +57,19 @@ public class DocReconstructor extends Observable {
       this.fieldNames = fieldNames;
     }
     if (numTerms == -1) {
-      TermEnum te = reader.terms();
+      Fields fields = MultiFields.getFields(reader);
       numTerms = 0;
-      while (te.next())
-        numTerms++;
-      te.close();
+      FieldsEnum fe = fields.iterator();
+      String fld = null;
+      while ((fld = fe.next()) != null) {
+        TermsEnum te = fe.terms();
+        while (te.next() != null) {
+          numTerms++;
+        }
+      }
       this.numTerms = numTerms;
     }
+    deleted = MultiFields.getDeletedDocs(reader);
   }
   
   /**
@@ -76,7 +85,7 @@ public class DocReconstructor extends Observable {
       throw new Exception("Document number outside of valid range.");
     }
     Reconstructed res = new Reconstructed();
-    if (reader.isDeleted(docNum)) {
+    if (deleted.get(docNum)) {
       throw new Exception("Document is deleted.");
     } else {
       Document doc = reader.document(docNum);
@@ -101,7 +110,7 @@ public class DocReconstructor extends Observable {
         progress.curValue = i;
         setChanged();
         notifyObservers(progress);
-        String[] tv = tpv.getTerms();
+        BytesRef[] tv = tpv.getTerms();
         for (int k = 0; k < tv.length; k++) {
           // do we have positions?
           int[] posArr = tpv.getTermPositions(k);
@@ -120,14 +129,12 @@ public class DocReconstructor extends Observable {
             res.getReconstructedFields().put(fieldNames[i], gsa);
           }
           for (int m = 0; m < posArr.length; m++) {
-            gsa.append(posArr[m], "|", tv[k]);
+            gsa.append(posArr[m], "|", tv[k].utf8ToString());
           }
         }
         fields.remove(fieldNames[i]); // got what we wanted
       }
     }
-    String term = null;
-    TermPositions tp = reader.termPositions();
     // this loop collects data only from left-over fields
     // not yet collected through term vectors
     progress.maxValue = fields.size();
@@ -138,36 +145,30 @@ public class DocReconstructor extends Observable {
       progress.curValue++;
       setChanged();
       notifyObservers(progress);
-      TermEnum te = reader.terms(new Term(fld, ""));
-      if (te == null || !te.term().field().equals(fld)) {
-        continue;
-      }
-      // TermEnum is already positioned
-      do {
-        if (!te.term().field().equals(fld)) {
-          // end of terms in this field
+      Terms terms = MultiFields.getTerms(reader, fld);
+      TermsEnum te = terms.iterator();
+      while (te.next() != null) {
+        DocsAndPositionsEnum dpe = te.docsAndPositions(deleted, null);
+        if (dpe == null) { // no position info for this field
           break;
         }
-        tp.seek(te.term());
-        if (!tp.skipTo(docNum) || tp.doc() != docNum) {
-          // this term is not found in the doc
-          continue;
+        int num = dpe.advance(docNum);
+        if (num != docNum) { // either greater than or NO_MORE_DOCS
+          continue; // no data for this term in this doc
         }
-        term = te.term().text();
+        String term = te.term().utf8ToString();
         GrowableStringArray gsa = (GrowableStringArray)
-            res.getReconstructedFields().get(te.term().field());
+              res.getReconstructedFields().get(fld);
         if (gsa == null) {
           gsa = new GrowableStringArray();
-          res.getReconstructedFields().put(te.term().field(), gsa);
+          res.getReconstructedFields().put(fld, gsa);
         }
-        for (int k = 0; k < tp.freq(); k++) {
-          int pos = tp.nextPosition();
+        for (int k = 0; k < dpe.freq(); k++) {
+          int pos = dpe.nextPosition();
           gsa.append(pos, "|", term);
         }
-      } while (te.next());
-      te.close();
+      }
     }
-    tp.close();
     progress.message = "Done.";
     progress.curValue = 100;
     setChanged();

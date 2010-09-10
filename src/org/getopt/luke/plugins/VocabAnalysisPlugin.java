@@ -3,11 +3,12 @@ package org.getopt.luke.plugins;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.TermDocs;
-import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.index.IndexReader.FieldOption;
+import org.apache.lucene.index.TermsEnum;
 import org.getopt.luke.LukePlugin;
 import org.getopt.luke.SlowThread;
 
@@ -105,23 +106,13 @@ public class VocabAnalysisPlugin extends LukePlugin {
           float numDocs = ir.maxDoc();
           if (numDocs < numAgeGroups) numAgeGroups = ir.maxDoc();
           float ageTotals[] = new float[numAgeGroups];
-          String internedField = field.intern();
-          TermEnum te = ir.terms(new Term(internedField, ""));
-          Term term = te.term();
-          while (term != null) {
-            if (internedField != term.field()) {
-              break;
-            }
-            TermDocs td = ir.termDocs(term);
-            td.next();
-            float firstDocId = td.doc();
+          TermsEnum te = MultiFields.getTerms(ir, field).iterator();
+          while (te.next() != null) {
+            DocsEnum td = te.docs(null, null);
+            td.nextDoc();
+            float firstDocId = td.docID();
             int ageBracket = (int) ((firstDocId / numDocs) * numAgeGroups);
             ageTotals[ageBracket]++;
-            if (te.next()) {
-              term = te.term();
-            } else {
-              term = null;// ends loop
-            }
           }
           float total = 0.0f;
           float max = 0.0f;

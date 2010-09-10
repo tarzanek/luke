@@ -7,11 +7,11 @@ import java.util.Iterator;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.FlagsAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
-import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.index.Payload;
 import org.apache.lucene.util.Attribute;
@@ -114,7 +114,7 @@ public class AnalyzerToolPlugin extends LukePlugin {
 
       while (ts.incrementToken()) {
         Object row = app.create("item");
-        app.setString(row, "text", ((TermAttribute)ts.getAttribute(TermAttribute.class)).term());
+        app.setString(row, "text", ((CharTermAttribute)ts.getAttribute(CharTermAttribute.class)).toString());
         app.add(resultsList, row);
         app.putProperty(row, "state", ts.cloneAttributes());
       }
@@ -159,8 +159,8 @@ public class AnalyzerToolPlugin extends LukePlugin {
       cell = app.create("cell");
       app.add(r, cell);
       String val = null;
-      if (attClass.equals("TermAttribute")) {
-        val = ((TermAttribute)att).term();
+      if (attClass.equals("CharTermAttribute")) {
+        val = ((CharTermAttribute)att).toString();
       } else if (attClass.equals("FlagsAttribute")) {
         val = Integer.toHexString(((FlagsAttribute)att).getFlags());
       } else if (attClass.equals("OffsetAttribute")) {

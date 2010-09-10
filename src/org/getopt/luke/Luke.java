@@ -38,6 +38,9 @@ import javax.swing.UIManager;
 
 import org.apache.lucene.LucenePackage;
 import org.apache.lucene.analysis.*;
+import org.apache.lucene.analysis.core.SimpleAnalyzer;
+import org.apache.lucene.analysis.core.StopAnalyzer;
+import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.payloads.PayloadHelper;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.DateTools;
@@ -50,6 +53,7 @@ import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.index.IndexWriter.MaxFieldLength;
+import org.apache.lucene.index.TermsEnum.SeekStatus;
 import org.apache.lucene.misc.SweetSpotSimilarity;
 import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.*;
@@ -97,6 +101,8 @@ import thinlet.Thinlet;
  */
 public class Luke extends Thinlet implements ClipboardOwner {
 
+  private static final long serialVersionUID = -470469999079073156L;
+  
   private Directory dir = null;
   String pName = null;
   private IndexReader ir = null;
@@ -104,7 +110,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private boolean slowAccess = false;
   private Collection<String> fn = null;
   private String[] idxFields = null;
-  private HashMap<String, FieldTermCount> termCounts = new HashMap<String, FieldTermCount>();
+  private IndexInfo idxInfo = null;
+  private Map<String, FieldTermCount> termCounts;
   private List<LukePlugin> plugins = new ArrayList<LukePlugin>();
   private Object errorDlg = null;
   private Object infoDlg = null;
@@ -124,6 +131,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private Object lastST;
   private HashMap<String, Decoder> decoders = new HashMap<String, Decoder>();
   private Decoder defDecoder = new StringDecoder();
+  private Version LV = Version.LUCENE_40;
   
   /** Default salmon theme. */
   public static final int THEME_DEFAULT     = 0;
@@ -382,7 +390,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    * Return the list of active plugin instances.
    * @return
    */
-  public List getPlugins() {
+  public List<LukePlugin> getPlugins() {
     return Collections.unmodifiableList(plugins);
   }
   
@@ -710,8 +718,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
       return;
     }
     Object dialog = addComponent(this, "/xml/commit.xml", null, null);
-    Map userData = ir.getCommitUserData();
-    TreeMap ud = new TreeMap(userData);
+    Map<String,String> userData = ir.getCommitUserData();
+    TreeMap<String,String> ud = new TreeMap<String,String>(userData);
     putProperty(dialog, "userData", ud);
     _showUserData(dialog);
   }
@@ -719,16 +727,16 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private void _showUserData(Object dialog) {
     Object table = find(dialog, "data");
     removeAll(table);
-    Map<Object,Object> ud = (Map)getProperty(dialog, "userData");
-    for (Entry e : ud.entrySet()) {
+    Map<String,String> ud = (Map<String,String>)getProperty(dialog, "userData");
+    for (Entry<String,String> e : ud.entrySet()) {
       Object row = create("row");
       putProperty(row, "key", e.getKey());
       add(table, row);
       Object cell = create("cell");
-      setString(cell, "text", e.getKey().toString());
+      setString(cell, "text", e.getKey());
       add(row, cell);
       cell = create("cell");
-      setString(cell, "text", e.getValue().toString());
+      setString(cell, "text", e.getValue());
       add(row, cell);
     }
   }
@@ -742,14 +750,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus("Cannot add empty key.");
       return;
     }    
-    Map<Object,Object> ud = (Map)getProperty(dialog, "userData");
+    Map<String,String> ud = (Map<String,String>)getProperty(dialog, "userData");
     ud.put(k, v);
     _showUserData(dialog);
   }
   
   public void deleteUserData(Object dialog) {
     Object table = find(dialog, "data");
-    Map ud = (Map)getProperty(dialog, "userData");
+    Map<String,String> ud = (Map<String,String>)getProperty(dialog, "userData");
     Object[] rows = getSelectedItems(table);
     if (rows == null || rows.length == 0) {
       return;
@@ -762,7 +770,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   }
   
   public void commitUserData(Object dialog) {
-    Map userData = (Map)getProperty(dialog, "userData");
+    Map<String,String> userData = (Map<String,String>)getProperty(dialog, "userData");
     remove(dialog);
     try {
       ir.flush(userData);
@@ -878,7 +886,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         showStatus("Loading index into RAMDirectory ...");
         Directory dir1 = new RAMDirectory();
         IndexWriter iw1 = new IndexWriter(dir1, new SimpleAnalyzer(), MaxFieldLength.UNLIMITED);
-        iw1.addIndexesNoOptimize((Directory[])dirs.toArray(new Directory[dirs.size()]));
+        iw1.addIndexes((Directory[])dirs.toArray(new Directory[dirs.size()]));
         iw1.close();
         showStatus("RAMDirectory loading done!");
         dir.close();
@@ -1038,6 +1046,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         return;
       }      
       // we need IndexReader from now on
+      idxInfo = new IndexInfo(ir, pName);
       Object iMod = find(pOver, "iMod");
       String modText = "N/A";
       if (dir != null) {
@@ -1050,7 +1059,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       iDocs = find("iDocs1");
       setString(iDocs, "text", String.valueOf(ir.maxDoc() - 1));
       Object iFields = find(pOver, "iFields");
-      fn = ir.getFieldNames(IndexReader.FieldOption.ALL);
+      fn = idxInfo.getFieldNames();
       if (fn.size() == 0) {
         showStatus("Empty index.");
       }
@@ -1072,33 +1081,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
             add(fList, r);
             setBoolean(cell, "enabled", false);
             setString(cell, "text", "..wait..");
-            termCounts.clear();
-            FieldTermCount ftc = null;
             try {
-              TermEnum te = ir.terms();
-              numTerms = 0;
-              while (te.next()) {
-                Term currTerm = te.term();
-                if (ftc == null) {
-                  // initialize
-                  ftc = new FieldTermCount();
-                  ftc.fieldname = currTerm.field();
-                  termCounts.put(ftc.fieldname, ftc);
-                }
-                if (ftc.fieldname == currTerm.field()) {
-                  ftc.termCount++;
-                } else {
-                  ftc = new FieldTermCount();
-                  ftc.fieldname = currTerm.field();
-                  ftc.termCount++;
-                  termCounts.put(ftc.fieldname, ftc);
-                }
-                numTerms++;
-              }
-              te.close();
+              numTerms = idxInfo.getNumTerms();
+              termCounts = idxInfo.getFieldTermCounts();
               setString(iTerms, "text", String.valueOf(numTerms));
               initFieldList(fList, fCombo, defFld);
             } catch (Exception e) {
+              numTerms = -1;
+              termCounts = Collections.emptyMap();
               showStatus("ERROR: can't count terms per field");
             }
           }
@@ -1124,7 +1114,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       String formatText = "N/A";
       String formatCaps = "N/A";
       if (dir != null) {
-        int format = IndexGate.getIndexFormat(dir);
+        int format = idxInfo.getIndexFormat();
         IndexGate.FormatDetails formatDetails = IndexGate.getFormatDetails(format);
         formatText = format + " (" + formatDetails.genericName + ")";
         formatCaps = formatDetails.capabilities;
@@ -1151,7 +1141,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       Object iUser = find(pOver, "iUser");
       String userData = null;
       try {
-        Map userDataMap = ir.getCommitUserData();
+        Map<String,String> userDataMap = ir.getCommitUserData();
         if (userDataMap != null && !userDataMap.isEmpty()) {
           userData = ir.getCommitUserData().toString();
         } else {
@@ -1266,18 +1256,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
       add(commitsTable, row);
       return;
     }
-    Collection commits = IndexReader.listCommits(dir);
+    Collection<IndexCommit> commits = IndexReader.listCommits(dir);
     // commits are ordered from oldest to newest ?
-    Iterator it = commits.iterator();
+    Iterator<IndexCommit> it = commits.iterator();
     int rowNum = 0;
     while (it.hasNext()) {
-      IndexCommit commit = (IndexCommit)it.next();
-      // figure out the name of the segment files
-      Collection files = commit.getFileNames();
-      Iterator itf = files.iterator();
+      IndexCommit commit = it.next();
       Object row = create("row");
       boolean enabled = rowNum < commits.size() - 1;
-      Color color = null;
       rowNum++;
       add(commitsTable, row);
       putProperty(row, "commit", commit);
@@ -1302,7 +1288,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setString(cell, "text", new Date(commit.getTimestamp()).toString());
       add(row, cell);
       cell = create("cell");
-      Map userData = commit.getUserData();
+      Map<String,String> userData = commit.getUserData();
       if (userData != null && !userData.isEmpty()) {
         setString(cell, "text", userData.toString());
       } else {
@@ -1313,7 +1299,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   }
   
   public void showCommitFiles(Object commitTable) throws Exception {
-    List commits = new ArrayList();
+    List<IndexCommit> commits = new ArrayList<IndexCommit>();
     Object[] rows = getSelectedItems(commitTable);
     if (rows == null || rows.length == 0) {
       showFiles(dir, commits);
@@ -1328,7 +1314,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     showFiles(dir, commits);
   }
 
-  private void showFiles(Directory dir, List commits) throws Exception {
+  private void showFiles(Directory dir, List<IndexCommit> commits) throws Exception {
     Object filesTable = find("filesTable");
     if (dir == null) {
       removeAll(filesTable);
@@ -1341,18 +1327,18 @@ public class Luke extends Thinlet implements ClipboardOwner {
       return;
     }
     String[] physFiles = dir.listAll();
-    List<String> files = new ArrayList();
+    List<String> files = new ArrayList<String>();
     if (commits != null && commits.size() > 0) {
       for (int i = 0; i < commits.size(); i++) {
-        IndexCommit commit = (IndexCommit)commits.get(i);
+        IndexCommit commit = commits.get(i);
         files.addAll(commit.getFileNames());
       }
     } else {
       files.addAll(Arrays.asList(physFiles));
     }
     Collections.sort(files);
-    List segs = getIndexFileNames(dir);
-    List dels = getIndexDeletableNames(dir);
+    List<String> segs = getIndexFileNames(dir);
+    List<String> dels = getIndexDeletableNames(dir);
     removeAll(filesTable);
     for (int i = 0; i < files.size(); i++) {
       String fileName = files.get(i);
@@ -1433,10 +1419,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          TermInfo[] tis = HighFreqTerms.getHighFreqTerms(ir, null, ndoc + 1, fflds);
+          TermStats[] topTerms = HighFreqTerms.getHighFreqTerms(ir, ndoc, fflds);
           Object table = find("tTable");
           removeAll(table);
-          if (tis == null || tis.length == 0) {
+          if (topTerms == null || topTerms.length == 0) {
             Object row = create("row");
             Object cell = create("cell");
             add(row, cell);
@@ -1451,31 +1437,31 @@ public class Luke extends Thinlet implements ClipboardOwner {
             add(table, row);
             return;
           }
-          for (int i = 0; i < tis.length; i++) {
+          for (int i = 0; i < topTerms.length; i++) {
             Object row = create("row");
             add(table, row);
-            putProperty(row, "term", tis[i].term);
-            putProperty(row, "ti", tis[i]);
+            putProperty(row, "term", topTerms[i].termtext.utf8ToString());
+            putProperty(row, "ti", topTerms[i]);
             Object cell = create("cell");
             setChoice(cell, "alignment", "right");
             setString(cell, "text", String.valueOf(i + 1));
             add(row, cell);
             cell = create("cell");
             setChoice(cell, "alignment", "right");
-            setString(cell, "text", String.valueOf(tis[i].docFreq) + "  ");
+            setString(cell, "text", String.valueOf(topTerms[i].docFreq) + "  ");
             add(row, cell);
             cell = create("cell");
-            setString(cell, "text", tis[i].term.field());
+            setString(cell, "text", topTerms[i].field);
             add(row, cell);
             cell = create("cell");
-            Decoder dec = decoders.get(tis[i].term.field());
+            Decoder dec = decoders.get(topTerms[i].field);
             if (dec == null) dec = defDecoder;
             String s;
             try {
-              s = dec.decodeTerm(tis[i].term.field(), tis[i].term.text());
+              s = dec.decodeTerm(topTerms[i].field, topTerms[i].termtext.utf8ToString());
             } catch (Throwable e) {
               //e.printStackTrace();
-              s = tis[i].term.text();
+              s = topTerms[i].termtext.utf8ToString();
               setColor(cell, "foreground", Color.RED);
             }
             setString(cell, "text", "  " + s);
@@ -2052,10 +2038,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
           } else {
             policy = new KeepLastIndexDeletionPolicy();
           }
-          iw = new IndexWriter(dir, new org.apache.lucene.analysis.WhitespaceAnalyzer(),
-              false, policy, MaxFieldLength.UNLIMITED);
-          iw.setUseCompoundFile(useCompound);
-          iw.setTermIndexInterval(tii);
+          IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer(LV));
+          cfg.setIndexDeletionPolicy(policy);
+          cfg.setTermIndexInterval(tii);
+          ((LogMergePolicy)cfg.getMergePolicy()).setUseCompoundFile(useCompound);
+          iw = new IndexWriter(dir, cfg);
           iw.setInfoStream(ppw);
           long startSize = Util.calcTotalFileSize(pName, dir);
           long startTime = System.currentTimeMillis();
@@ -2131,7 +2118,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
         return;
       }
       setString(docNum, "text", String.valueOf(iNum));
-      if (!ir.isDeleted(iNum)) {
+      org.apache.lucene.util.Bits deleted = MultiFields.getDeletedDocs(ir);
+      if (!deleted.get(iNum)) {
         SlowThread st = new SlowThread(this) {
           public void execute() {
             try {
@@ -2627,14 +2615,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
           setString(find(dialog, "fld"), "text", fName);
           Object vTable = find(dialog, "vTable");
           IntPair[] tvs = new IntPair[tfv.size()];
-          String[] terms = tfv.getTerms();
+          BytesRef[] terms = tfv.getTerms();
           int[] freqs = tfv.getTermFrequencies();
           TermPositionVector tpv = null;
           Decoder dec = decoders.get(fName);
           if (dec == null) dec = defDecoder;
           if (tfv instanceof TermPositionVector) tpv = (TermPositionVector)tfv;
           for (int i = 0; i < terms.length; i++) {
-            IntPair ip = new IntPair(freqs[i], terms[i]);
+            IntPair ip = new IntPair(freqs[i], terms[i].utf8ToString());
             if (tpv != null) {
               ip.offsets = tpv.getOffsets(i);
               ip.positions = tpv.getTermPositions(i);
@@ -2789,12 +2777,13 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Float newFVal = (Float)getProperty(dialog, "newNorm");
     Integer docNum = (Integer)getProperty(dialog, "docNum");
     Field f = (Field)getProperty(dialog, "field");
+    org.apache.lucene.util.Bits deleted = MultiFields.getDeletedDocs(ir);
     try {
       if (singleDoc) {
         ir.setNorm(docNum.intValue(), f.name(), newFVal.floatValue());
       } else if (allDoc) {
         for (int i = 0; i < ir.maxDoc(); i++) {
-          if (ir.isDeleted(i)) continue;
+          if (deleted.get(i)) continue;
           ir.setNorm(i, f.name(), newFVal.floatValue());
         }
       } else if (ranges) {
@@ -2806,7 +2795,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           DocIdSetIterator it = r.iterator();
           int docId;
           while ((docId = it.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
-            if (ir.isDeleted(docId)) continue;
+            if (deleted.get(docId)) continue;
             ir.setNorm(docId, f.name(), newFVal.floatValue());
           }
         }
@@ -3048,9 +3037,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       public void execute() {
         try {
           String fld = getString(fCombo, "text");
-          TermEnum te = ir.terms(new Term(fld, ""));
-          Term t = te.term();
-          _showTerm(fCombo, fText, t);
+          Terms terms = MultiFields.getTerms(ir, fld);
+          TermsEnum te = terms.iterator();
+          BytesRef term = te.next();
+          _showTerm(fCombo, fText, new Term(fld, term));
         } catch (Exception e) {
           e.printStackTrace();
           showStatus(e.getMessage());
@@ -3082,11 +3072,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
             }
           }
           String fld = getString(fCombo, "text");
-          TermEnum te = null;
           if (text == null || text.trim().equals("")) text = "";
-          te = ir.terms(new Term(fld, text));
-          te.next();
-          Term t = te.term();
+          Terms terms = MultiFields.getTerms(ir, fld);
+          TermsEnum te = terms.iterator();
+          BytesRef term = new BytesRef(text);
+          SeekStatus status = te.seek(term);
+          Term t = new Term(fld, term.utf8ToString());
           _showTerm(fCombo, fText, t);
         } catch (Exception e) {
           e.printStackTrace();
@@ -3122,8 +3113,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
           if (text == null || text.trim().equals("")) return;
           Term t = new Term(fld, text);
           if (ir.docFreq(t) == 0) { // missing term
-            TermEnum te = ir.terms(t);
-            t = te.term();
+            Terms terms = MultiFields.getTerms(ir, fld);
+            TermsEnum te = terms.iterator();
+            te.seek(new BytesRef(text));
+            t = new Term(fld, te.term().utf8ToString());
           }
           _showTerm(fCombo, fText, t);
         } catch (Exception e) {
@@ -3215,8 +3208,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          TermPositions td = ir.termPositions(t);
-          td.next();
+          DocsAndPositionsEnum td = MultiFields.getTermPositionsEnum(ir, null, t.field(), t.bytes());
+          td.nextDoc();
           setString(find("tdNum"), "text", "1");
           putProperty(fText, "td", td);
           _showTermDoc(fText, td);
@@ -3243,12 +3236,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          TermPositions td = (TermPositions) getProperty(fText, "td");
+          DocsAndPositionsEnum td = (DocsAndPositionsEnum) getProperty(fText, "td");
           if (td == null) {
             showFirstTermDoc(fText);
             return;
           }
-          if (!td.next()) return;
+          if (td.nextDoc() == DocsEnum.NO_MORE_DOCS) return;
           Object tdNum = find("tdNum");
           String sCnt = getString(tdNum, "text");
           int cnt = 1;
@@ -3281,7 +3274,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          TermPositions td = (TermPositions) getProperty(fText, "td");
+          DocsAndPositionsEnum td = (DocsAndPositionsEnum) getProperty(fText, "td");
           if (td == null) {
             return;
           }
@@ -3303,10 +3296,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
               add(r, cell);
               cell = create("cell");
               add(r, cell);
-              if (td.isPayloadAvailable()) {
-                byte[] payload = new byte[td.getPayloadLength()];
-                td.getPayload(payload, 0);
-                putProperty(r, "payload", payload);
+              if (td.hasPayload()) {
+                BytesRef payload = td.getPayload();
+                putProperty(r, "payload", new BytesRef(payload));
               }
               add(pTable, r);
             } catch (IOException ioe) {
@@ -3338,7 +3330,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Object[] rows = getItems(pTable);
     boolean warn = false;
     for (int i = 0; i < rows.length; i++) {
-      byte[] payload = (byte[])getProperty(rows[i], "payload");
+      BytesRef payload = (BytesRef)getProperty(rows[i], "payload");
       if (payload == null) continue;
       Object cell = getItem(rows[i], 1);
       String curEnc = enc;
@@ -3349,28 +3341,28 @@ public class Luke extends Thinlet implements ClipboardOwner {
       String val = "?";
       if (curEnc.equals("cbUtf")) {
         try {
-          val = new String(payload, "UTF-8");
+          val = new String(payload.bytes, payload.offset, payload.length, "UTF-8");
         } catch (Exception e) {
           e.printStackTrace();
-          val = new String(payload);
+          val = new String(payload.bytes, payload.offset, payload.length);
           curEnc = "cbDef";
         }
       } else if (curEnc.equals("cbHex")) {
-        val = Util.bytesToHex(payload, 0, payload.length, false);
+        val = Util.bytesToHex(payload.bytes, payload.offset, payload.length, false);
       } else if (curEnc.equals("cbDef")) {
-        val = new String(payload);
+        val = new String(payload.bytes, payload.offset, payload.length);
       } else if (curEnc.equals("cbInt")) {
         StringBuilder sb = new StringBuilder();
-        for (int k = 0; k < payload.length; k += 4) {
+        for (int k = payload.offset; k < payload.offset + payload.length; k += 4) {
           if (k > 0) sb.append(',');
-          sb.append(String.valueOf(PayloadHelper.decodeInt(payload, k)));
+          sb.append(String.valueOf(PayloadHelper.decodeInt(payload.bytes, k)));
         }
         val = sb.toString();
       } else if (curEnc.equals("cbFloat")) {
         StringBuilder sb = new StringBuilder();
-        for (int k = 0; k < payload.length; k += 4) {
+        for (int k = payload.offset; k < payload.offset + payload.length; k += 4) {
           if (k > 0) sb.append(',');
-          sb.append(String.valueOf(PayloadHelper.decodeFloat(payload, k)));
+          sb.append(String.valueOf(PayloadHelper.decodeFloat(payload.bytes, k)));
         }
         val = sb.toString();
       }
@@ -3766,25 +3758,23 @@ public Similarity createSimilarity(Object srchOpts) {
     } else if (clazz.equals("FuzzyQuery")) {
       FuzzyQuery fq = (FuzzyQuery)q;
       Object n1 = create("node");
-      setString(n1, "text", "prefixLen=" + fq.getPrefixLength() +
+      setString(n1, "text", "field=" + fq.getField() + ", prefixLen=" + fq.getPrefixLength() +
               ", minSimilarity=" + df.format(fq.getMinSimilarity()));
       add(n, n1);
       // do some tricks with reflection...
       try {
-        Method m = FuzzyQuery.class.getDeclaredMethod("getEnum", new Class[]{IndexReader.class});
+        Method m = FuzzyQuery.class.getDeclaredMethod("getTermsEnum", new Class[]{IndexReader.class});
         m.setAccessible(true);
-        FilteredTermEnum fte = (FilteredTermEnum)m.invoke(fq, new Object[]{ir});
+        TermsEnum fte = (TermsEnum)m.invoke(fq, new Object[]{ir});
         n1 = create("node");
         String clz = fte.getClass().getName();
-        setString(n1, "text", clz + ": diff=" + df.format(fte.difference()));
+        setString(n1, "text", clz);
         add(n, n1);
-        do {
+        while (fte.next() != null) {
           n1 = create("node");
-          Term t = fte.term();
-          setString(n1, "text", "Term: field='" + t.field() +
-                  "' text='" + t.text() + "', docFreq=" + fte.docFreq());
+          setString(n1, "text", "Term: '" + fte.term().utf8ToString() + "', docFreq=" + fte.docFreq());
           add(n, n1);
-        } while (fte.next());
+        }
       } catch (Exception e) {
         n1 = create("node");
         setString(n1, "text", "FilteredTermEnum: Exception " + e.getMessage());
@@ -3796,21 +3786,18 @@ public Similarity createSimilarity(Object srchOpts) {
       setString(n, "text", getString(n, "text") + ", term=" + t);
       // do some tricks with reflection...
       try {
-        Method m = WildcardQuery.class.getDeclaredMethod("getEnum", new Class[]{IndexReader.class});
+        Method m = WildcardQuery.class.getDeclaredMethod("getTermsEnum", new Class[]{IndexReader.class});
         m.setAccessible(true);
-        FilteredTermEnum fte = (FilteredTermEnum)m.invoke(wq, new Object[]{ir});
+        TermsEnum fte = (TermsEnum)m.invoke(wq, new Object[]{ir});
         Object n1 = create("node");
         String clz = fte.getClass().getName();
-        setString(n1, "text", clz + ": diff=" + df.format(fte.difference()));
+        setString(n1, "text", clz);
         add(n, n1);
-        do {
+        while (fte.next() != null) {
           n1 = create("node");
-          t = fte.term();
-          if (t == null) continue;
-          setString(n1, "text", "Term: field='" + t.field() +
-                  "' text='" + t.text() + "', docFreq=" + fte.docFreq());
+          setString(n1, "text", "Term: '" + fte.term().utf8ToString() + "', docFreq=" + fte.docFreq());
           add(n, n1);
-        } while (fte.next());
+        }
       } catch (Exception e) {
         Object n1 = create("node");
         setString(n1, "text", "FilteredTermEnum: Exception " + e.getMessage());
@@ -4283,7 +4270,7 @@ public Similarity createSimilarity(Object srchOpts) {
     }
   }
 
-  private void _showTermDoc(Object fText, final TermPositions td) {
+  private void _showTermDoc(Object fText, final DocsAndPositionsEnum td) {
     if (ir == null) {
       showStatus(MSG_NOINDEX);
       return;
@@ -4291,10 +4278,10 @@ public Similarity createSimilarity(Object srchOpts) {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          Document doc = ir.document(td.doc());
-          setString(find("docNum"), "text", String.valueOf(td.doc()));
+          Document doc = ir.document(td.docID());
+          setString(find("docNum"), "text", String.valueOf(td.docID()));
           setString(find("tFreq"), "text", String.valueOf(td.freq()));
-          _showDocFields(td.doc(), doc);          
+          _showDocFields(td.docID(), doc);          
         } catch (Exception e) {
           e.printStackTrace();
           showStatus(e.getMessage());
