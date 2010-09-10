@@ -108,7 +108,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private IndexReader ir = null;
   private IndexSearcher is = null;
   private boolean slowAccess = false;
-  private Collection<String> fn = null;
+  private List<String> fn = null;
   private String[] idxFields = null;
   private IndexInfo idxInfo = null;
   private Map<String, FieldTermCount> termCounts;
@@ -2119,7 +2119,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
       setString(docNum, "text", String.valueOf(iNum));
       org.apache.lucene.util.Bits deleted = MultiFields.getDeletedDocs(ir);
-      if (!deleted.get(iNum)) {
+      if (deleted == null || !deleted.get(iNum)) {
         SlowThread st = new SlowThread(this) {
           public void execute() {
             try {
@@ -2783,7 +2783,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         ir.setNorm(docNum.intValue(), f.name(), newFVal.floatValue());
       } else if (allDoc) {
         for (int i = 0; i < ir.maxDoc(); i++) {
-          if (deleted.get(i)) continue;
+          if (deleted != null && deleted.get(i)) continue;
           ir.setNorm(i, f.name(), newFVal.floatValue());
         }
       } else if (ranges) {
@@ -2795,7 +2795,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           DocIdSetIterator it = r.iterator();
           int docId;
           while ((docId = it.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
-            if (deleted.get(docId)) continue;
+            if (deleted != null && deleted.get(docId)) continue;
             ir.setNorm(docId, f.name(), newFVal.floatValue());
           }
         }
@@ -3039,6 +3039,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
           String fld = getString(fCombo, "text");
           Terms terms = MultiFields.getTerms(ir, fld);
           TermsEnum te = terms.iterator();
+          putProperty(fCombo, "te", te);
+          putProperty(fCombo, "teField", fld);
           BytesRef term = te.next();
           _showTerm(fCombo, fText, new Term(fld, term));
         } catch (Exception e) {
@@ -3063,22 +3065,57 @@ public class Luke extends Thinlet implements ClipboardOwner {
       public void execute() {
         try {
           String text;
-          Term rawTerm = (Term)getProperty(fText, "term");
           text = getString(fText, "text");
-          if (rawTerm != null) {
-            String s = (String)getProperty(fText, "decText");
-            if (s.equals(text)) {
-              text = rawTerm.text();
+          if (text == null || text.trim().equals("")) text = "";
+          if (text.length() == 0) {
+            showFirstTerm(fCombo, fText);
+            return;
+          }
+          TermsEnum te = (TermsEnum)getProperty(fCombo, "te");
+          String fld = getString(fCombo, "text");
+          String teField = (String)getProperty(fCombo, "teField");
+          SeekStatus status;
+          BytesRef rawTerm = null;
+          if (te != null) {
+            rawTerm = te.term();
+          }
+          String rawString = rawTerm != null ? rawTerm.utf8ToString() : null;
+          if (te == null || !teField.equals(fld) || !text.equals(rawString)) {
+            Terms terms = MultiFields.getTerms(ir, fld);
+            te = terms.iterator();
+            putProperty(fCombo, "te", te);
+            putProperty(fCombo, "teField", fld);
+            status = te.seek(new BytesRef(text));
+            if (status.equals(SeekStatus.FOUND)) {
+              rawTerm = te.term();
+            } else {
+              rawTerm = null;
+            }
+          } else {
+            rawTerm = te.next();
+          }
+          if (rawTerm == null) { // proceed to next field
+            int idx = fn.indexOf(fld);
+            while (idx < fn.size() - 1) {
+              idx++;
+              setInteger(fCombo, "selected", idx);
+              fld = fn.get(idx);
+              Terms terms = MultiFields.getTerms(ir, fld);
+              if (terms == null) {
+                continue;
+              }
+              te = terms.iterator();
+              rawTerm = te.next();
+              putProperty(fCombo, "te", te);
+              putProperty(fCombo, "teField", fld);
             }
           }
-          String fld = getString(fCombo, "text");
-          if (text == null || text.trim().equals("")) text = "";
-          Terms terms = MultiFields.getTerms(ir, fld);
-          TermsEnum te = terms.iterator();
-          BytesRef term = new BytesRef(text);
-          SeekStatus status = te.seek(term);
-          Term t = new Term(fld, term.utf8ToString());
-          _showTerm(fCombo, fText, t);
+          if (rawTerm == null) {
+            showStatus("No more terms");
+            return;
+          }
+          //Term t = new Term(fld, term.utf8ToString());
+          _showTerm(fCombo, fText, new Term(fld, rawTerm));
         } catch (Exception e) {
           e.printStackTrace();
           showStatus(e.getMessage());

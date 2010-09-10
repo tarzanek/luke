@@ -85,7 +85,7 @@ public class DocReconstructor extends Observable {
       throw new Exception("Document number outside of valid range.");
     }
     Reconstructed res = new Reconstructed();
-    if (deleted.get(docNum)) {
+    if (deleted != null && deleted.get(docNum)) {
       throw new Exception("Document is deleted.");
     } else {
       Document doc = reader.document(docNum);
@@ -146,6 +146,9 @@ public class DocReconstructor extends Observable {
       setChanged();
       notifyObservers(progress);
       Terms terms = MultiFields.getTerms(reader, fld);
+      if (terms == null) { // no terms in this field
+        continue;
+      }
       TermsEnum te = terms.iterator();
       while (te.next() != null) {
         DocsAndPositionsEnum dpe = te.docsAndPositions(deleted, null);
