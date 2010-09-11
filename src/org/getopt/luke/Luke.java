@@ -1484,9 +1484,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Object[] rows = getItems(tTable);
     StringBuffer sb = new StringBuffer();
     for (int i = 0; i < rows.length; i++) {
-      TermInfo ti = (TermInfo)getProperty(rows[i], "ti");
+      TermStats ti = (TermStats)getProperty(rows[i], "ti");
       if (ti == null) continue;
-      sb.append(ti.docFreq + "\t" + ti.term.field() + "\t" + ti.term.text() + "\n");
+      sb.append(ti.docFreq + "\t" + ti.field + "\t" + ti.termtext.utf8ToString() + "\n");
     }
     StringSelection sel = new StringSelection(sb.toString());
     Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, this);
@@ -3108,6 +3108,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
               rawTerm = te.next();
               putProperty(fCombo, "te", te);
               putProperty(fCombo, "teField", fld);
+              break;
             }
           }
           if (rawTerm == null) {
@@ -4683,7 +4684,7 @@ public Similarity createSimilarity(Object srchOpts) {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 1.0.1 (2010-04-01)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0.1 (2010-09-12)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;
