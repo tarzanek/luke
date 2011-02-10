@@ -1,5 +1,8 @@
 package org.getopt.luke;
 
+import java.io.IOException;
+
+import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.Scorer;
 

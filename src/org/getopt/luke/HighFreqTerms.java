@@ -29,6 +29,9 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Bits;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -43,6 +46,7 @@ import java.util.Comparator;
  * in order of highest total tf
  */
 public class HighFreqTerms {
+  private static final Logger LOG = LoggerFactory.getLogger(HighFreqTerms.class);
   
   // The top numTerms will be displayed
   public static final int DEFAULTnumTerms = 100;
@@ -101,6 +105,8 @@ public class HighFreqTerms {
         .println("\n\n"
             + "java org.apache.lucene.misc.HighFreqTerms <index dir> [-t][number_terms] [field]\n\t -t: include totalTermFreq\n\n");
   }
+  
+  private static final TermStats[] EMPTY_STATS = new TermStats[0];
   /**
    * 
    * @param reader
@@ -115,7 +121,8 @@ public class HighFreqTerms {
     if (fieldNames != null) {
       Fields fields = MultiFields.getFields(reader);
       if (fields == null) {
-        throw new FieldReaderException("no fields found for this index");
+        LOG.info("Index with no fields - probably empty or corrupted");
+        return EMPTY_STATS;
       }
       tiq = new TermStatsQueue(numTerms);
       for (String field : fieldNames) {
@@ -128,7 +135,8 @@ public class HighFreqTerms {
     } else {
       Fields fields = MultiFields.getFields(reader);
       if (fields == null) {
-        throw new FieldReaderException("no fields found for this index");
+        LOG.info("Index with no fields - probably empty or corrupted");
+        return EMPTY_STATS;
       }
       tiq = new TermStatsQueue(numTerms);
       FieldsEnum fieldsEnum = fields.iterator();

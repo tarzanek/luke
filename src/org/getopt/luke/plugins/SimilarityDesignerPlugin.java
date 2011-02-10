@@ -9,18 +9,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.io.StringReader;
-import java.util.Collection;
 
 import javax.swing.JFileChooser;
 
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.Token;
-import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.index.FieldInvertState;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.DefaultSimilarity;
-import org.apache.lucene.search.Searcher;
-import org.apache.lucene.search.Similarity;
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Explanation.IDFExplanation;
 import org.getopt.luke.LukePlugin;
 import org.mozilla.javascript.Context;
@@ -307,7 +302,7 @@ class CustomSimilarity extends DefaultSimilarity {
   }
   
   @Override
-  public IDFExplanation idfExplain(Term term, Searcher searcher)
+  public IDFExplanation idfExplain(Term term, IndexSearcher searcher)
           throws IOException {
     int numDocs = searcher.maxDoc();
     int docFreq = searcher.docFreq(term);
@@ -321,8 +316,8 @@ class CustomSimilarity extends DefaultSimilarity {
   }
 
   // A
-  public float lengthNorm(String arg0, int arg1) {
-    Object[] args = new Object[]{arg0, new Integer(arg1)};
+  public float computeNorm(String field, FieldInvertState state) {
+    Object[] args = new Object[]{field, new Integer(state.getLength())};
     Object res = abstractMethods[M_A_LENGTHNORM].call(cx, scope, scope, args);
     float f = 0.0f;
     try {

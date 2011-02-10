@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 
 import org.apache.lucene.index.codecs.CodecProvider;
+import org.apache.lucene.index.codecs.DefaultSegmentInfosWriter;
 import org.apache.lucene.index.codecs.standard.StandardCodec;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
@@ -104,14 +105,18 @@ public class IndexGate {
   }
   
   public static int getCurrentIndexFormat() {
-    return SegmentInfos.FORMAT_SEGMENTS_GEN_CURRENT;
+    return DefaultSegmentInfosWriter.FORMAT_CURRENT;
   }
   
   public static FormatDetails getFormatDetails(int format) {
     FormatDetails res = new FormatDetails();
     switch (format) {
-    case -2:
+    case DefaultSegmentInfosWriter.FORMAT_4_0:
       res.capabilities = "flex";
+      res.genericName = "Lucene 4.x";
+      break;
+    case DefaultSegmentInfosWriter.FORMAT_DIAGNOSTICS:
+      res.capabilities = "pre-flex, diagnostics, userDataMap";
       res.genericName = "Lucene 4.x";
       break;
     default:
@@ -119,7 +124,7 @@ public class IndexGate {
       res.genericName = "Lucene 3.x or prior";
       break;
     }
-    if (SegmentInfos.FORMAT_SEGMENTS_GEN_CURRENT > format) {
+    if (DefaultSegmentInfosWriter.FORMAT_CURRENT > format) {
       res.capabilities = "(WARNING: newer version of Lucene that this tool)";
       res.genericName = "UNKNOWN";
     }
@@ -143,14 +148,14 @@ public class IndexGate {
   public static void deletePendingFiles(Directory dir, IndexDeletionPolicy policy) throws Exception {
     SegmentInfos infos = new SegmentInfos();
     infos.read(dir);
-    IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, infoStream, null, CodecProvider.getDefault());
+    IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, infoStream, CodecProvider.getDefault());
     deleter.close();
   }
   
   public static List<String> getDeletableFiles(Directory dir) throws Exception {
     SegmentInfos infos = new SegmentInfos();
     infos.read(dir);
-    IndexFileDeleter deleter = new IndexFileDeleter(dir, new KeepAllIndexDeletionPolicy(), infos, infoStream, null, CodecProvider.getDefault());
+    IndexFileDeleter deleter = new IndexFileDeleter(dir, new KeepAllIndexDeletionPolicy(), infos, infoStream, CodecProvider.getDefault());
     return (List<String>)deletable.get(deleter);
   }
   

@@ -18,7 +18,13 @@ public class BinaryDecoder implements Decoder {
 
   @Override
   public String decodeStored(String fieldName, Fieldable value) throws Exception {
-    return decodeTerm(fieldName, value);
+    if (value.isBinary()) {
+      byte[] bytes = new byte[value.getBinaryLength()];
+      System.arraycopy(value.getBinaryValue(), value.getBinaryOffset(), bytes, 0, value.getBinaryLength());
+      return decodeTerm(fieldName, bytes);
+    } else {
+      return decodeTerm(fieldName, value);
+    }
   }
   
   public String toString() {

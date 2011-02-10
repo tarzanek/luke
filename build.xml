@@ -1,7 +1,7 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="4.0.0"/>
+	<property name="build.ver" value="4.0-dev"/>
 	<property name="dist.dir" value="dist"/>
 	<property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
 	<property name="jarallfile" value="${build.dir}/lukeall-${build.ver}.jar"/>
@@ -61,7 +61,7 @@
 				excludes="org/getopt/luke/plugins,**/*.js,**/Thumbs.db">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="lucene-core-3.1-dev.jar;js.jar;lucene-misc-3.1-dev.jar"/>
+				<attribute name="Classpath" value="lucene-core-4.0-SNAPSHOT.jar;js.jar;lucene-misc-4.0-SNAPSHOT.jar"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">
@@ -73,7 +73,7 @@
 		        excludes="org/mozilla/,org/getopt/luke/plugins,**/*.js">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="lucene-core-3.1-dev.jar;lucene-misc-3.1-dev.jar"/>
+				<attribute name="Classpath" value="lucene-core-4.0-SNAPSHOT.jar;lucene-misc-4.0-SNAPSHOT.jar"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">

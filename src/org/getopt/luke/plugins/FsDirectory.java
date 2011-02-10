@@ -21,6 +21,7 @@ package org.getopt.luke.plugins;
 import java.io.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collection;
 import java.util.Random;
 
 import net.sf.ehcache.Cache;
@@ -332,6 +333,11 @@ public class FsDirectory extends Directory {
       return local.length();
     }
 
+  }
+
+  @Override
+  public void sync(Collection<String> names) throws IOException {
+    // not easily supported... we would have to track all open outputs
   }
 
 }

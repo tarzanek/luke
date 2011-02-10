@@ -47,12 +47,10 @@ import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Fieldable;
-import org.apache.lucene.document.NumberTools;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.FieldOption;
-import org.apache.lucene.index.IndexWriter.MaxFieldLength;
 import org.apache.lucene.index.TermsEnum.SeekStatus;
 import org.apache.lucene.misc.SweetSpotSimilarity;
 import org.apache.lucene.queryParser.QueryParser;
@@ -80,8 +78,6 @@ import org.getopt.luke.decoders.DateDecoder;
 import org.getopt.luke.decoders.Decoder;
 import org.getopt.luke.decoders.NumIntDecoder;
 import org.getopt.luke.decoders.NumLongDecoder;
-import org.getopt.luke.decoders.OldDateFieldDecoder;
-import org.getopt.luke.decoders.OldNumberToolsDecoder;
 import org.getopt.luke.decoders.SolrDecoder;
 import org.getopt.luke.decoders.StringDecoder;
 import org.getopt.luke.plugins.ScriptingPlugin;
@@ -212,12 +208,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
     // add Solr field decoders
     String[] solrTypes = SolrDecoder.getTypes();
     Object cbDec =  find("cbDec");
+    Font f = getFont(cbDec, "font");
     for (String s : solrTypes) {
       Object choice = create("choice");
+      setFont(choice, f);
       setString(choice, "name", s);
       setString(choice, "text", s);
       add(cbDec, choice);
-    }    
+    }
   }
   /**
    * Set color theme for the UI.
@@ -837,6 +835,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       try {
         existsSingle = IndexReader.indexExists(d);
       } catch (Exception e) {
+        e.printStackTrace();
         //
       }
       
@@ -885,7 +884,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
       if (ramdir) {
         showStatus("Loading index into RAMDirectory ...");
         Directory dir1 = new RAMDirectory();
-        IndexWriter iw1 = new IndexWriter(dir1, new SimpleAnalyzer(), MaxFieldLength.UNLIMITED);
+        IndexWriterConfig cfg = new IndexWriterConfig(Version.LUCENE_40, new WhitespaceAnalyzer(Version.LUCENE_40));
+        IndexWriter iw1 = new IndexWriter(dir1, cfg);
         iw1.addIndexes((Directory[])dirs.toArray(new Directory[dirs.size()]));
         iw1.close();
         showStatus("RAMDirectory loading done!");
@@ -1440,7 +1440,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           for (int i = 0; i < topTerms.length; i++) {
             Object row = create("row");
             add(table, row);
-            putProperty(row, "term", topTerms[i].termtext.utf8ToString());
+            putProperty(row, "term", new Term(topTerms[i].field, topTerms[i].termtext));
             putProperty(row, "ti", topTerms[i]);
             Object cell = create("cell");
             setChoice(cell, "alignment", "right");
@@ -1505,6 +1505,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Object tabpane = find("maintpane");
     setInteger(tabpane, "selected", 1);
     _showTerm(find("fCombo"), find("fText"), t);
+    showFirstTermDoc(find("fText"));
     repaint();
 
   }
@@ -1947,7 +1948,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   public void _runExport(final File out, final boolean gzip, Observer obs,
       final Object dialog, final Ranges ranges) {
-    exporter = new XMLExporter(ir, pName);
+    exporter = new XMLExporter(ir, pName, decoders);
     exporter.addObserver(obs);
     Thread t = new Thread() {
       public void run() {
@@ -1957,7 +1958,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           if (gzip) {
             os = new GZIPOutputStream(os);
           }
-          exporter.export(os, true, true, "index", ranges);
+          exporter.export(os, true, true, true, "index", ranges);
           exporter = null;
         } catch (Exception e) {
           e.printStackTrace();
@@ -2343,7 +2344,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           errorMsg("Field '" + name + "': " + e.getMessage());
           return false;
         }
-        f = new Field(name, binValue, stored);
+        f = new Field(name, binValue, 0, binValue.length);
       } else {
         f = new Field(name, text, stored, indexed, tv);
       }
@@ -2372,8 +2373,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       } else {
         policy = new KeepLastIndexDeletionPolicy();
       }
-      writer = new IndexWriter(dir, a, false, policy, MaxFieldLength.UNLIMITED);
-      writer.setUseCompoundFile(IndexGate.preferCompoundFormat(dir));
+      IndexWriterConfig cfg = new IndexWriterConfig(Version.LUCENE_40, a);
+      cfg.setIndexDeletionPolicy(policy);
+      ((LogMergePolicy)cfg.getMergePolicy()).setUseCompoundFile(IndexGate.preferCompoundFormat(dir));
+      writer = new IndexWriter(dir, cfg);
       writer.addDocument(doc);
       res = true;
     } catch (Exception e) {
@@ -2528,6 +2531,26 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     doLayout(table);
   }
+  
+  private float decodeNormValue(byte v, String fieldName) {
+    try {
+      Similarity s = similarity != null ? similarity : defaultSimilarity;
+      return s.decodeNormValue(v);
+    } catch (Exception e) {
+      showStatus("ERROR decoding norm for field "  + fieldName + ":" + e.toString());
+      return 0;
+    }
+  }
+  
+  private byte encodeNormValue(float v, String fieldName) {
+    try {
+      Similarity s = similarity != null ? similarity : defaultSimilarity;
+      return s.encodeNormValue(v);
+    } catch (Exception e) {
+      showStatus("ERROR encoding norm for field "  + fieldName + ":" + e.toString());
+      return 0;
+    }    
+  }
 
   Font courier = null;
   private void addFieldRow(Object table, String fName, Field f, int docid) {
@@ -2551,7 +2574,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
     if (f != null) {
       try {
         if (ir.hasNorms(fName)) {
-          setString(cell, "text", String.valueOf(Similarity.decodeNorm(ir.norms(fName)[docid])));
+          byte[] norms = MultiNorms.norms(ir, fName);
+          setString(cell, "text", String.valueOf(decodeNormValue(norms[docid], fName)));
         } else {
           setString(cell, "text", "---");
         }
@@ -2740,8 +2764,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
     setString(doc, "text", String.valueOf(docNum.intValue()));
     setString(fld, "text", f.name());
     try {
-      byte curBVal = ir.norms(f.name())[docNum.intValue()];
-      float curFVal = Similarity.decodeNorm(curBVal);
+      byte curBVal = MultiNorms.norms(ir, f.name())[docNum.intValue()];
+      float curFVal = decodeNormValue(curBVal, f.name());
       setString(curNorm, "text", String.valueOf(curFVal));
       setString(newNorm, "text", String.valueOf(curFVal));
       setString(encNorm, "text", String.valueOf(curFVal) +
@@ -2757,10 +2781,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
   public void displayNewNorm(Object dialog) {
     Object newNorm = find(dialog, "newNorm");
     Object encNorm = find(dialog, "encNorm");
+    Field f = (Field)getProperty(dialog, "field");
     try {
       float newFVal = Float.parseFloat(getString(newNorm, "text"));
-      byte newBVal = Similarity.encodeNorm(newFVal);
-      float encFVal = Similarity.decodeNorm(newBVal);
+      byte newBVal = encodeNormValue(newFVal, f.name());
+      float encFVal = decodeNormValue(newBVal, f.name());
       setString(encNorm, "text", String.valueOf(encFVal) +
           " (0x" + Util.byteToHex(newBVal) + ")");
       putProperty(dialog, "newNorm", new Float(newFVal));
@@ -2778,13 +2803,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Integer docNum = (Integer)getProperty(dialog, "docNum");
     Field f = (Field)getProperty(dialog, "field");
     org.apache.lucene.util.Bits deleted = MultiFields.getDeletedDocs(ir);
+    byte newBVal = encodeNormValue(newFVal.floatValue(), f.name());
     try {
       if (singleDoc) {
-        ir.setNorm(docNum.intValue(), f.name(), newFVal.floatValue());
+        ir.setNorm(docNum.intValue(), f.name(), newBVal);
       } else if (allDoc) {
         for (int i = 0; i < ir.maxDoc(); i++) {
           if (deleted != null && deleted.get(i)) continue;
-          ir.setNorm(i, f.name(), newFVal.floatValue());
+          ir.setNorm(i, f.name(), newBVal);
         }
       } else if (ranges) {
         String expr = getString(find(dialog, "frange"), "text");
@@ -2796,7 +2822,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           int docId;
           while ((docId = it.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
             if (deleted != null && deleted.get(docId)) continue;
-            ir.setNorm(docId, f.name(), newFVal.floatValue());
+            ir.setNorm(docId, f.name(), newBVal);
           }
         }
       }
@@ -3246,7 +3272,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          DocsAndPositionsEnum td = MultiFields.getTermPositionsEnum(ir, null, t.field(), t.bytes());
+          DocsEnum td = MultiFields.getTermDocsEnum(ir, null, t.field(), new BytesRef(t.text()));
           td.nextDoc();
           setString(find("tdNum"), "text", "1");
           putProperty(fText, "td", td);
@@ -3274,7 +3300,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          DocsAndPositionsEnum td = (DocsAndPositionsEnum) getProperty(fText, "td");
+          DocsEnum td = (DocsEnum) getProperty(fText, "td");
           if (td == null) {
             showFirstTermDoc(fText);
             return;
@@ -3312,10 +3338,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          DocsAndPositionsEnum td = (DocsAndPositionsEnum) getProperty(fText, "td");
-          if (td == null) {
+          DocsEnum tdd = (DocsEnum) getProperty(fText, "td");
+          if (tdd == null || !(tdd instanceof DocsAndPositionsEnum)) {
             return;
           }
+          DocsAndPositionsEnum td = (DocsAndPositionsEnum)tdd;
           Object dialog = addComponent(null, "/xml/positions.xml", null, null);
           setString(find(dialog, "term"), "text", t.toString());
           String docNum = getString(find("docNum"), "text");
@@ -3605,19 +3632,17 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
   }
   
-  private CoreParser createParser(String defaultField, Analyzer analyzer ) throws Exception
-  {
-	if(xmlQueryParserFactoryClassName==null)
-	{
-		//Use the default
-		return  new CorePlusExtensionsParser(defaultField,analyzer);
-	}
-	//Use a user-defined parser (classname passed in -xmlQueryParserFactory command-line parameter
-	XmlQueryParserFactory parserFactory=(XmlQueryParserFactory) Class.forName(xmlQueryParserFactoryClassName).newInstance();
-	return parserFactory.createParser(defaultField,analyzer);
+  private CoreParser createParser(String defaultField, Analyzer analyzer ) throws Exception {
+    if(xmlQueryParserFactoryClassName == null) {
+      //Use the default
+      return  new CorePlusExtensionsParser(defaultField,analyzer);
+    }
+    //Use a user-defined parser (classname passed in -xmlQueryParserFactory command-line parameter
+    XmlQueryParserFactory parserFactory=(XmlQueryParserFactory) Class.forName(xmlQueryParserFactoryClassName).newInstance();
+    return parserFactory.createParser(defaultField,analyzer);
   }
 
-public Similarity createSimilarity(Object srchOpts) {
+  public Similarity createSimilarity(Object srchOpts) {
     Object ckSimDef = find(srchOpts, "ckSimDef");
     Object ckSimSweet = find(srchOpts, "ckSimSweet");
     Object ckSimOther = find(srchOpts, "ckSimOther");
@@ -3648,6 +3673,17 @@ public Similarity createSimilarity(Object srchOpts) {
     } else {
       return new DefaultSimilarity();
     }
+  }
+
+  public SimilarityProvider createSimilarityProvider(final Similarity sim) {
+    return new DefaultSimilarity() {
+
+      @Override
+      public Similarity get(String field) {
+        return sim;
+      }
+      
+    };
   }
   
   public AccessibleHitCollector createCollector(Object srchOpts) throws Exception {
@@ -3934,6 +3970,8 @@ public Similarity createSimilarity(Object srchOpts) {
       }
       if (ir != null) {
         Object n1 = null;
+        /* in Lucene 4.0 this requires traversal of sub- and leaf readers,
+         * which is cumbersome to do here.
         try {
           Spans spans = sq.getSpans(ir);
           if (spans != null) {
@@ -3958,6 +3996,7 @@ public Similarity createSimilarity(Object srchOpts) {
           setString(n1, "text", "Spans Exception: " + e.getMessage());
           add(n, n1);
         }
+        */
       }
     } else {
       Object n1 = create("node");
@@ -4012,6 +4051,7 @@ public Similarity createSimilarity(Object srchOpts) {
     Object srchOpts = find("srchOptTabs");
     // query parser opts
     Similarity sim = createSimilarity(srchOpts);
+    SimilarityProvider provider = createSimilarityProvider(sim);
     AccessibleHitCollector col;
     try {
       col = createCollector(srchOpts);
@@ -4026,7 +4066,7 @@ public Similarity createSimilarity(Object srchOpts) {
     Query q = null;
     try {
       q = createQuery(queryS);
-      is.setSimilarity(sim);
+      is.setSimilarityProvider(provider);
       showParsed();
       _search(q, is, col, sTable, repeat);
     } catch (Throwable e) {
@@ -4238,7 +4278,8 @@ public Similarity createSimilarity(Object srchOpts) {
       public void run() {
         try {
           IndexSearcher is = new IndexSearcher(ir);
-          is.setSimilarity(createSimilarity(find("srchOptTabs")));
+          Similarity sim = createSimilarity(find("srchOptTabs"));
+          is.setSimilarityProvider(createSimilarityProvider(sim));
           Explanation expl = is.explain(q, docid.intValue());
           Object dialog = addComponent(null, "/xml/explain.xml", null, null);
           Object eTree = find(dialog, "eTree");
@@ -4308,7 +4349,7 @@ public Similarity createSimilarity(Object srchOpts) {
     }
   }
 
-  private void _showTermDoc(Object fText, final DocsAndPositionsEnum td) {
+  private void _showTermDoc(Object fText, final DocsEnum td) {
     if (ir == null) {
       showStatus(MSG_NOINDEX);
       return;
@@ -4560,10 +4601,6 @@ public Similarity createSimilarity(Object srchOpts) {
       dec = new NumLongDecoder();
     } else if (decName.equals("ni")) {
       dec = new NumIntDecoder();
-    } else if (decName.equals("od")) {
-      dec = new OldDateFieldDecoder();
-    } else if (decName.equals("on")) {
-      dec = new OldNumberToolsDecoder();
     } else if (decName.startsWith("solr.")) {
       try {
         dec = new SolrDecoder(decName);
@@ -4588,6 +4625,8 @@ public Similarity createSimilarity(Object srchOpts) {
   public Similarity getCustomSimilarity() {
     return similarity;
   }
+  
+  private static DefaultSimilarity defaultSimilarity = new DefaultSimilarity();
   
   /**
    * Set the current custom similarity implementation.
@@ -4684,7 +4723,7 @@ public Similarity createSimilarity(Object srchOpts) {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0.0 (2010-09-20)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0-dev (2011-02-11)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

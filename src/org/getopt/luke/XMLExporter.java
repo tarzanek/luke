@@ -9,24 +9,33 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.FieldOption;
+import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.Similarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
+import org.getopt.luke.decoders.Decoder;
 
 public class XMLExporter extends Observable {
   private IndexReader reader;
   private String indexPath;
   private boolean abort = false;
   private boolean running = false;
+  private boolean decode = false;
   private ProgressNotification pn = new ProgressNotification();
   private List<String> fieldNames;
-  private Similarity similarity = Similarity.getDefault();
+  private Map<String,Decoder> decoders;
+  private Similarity similarity = new DefaultSimilarity();
   
-  public XMLExporter(IndexReader reader, String indexPath) {
-    this.reader = reader;
+  public XMLExporter(IndexReader reader, String indexPath, Map<String, Decoder> decoders) {
+    if (reader.getSequentialSubReaders() != null) {
+      this.reader = new SlowMultiReaderWrapper(reader);
+    } else {
+      this.reader = reader;
+    }
     this.indexPath = indexPath;
+    this.decoders = decoders;
     // dump in predictable order
     fieldNames = new ArrayList<String>();
     fieldNames.addAll(reader.getFieldNames(FieldOption.ALL));
@@ -41,7 +50,7 @@ public class XMLExporter extends Observable {
     return abort;
   }
   
-  public boolean exportJS(String outputFile, boolean gzip, boolean preamble, boolean info,
+  public boolean exportJS(String outputFile, boolean decode, boolean gzip, boolean preamble, boolean info,
           String rootElementName) throws Exception {
     OutputStream out;
     if (gzip) {
@@ -49,10 +58,21 @@ public class XMLExporter extends Observable {
     } else {
       out = new FileOutputStream(outputFile);
     }
-    return export(out, preamble, info, rootElementName, null);
+    return export(out, decode, preamble, info, rootElementName, null);
   }
   
-  public boolean export(OutputStream output, boolean preamble, boolean info,
+  /**
+   * 
+   * @param output output stream
+   * @param decode use defined field value decoders
+   * @param preamble include XML preamble
+   * @param info include index info section
+   * @param rootElementName name of the root XML elements
+   * @param ranges if non-null then export only these ranges of documents
+   * @return
+   * @throws Exception
+   */
+  public boolean export(OutputStream output, boolean decode, boolean preamble, boolean info,
       String rootElementName, Ranges ranges) throws Exception {
     running = true;
     pn.message = "Export running ...";
@@ -64,13 +84,16 @@ public class XMLExporter extends Observable {
     if (rootElementName == null) {
       rootElementName = "index";
     }
+    if (decoders == null || decoders.isEmpty()) {
+      decode = false;
+    }
     BufferedWriter bw;
     boolean rootWritten = false;
     int delta = reader.maxDoc() / 100;
     if (delta == 0) delta = 1;
     int cnt = 0;
     bw = new BufferedWriter(new OutputStreamWriter(output, "UTF-8"));
-    Bits deleted = MultiFields.getDeletedDocs(reader);
+    Bits deleted = reader.getDeletedDocs();
     try {
       // write out XML preamble
       if (preamble) {
@@ -101,10 +124,10 @@ public class XMLExporter extends Observable {
             notifyObservers(pn);
             break;
           }
-          if (deleted.get(i)) continue; // skip deleted docs
+          if (deleted != null && deleted.get(i)) continue; // skip deleted docs
           doc = reader.document(i);
           // write out fields
-          writeDoc(bw, i, doc);
+          writeDoc(bw, i, doc, decode);
           pn.curValue = i + 1;
           cnt++;
           if (cnt > delta) {
@@ -146,25 +169,35 @@ public class XMLExporter extends Observable {
     return !pn.aborted;
   }
   
-  private void writeDoc(BufferedWriter bw, int docNum, Document doc) throws Exception {
+  private void writeDoc(BufferedWriter bw, int docNum, Document doc, boolean decode) throws Exception {
     bw.write("<doc id='" + docNum + "'>\n");
     for (String fieldName : fieldNames) {
       Field[] fields = doc.getFields(fieldName);
       if (fields == null || fields.length == 0) {
         continue;
       }
-      bw.write("<field name='" + fields[0].name());
+      bw.write("<field name='" + Util.xmlEscape(fields[0].name()));
       if (reader.hasNorms(fields[0].name())) {
         bw.write("' norm='" + similarity.decodeNormValue(reader.norms(fields[0].name())[docNum]));
       } 
       bw.write("' flags='" + Util.fieldFlags(fields[0]) + "'>\n");
       for (Field f : fields) {
-        if (f.isBinary()) {
-          bw.write("<val>" + Util.bytesToHex(f.getBinaryValue(),
-              f.getBinaryOffset(), f.getBinaryLength(), false) + "</val>\n");
-        } else {
-          bw.write("<val>" + Util.xmlEscape(f.stringValue()) + "</val>\n");
+        String val = null;
+        if (decode) {
+          Decoder d = decoders.get(f.name());
+          if (d != null) {
+            val = d.decodeStored(f.name(), f);
+          }
         }
+        if (!decode || val == null) {
+          if (f.isBinary()) {
+            val = Util.bytesToHex(f.getBinaryValue(),
+                    f.getBinaryOffset(), f.getBinaryLength(), false);
+          } else {
+            val = f.stringValue();
+          }
+        }
+        bw.write("<val>" + Util.xmlEscape(val) + "</val>\n");
       }
       TermFreqVector tfv = reader.getTermFreqVector(docNum, fieldName);
       if (tfv != null) {
@@ -203,7 +236,7 @@ public class XMLExporter extends Observable {
         }
         sb.append("'");
       }
-      bw.write("<t text='" + terms[k].utf8ToString() + "' freq='" + freqs[k] + "'" + sb.toString() + "/>\n");
+      bw.write("<t text='" + Util.xmlEscape(terms[k].utf8ToString()) + "' freq='" + freqs[k] + "'" + sb.toString() + "/>\n");
     }
     bw.write("</tv>\n");
   }
@@ -211,10 +244,10 @@ public class XMLExporter extends Observable {
   private void writeIndexInfo(BufferedWriter bw) throws Exception {
     bw.write("<info>\n");
     IndexInfo indexInfo = new IndexInfo(reader, indexPath);
-    bw.write(" <indexPath>" + indexPath + "</indexPath>\n");
+    bw.write(" <indexPath>" + Util.xmlEscape(indexPath) + "</indexPath>\n");
     bw.write(" <fields count='" + indexInfo.getFieldNames().size() + "'>\n");
     for (String fname : indexInfo.getFieldNames()) {
-      bw.write("  <field name='" + fname + "'/>\n");
+      bw.write("  <field name='" + Util.xmlEscape(fname) + "'/>\n");
     }
     bw.write(" </fields>\n");
     bw.write(" <numDocs>" + reader.numDocs() + "</numDocs>\n");
@@ -263,7 +296,19 @@ public class XMLExporter extends Observable {
     if (topTerms != null) {
       bw.write(" <topTerms count='" + topTerms.length + "'>\n");
       for (TermStats ts : topTerms) {
-        bw.write("  <term field='" + ts.field + "' text='" + ts.termtext.utf8ToString() +
+        String val = null;
+        if (decode) {
+          Decoder d = decoders.get(ts.field);
+          if (d != null) {
+            val = d.decodeTerm(ts.field, ts.termtext);
+          }
+        }
+        if (!decode || val == null) {
+          val = ts.termtext.utf8ToString();
+        }
+        val = Util.xmlEscape(val);
+        bw.write("  <term field='" + Util.xmlEscape(ts.field) + "' text='" +
+                val +
           "' docFreq='" + ts.docFreq + "'/>\n");
       }
     }
@@ -315,7 +360,7 @@ public class XMLExporter extends Observable {
       }
     }
     IndexReader reader = IndexReader.open(dir);
-    XMLExporter exporter = new XMLExporter(reader, args[0]);
+    XMLExporter exporter = new XMLExporter(reader, args[0], null);
     OutputStream os;
     if (out == null) {
       os = System.out;
@@ -328,7 +373,7 @@ public class XMLExporter extends Observable {
     if (onlyInfo) {
       ranges = new Ranges();
     }
-    exporter.export(os, false, true, "index", ranges);
+    exporter.export(os, false, false, true, "index", ranges);
     os.flush();
     os.close();
     System.exit(0);

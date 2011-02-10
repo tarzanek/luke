@@ -3,6 +3,7 @@ package org.getopt.luke;
 import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
@@ -51,9 +52,9 @@ public class AccessibleTopHitCollector extends AccessibleHitCollector {
   }
 
   @Override
-  public void setNextReader(IndexReader r, int base) throws IOException {
-    this.docBase = base;
-    tdc.setNextReader(r, base);
+  public void setNextReader(AtomicReaderContext context) throws IOException {
+    this.docBase = context.docBase;
+    tdc.setNextReader(context);
   }
 
   @Override

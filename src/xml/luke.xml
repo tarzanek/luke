@@ -79,8 +79,6 @@
                 <choice font="10" name="nf" text="numeric-float"/>
                 <choice font="10" name="nd" text="numeric-double"/>
                 <choice font="10" name="b" text="binary"/>
-                <choice font="10" name="od" text="(old DateField)"/>
-                <choice font="10" name="on" text="(old NumberTools)"/>
               </combobox>
               <button text="Set" action="actionSetDecoder(fList, cbDec)"/>
             </panel>
