@@ -889,8 +889,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
         iw1.addIndexes((Directory[])dirs.toArray(new Directory[dirs.size()]));
         iw1.close();
         showStatus("RAMDirectory loading done!");
-        dir.close();
-        dir = dir1;
+        if (dir != null) dir.close();
+        dirs.clear();
+        dirs.add(dir1);
       }
       IndexDeletionPolicy policy;
       if (keepCommits) {
@@ -4723,7 +4724,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0-dev (2011-02-11)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0-dev (2011-03-01)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;
