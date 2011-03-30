@@ -3340,10 +3340,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
       public void execute() {
         try {
           DocsEnum tdd = (DocsEnum) getProperty(fText, "td");
-          if (tdd == null || !(tdd instanceof DocsAndPositionsEnum)) {
+          
+          if (tdd == null) {
             return;
           }
-          DocsAndPositionsEnum td = (DocsAndPositionsEnum)tdd;
+          DocsAndPositionsEnum td = MultiFields.getTermPositionsEnum(ir, null, t.field(), t.bytes());
+          if (td.advance(tdd.docID()) != tdd.docID()) {
+            return;
+          }
           Object dialog = addComponent(null, "/xml/positions.xml", null, null);
           setString(find(dialog, "term"), "text", t.toString());
           String docNum = getString(find("docNum"), "text");
