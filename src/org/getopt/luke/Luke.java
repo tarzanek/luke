@@ -2277,16 +2277,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
   public boolean actionEditAdd(Object editdoc) {
     Document doc = new Document();
     Object cbAnalyzers = find(editdoc, "cbAnalyzers");
-    Analyzer a = new StandardAnalyzer(Version.LUCENE_CURRENT);
-    String clazz = null;
-    try {
-      clazz = getString(cbAnalyzers, "text");
-      a = (Analyzer) Class.forName(clazz).newInstance();
-    } catch (Exception e) {
-      e.printStackTrace();
-      errorMsg("Could not instantiate Analyzer '" + clazz + "'. Please select a valid Analyzer.");
-      return false;
-    }
+    // reuse the logic in createAnalyzer - needs a prepared srchOptTabs
+    Object srchTabs = find("srchOptTabs");
+    Object cbType = find(srchTabs, "cbType");
+    String clazz = getString(cbAnalyzers, "text");
+    setString(cbType, "text", clazz);
+    Analyzer a = createAnalyzer(srchTabs);
     Object editTabs = find(editdoc, "editTabs");
     Object[] tabs = getItems(editTabs);
     for (int i = 0; i < tabs.length; i++) {

@@ -6,7 +6,7 @@ Changes in unreleased version:
   FSDirectory (mitja.lenic)
 * Issue 21: luke tarball needs to extract to a "luke" directory (bevan.koopman,
   Photodeus)
-
+* Issue 27: Cannot add or edit documents using StandardAnalyzer (dean.thrasher)
 
 ---------------------------------------------------------------------------
   Changes in v. 1.0.1 (released on 2010.04.01):
