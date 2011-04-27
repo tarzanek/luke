@@ -3,6 +3,7 @@ Changes in version 3.1.0:
 * Issue 35: Lucene 3.1 compatible luke version (oss.akk)
 * Issue 36: XMLExporter generating invalid XML, when special characters are present
   in a TermVector field (Craig.Stires)
+* Issue 17: Recent changes to DocReconstructor sometimes cause null ref (solrtrey)
 
 ---------------------------------------------------------------------------
   Changes in v. 1.0.1 (released on 2010.04.01):

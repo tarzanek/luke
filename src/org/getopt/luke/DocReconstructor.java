@@ -139,7 +139,7 @@ public class DocReconstructor extends Observable {
       setChanged();
       notifyObservers(progress);
       TermEnum te = reader.terms(new Term(fld, ""));
-      if (te == null || !te.term().field().equals(fld)) {
+      if (te == null || te.term() == null || !te.term().field().equals(fld)) {
         continue;
       }
       // TermEnum is already positioned
