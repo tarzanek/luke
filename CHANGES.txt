@@ -6,6 +6,8 @@ Changes in version 3.1.0:
 * Issue 17: Recent changes to DocReconstructor sometimes cause null ref (solrtrey)
 * Issue 19: Custom directory implementation must be inherited from
   FSDirectory (mitja.lenic)
+* Issue 21: luke tarball needs to extract to a "luke" directory (bevan.koopman, 
+  Photodeus)
 
 ---------------------------------------------------------------------------
   Changes in v. 1.0.1 (released on 2010.04.01):
