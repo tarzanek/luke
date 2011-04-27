@@ -3,12 +3,13 @@ package org.getopt.luke;
 import java.io.IOException;
 
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.Weight;
 
 public class NoScoringScorer extends Scorer {
   public static final NoScoringScorer INSTANCE = new NoScoringScorer();
 
   protected NoScoringScorer() {
-    super(null);
+    super((Weight)null);
   }
 
   @Override

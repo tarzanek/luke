@@ -17,6 +17,7 @@ import javax.swing.JFileChooser;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.index.FieldInvertState;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.Searcher;
@@ -321,8 +322,8 @@ class CustomSimilarity extends DefaultSimilarity {
   }
 
   // A
-  public float lengthNorm(String arg0, int arg1) {
-    Object[] args = new Object[]{arg0, new Integer(arg1)};
+  public float computeNorm(String field, FieldInvertState state) {
+    Object[] args = new Object[]{field, new Integer(state.getLength())};
     Object res = abstractMethods[M_A_LENGTHNORM].call(cx, scope, scope, args);
     float f = 0.0f;
     try {

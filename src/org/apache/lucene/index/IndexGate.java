@@ -168,14 +168,14 @@ public class IndexGate {
   public static void deletePendingFiles(Directory dir, IndexDeletionPolicy policy) throws Exception {
     SegmentInfos infos = new SegmentInfos();
     infos.read(dir);
-    IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, infoStream, null);
+    IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, infoStream);
     deleter.close();
   }
   
   public static List<String> getDeletableFiles(Directory dir) throws Exception {
     SegmentInfos infos = new SegmentInfos();
     infos.read(dir);
-    IndexFileDeleter deleter = new IndexFileDeleter(dir, new KeepAllIndexDeletionPolicy(), infos, infoStream, null);
+    IndexFileDeleter deleter = new IndexFileDeleter(dir, new KeepAllIndexDeletionPolicy(), infos, infoStream);
     return (List<String>)deletable.get(deleter);
   }
   
