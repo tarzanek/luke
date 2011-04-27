@@ -929,32 +929,30 @@ public class Luke extends Thinlet implements ClipboardOwner {
   }
 
   /**
-   * This method attempts to work around the limitation in FSDirectory which
-   * prevents you from switching Directory implementation during lifetime of a
-   * JVM. Unfortunately, this doesn't work if a SecurityManager is present.
-   * 
-   * @param mmap if true use MMapDirectory, otherwise use FSDirectory
+   * Open a single directory.
+   * @param dirImpl fully-qualified class name of Directory implementation,
+   * or "FSDirectory" for {@link FSDirectory}
    * @param file index directory
    * @param create if true, create a new directory
    * @return directory implementation
    */
   Class defaultDirImpl = null;
   
-  public FSDirectory openDirectory(String dirImpl, String file, boolean create) throws Exception {
+  public Directory openDirectory(String dirImpl, String file, boolean create) throws Exception {
     File f = new File(file);
     if (!f.exists()) {
       throw new Exception("Index directory doesn't exist.");
     }
-    FSDirectory res = null;
-    if (dirImpl == null || dirImpl.equals(FSDirectory.class.getName())) {
+    Directory res = null;
+    if (dirImpl == null || dirImpl.equals(Directory.class.getName())) {
       return FSDirectory.open(f);
     }
     try {
       Class implClass = Class.forName(dirImpl);
-      Constructor<FSDirectory> constr = implClass.getConstructor(File.class);
+      Constructor<Directory> constr = implClass.getConstructor(File.class);
       res = constr.newInstance(f);
-    } catch (Exception e) {
-      errorMsg("Invalid directory implementation class: " + dirImpl);
+    } catch (Throwable e) {
+      errorMsg("Invalid directory implementation class: " + dirImpl + " " + e);
       return null;
     }
     if (res != null) return res;
