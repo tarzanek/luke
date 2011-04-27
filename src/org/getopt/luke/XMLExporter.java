@@ -198,7 +198,7 @@ public class XMLExporter extends Observable {
         }
         sb.append("'");
       }
-      bw.write("<t text='" + terms[k] + "' freq='" + freqs[k] + "'" + sb.toString() + "/>\n");
+      bw.write("<t text='" + Util.xmlEscape(terms[k]) + "' freq='" + freqs[k] + "'" + sb.toString() + "/>\n");
     }
     bw.write("</tv>\n");
   }
