@@ -3277,6 +3277,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
           Object pTable = find(dialog, "pTable");
           removeAll(pTable);
           int freq = td.freq();
+          // need to rewind this enum :(
+          td.seek(t);
+          td.skipTo(Integer.parseInt(docNum));
           for (int i = 0; i < freq; i++) {
             try {
               int pos = td.nextPosition();
