@@ -1,3 +1,10 @@
+Changes in unreleased version:
+
+* Issue 36: XMLExporter generating invalid XML, when special characters are present
+  in a TermVector field (Craig.Stires)
+
+
+---------------------------------------------------------------------------
   Changes in v. 1.0.1 (released on 2010.04.01):
 
    This release upgrades to Lucene 3.0.1 jars.

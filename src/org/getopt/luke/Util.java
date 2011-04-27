@@ -31,7 +31,7 @@ public class Util {
         sb.append("&quot;");
         break;
       case '\'':
-        sb.append("&apos;");
+        sb.append("&#039;");
         break;
       default:
         sb.append(c);
