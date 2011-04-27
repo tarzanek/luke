@@ -1,0 +1,288 @@
+  Changes in v. 1.0.1 (released on 2010.04.01):
+
+   This release upgrades to Lucene 3.0.1 jars.
+     * New features and improvements:
+          + Issue 5: Field value decoder for 32 bit numeric fields (float,
+            int) missing.
+          + Added support for XmlQueryParser.
+          + Issue 12: Add option to specify custom XmlQueryParser.
+     * Bug fixes:
+          + Issue 3: Analyzer plugin (and analyzers) don't work.
+          + Issue 4: Compress flag no longer available.
+          + Issue 14: Error while using custom similarity.
+
+  Changes in v. 1.0.0 (released on 2009.12.23):
+
+   This release just upgrades to Lucene 3.0 jars.
+
+  Changes in v. 0.9.9.1 (released on 2009.11.20):
+
+   This release upgrades to Lucene 2.9.1 jars and Hadoop 0.20.1 jars.
+     * New features and improvements:
+          + Add per-field value decoders, for displaying field values that
+            should be interpreted as numeric or date or binary values.
+          + Improve the Analysis plugin to switch between the mixed and
+            the only-new API.
+          + Improve visibility and layout of Thinlet tables.
+          + Add display of commit user data Map.
+          + Add ability to edit per-commit user data Map
+     * Bug fixes:
+          + Term frequency vectors were not displayed for selected field
+            (reported by Benjamin Heilbrunn).
+
+  Changes in v. 0.9.9 (released on 2009.09.30):
+
+   This release upgrades to Lucene 2.9.0 jars.
+     * New features and improvements:
+          + Luke can now open multiple indexes found in subdirectories one
+            level below the selected directory.
+          + Added Hadoop Plugin for working with indexes on Hadoop file
+            systems. This uses Hadoop 0.19.2 and dependencies released
+            with this release of Hadoop. The plugin uses partial local
+            caching to speed up some operations.
+          + Term counts and percentages are calculated in a background
+            thread, so the opening of large indexes should be a little
+            faster. Also, this operation is skipped for indexes accessed
+            over slow IO (such as HDFS).
+          + Added More Like This query builder from current document (or
+            its selected fields).
+          + Search time is now monitored using System.nanoTime, and the
+            last search time is preserved in the UI.
+          + Search can be now repeated N times to get a better estimate of
+            average search time. Note: the measured time involves only the
+            search(), not the retrieval of documents.
+          + AnalyzerTool plugin now uses and illustrates the new token
+            Attribute API.
+          + Nearly all uses of deprecated Lucene API are replaced with the
+            new API.
+     * Bug fixes:
+          + Fix a counter-intuitive behavior where in the Open dialog Luke
+            chops off the last path element from previously used index
+            path.
+          + Fix XMLExporter entity escaping, and add a missing quote in
+            term vector size.
+          + Fix a long-standing Thinlet bug related to tabbedpane with
+            many tabs - now tabs don't "overflow" the tabbedpane area thus
+            corrupting the display of surrounding components.
+
+  Changes in v. 0.9.2 (released on 2009.03.20):
+
+   This release upgrades to Lucene 2.4.1 jars.
+     * New features and improvements:
+          + Added term counts per field in Overview - contributed by Mark
+            Harwood.
+          + Improved the Analysis plugin to show all token information,
+            and highlight whenever a token is selected from the list.
+     * Bug fixes:
+          + (None)
+
+  Changes in v. 0.9.1 (released on 2008.11.22):
+
+   This is mostly a bug fix release of 0.9.
+     * New features and improvements:
+          + Added ability to set the maximum count of boolean clauses in
+            BooleanQuery.
+     * Bug fixes:
+          + Unbalanced <commit> tags breaking the XML export. Reported by
+            Teruhiko Kurosaka.
+          + Opening a non-existent index from command-line creates an
+            empty directory. Reported by Chris Pimlott. See also
+            LUCENE-1464.
+          + IndexGate inadvertently deleting previous commit points, even
+            if "Keep all commits" option was specified. Reported by Mark
+            Harwood.
+          + Empty index with no fields was reported as invalid. Discovered
+            by Andrew Zhang and Michael McCandless (LUCENE-1454).
+
+  Changes in v. 0.9 (released on 2008.11.15):
+
+   This release adds many functionality enhancements and advanced features
+   available in Lucene 2.4.
+     * New features and improvements:
+          + Added new tools:
+               o Check Index - checks Lucene indexes for problems, and can
+                 fix some of them. This is a GUI front-end to the Lucene
+                 CheckIndex tool.
+               o Export to XML - exports index data and metadata to XML
+                 file. This is available both from the GUI and from the
+                 command-line.
+          + Significantly improved Optimize and Cleanup tools.
+          + Added ability to set norms on any indexed field in a document,
+            or a range of documents.
+          + Delete multiple documents by specifying ranges of document
+            numbers.
+          + Added support for new field functionality: omitTF and binary
+            fields.
+          + Improve the low-level information about the index, including
+            format version.
+          + Show interesting details about IndexCommit points and
+            associated files.
+          + Add short explanations of index files' functions.
+          + Improve document reconstruction - now the information from
+            TermFreqVector can be used if available. Also,
+            DocReconstructor can be used outside of Luke.
+          + Significantly improved advanced search options - QueryParser
+            settings, Similarity and HitCollector settings.
+          + Read-only functionality is supported directly in IndexReader.
+     * Bug fixes:
+       A lot of effort went into refactoring the code, moving away if
+       possible from the spaghetti code influenced by Thinlet and into a
+       modular design. Still much needs to be done here. :(
+       This means that there are likely many more bugs than in the
+       previous release, although I tested all functionality to make sure
+       that there is no data loss.
+       HOWEVER, if you work with precious data, it's always a good idea to
+       use the "Read-only" option.
+
+  Changes in v. 0.8.1 (released on 2008.02.13):
+
+   This release adds a few functionality enhancements related to
+   TermVectors and Payloads.
+     * New features and improvements:
+          + When editing document fields it's now possible to specify
+            TermVectors with offsets and/or positions.
+          + Added ability to show term vector positions and offsets, if
+            available. It's also possible to copy this list to the
+            clipboard.
+          + Added ability to show term positions within a document, and
+            display term payloads if available, using one of several
+            pre-defined payload decoders. It's also possible to copy this
+            list to the clipboard.
+          + It's possible now to view the full content of a stored field
+            using various content decoders (hex, date / time, number,
+            utf8, arrays of int or float)
+          + Layout of "Browse by Term" panel is changed so that it better
+            reflects the available navigation.
+     * Bug fixes:
+          + Check added to prevent from adding new documents if no index
+            is open.
+          + Wrong class was used in IndexGate to represent deletable
+            files, which caused a ClassCastException.
+          + Some query types may have been skipped when displaying
+            Explanation.
+
+  Changes in v. 0.8 (released on 2008.02.04):
+
+   This release upgrades to the official Lucene 2.3.0 release JARs.
+
+   NOTE: this version of Luke requires Java 1.5 or higher.
+
+   The following changes have been made in this release:
+     * New features and improvements:
+          + Added ability to show full text of a field in a popup dialog,
+            both in plain text and as a hexadecimal dump.
+          + It's also possible to save the content of a single field to an
+            external file. This is useful for saving binary fields, or
+            examining exact byte content of a field.
+          + Added an option to load the index to RAMDirectory. NOTE:
+            obviously you should take into account the index size vs. the
+            available heap size ... ;)
+          + GrowableStringArray is a separate public class now - perhaps
+            some day I'll use it to implement a bulk document reconstruct
+            function.
+          + Luke remembers now the last Analyzer and last field used in
+            previous session.
+     * Bug fixes:
+          + Neither the document nor the field details have the "Boost"
+            column anymore, it's always 1.0f in documents retrieved from
+            an index. Instead this column now reads "Norms" and shows the
+            fieldNorm value of a field.
+
+  Changes in v. 0.7.1 (released on 2007.06.20):
+
+   This minor release is mostly an upgrade to the official Lucene 2.2.0
+   release JARs.
+
+   The following changes have been made in this release:
+     * New features and improvements:
+          + Added a term distribution analysis plugin by Mark Harwood.
+     * Bug fixes:
+          + Fixed IndexGate class to correctly show deletable files.
+
+  Changes in v. 0.7 (released on 2007.02.20):
+
+   This release uses the official Lucene 2.1.0 release JARs.
+
+   The following changes have been made in this release:
+     * New features and improvements:
+          + Added pagination of results, especially useful for very large
+            result sets.
+          + Added support for new Field flags. They are now displayed in
+            the Document details, and also can be set on edited documents.
+          + Added a function to add new documents to the index.
+          + Low-level index operations (such as detecting unused files,
+            index directory cleanup) use the newly exposed Lucene classes
+            instead of duplicating their internals in Luke.
+          + A side-effect of the above is the ability to properly cleanup
+            all supported index formats, including the new lockless and
+            single-norm indexes.
+          + Added a function to copy the list of top terms to clipboard.
+          + Added a function to copy the term vector to clipboard.
+          + Added a function to close and/or re-open the current index.
+          + In the Documents tab, pressing "First Term" now positions the
+            term enumeration at the first term for the selected field.
+          + Added a field vocabulary analysis plugin by Mark Harwood, with
+            some modifications.
+          + Overall UI cleanup - improved layout in some places, added
+            graphics instead of ASCII art, etc.
+     * Bug fixes:
+          + Fixed a bug in index size calculation.
+          + Fixed a bug in term browsing - when "First Term" was pressed
+            in reality the second term was shown.
+
+   The following people contributed patches, suggestions, and generally
+   kept prodding me and poking to produce this release: Volodymyr
+   Bychkoviak, Juan Manuel Caicedo, Mark Harwood, Otis Gospodnetic, Benson
+   Margulies, Jean-Philippe Robichaud, and many, many others. Thank you
+   for your support!
+
+  Changes in v. 0.6:
+
+   This release uses Lucene JAR named lucene-1.9-rc1-dev.jar. This JAR and
+   all other JARs from Lucene repository were built from SVN revision
+   154013.
+
+   This release adds new important features such as custom Similarity and
+   JavaScript scripting (using Mozilla Rhino engine). Here's a more
+   detailed list of changes and bugfixes:
+     * New features, improvements and bug fixes:
+          + The query view shows not only a parsed form, but also a
+            re-written query form.
+          + Query Explanation shows internal structure of a query.
+            Explanations are provided both for the parsed and rewritten
+            queries.
+          + Command-line argument parsing. Now you can open an index on
+            startup, and optionally execute a script (see below)
+          + Custom Similarity designer plugin, which allows you to design
+            and test your own Similarity implementation.
+          + Scripting plugin, which allows you to interactively experiment
+            with Luke and Lucene indexes. This plugin also can run scripts
+            from Luke command-line.
+          + Ability to use MMapDirectory. Due to limitations in Lucene API
+            this feature relies on reflection API, and may sometimes fail
+            if a restrictive SecurityManager is in use. The Overview panel
+            shows which Directory implementation is used.
+          + Proper display of overlapping tokens (created with analyzers
+            that use setPositionIncrement(0) ).
+          + Field names are sorted in alphabetical order.
+          + Document boost is shown, in addition to each field's boost.
+          + The "Files" tab now shows which files found in the index
+            directory really belong to the index, and what is their
+            status.
+          + A new function, "Index Cleanup", cleans up all files from
+            index directory that do not belong to the index, and all files
+            that are marked as deletable in the index.
+          + Luke has been reviewed and restructured to provide better
+            support for execution as a part of other applications (or
+            JavaScript scripts). Javadoc comments were added.
+          + The default binary bundle (lukeall.jar) now contains also a
+            collection of analyzers from the "contrib" area, as well as
+            the Snowball analyzers.
+          + UI font selection: sometimes the field values contain
+            characters not covered in the default 'dialog' font, like e.g.
+            less common Unicode glyphs. Or maybe you just wish to view all
+            UI text rendered in Garamond... now you can ;-)
+          + UI color theme: you can now switch color themes for your eye's
+            pleasure.
+     * Bug fixes:
+          +
