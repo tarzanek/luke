@@ -120,12 +120,12 @@
 			<fileset file="${jarminfile}"/>
 		</copy>
 		<zip destfile="${srczip}">
-			<fileset dir=".">
+			<zipfileset dir="." prefix="luke-${build.ver}">
 				<patternset refid="distfiles"/>
-			</fileset>
+			</zipfileset>
 		</zip>
 		<tar compression="gzip" destfile="${srctgz}">
-			<tarfileset dir=".">
+			<tarfileset dir="." prefix="luke-${build.ver}">
 				<patternset refid="distfiles"/>
 			</tarfileset>
 		</tar>
