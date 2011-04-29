@@ -4637,7 +4637,7 @@ public Similarity createSimilarity(Object srchOpts) {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 3.1.0 (2011-04-27)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 3.1.0 (2011-04-30)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;
