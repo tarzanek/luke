@@ -139,6 +139,14 @@ public class IndexGate {
       res.capabilities = "lock-less, single norms, shared doc store, checksum, del count, omitTf, user data, diagnostics";
       res.genericName = "Lucene 2.9";
       break;
+    case SegmentInfos.FORMAT_HAS_VECTORS:
+      res.capabilities = "lock-less, single norms, shared doc store, checksum, del count, omitTf, user data, diagnostics, hasVectors";
+      res.genericName = "Lucene 2.9";
+      break;
+    case SegmentInfos.FORMAT_3_1:
+      res.capabilities = "lock-less, single norms, shared doc store, checksum, del count, omitTf, user data, diagnostics, hasVectors";
+      res.genericName = "Lucene 3.1";
+      break;
     default:
       res.capabilities = "unknown";
       res.genericName = "Lucene 1.3 or prior";
@@ -156,7 +164,7 @@ public class IndexGate {
     infos.read(dir);
     int compound = 0, nonCompound = 0;
     for (int i = 0; i < infos.size(); i++) {
-      if (((SegmentInfo)infos.get(i)).getUseCompoundFile()) {
+      if (((SegmentInfo)infos.info(i)).getUseCompoundFile()) {
         compound++;
       } else {
         nonCompound++;

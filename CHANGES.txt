@@ -1,3 +1,6 @@
+Changes in version 3.3.0 (released on 2001.07.06):
+* Issue 40 and 41: Update to Lucene 3.3.0 and fix some deprecated / changed APIs.
+
 Changes in version 3.1.0 (released on 2011.04.30):
 
 * Issue 35: Lucene 3.1 compatible luke version (oss.akk)

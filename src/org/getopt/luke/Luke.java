@@ -43,6 +43,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.document.NumberTools;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
@@ -2505,7 +2506,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     setString(find("docNum1"), "text", String.valueOf(docid));
     for (int i = 0; i < idxFields.length; i++) {
-      Field[] fields = doc.getFields(idxFields[i]);
+      Fieldable[] fields = doc.getFieldables(idxFields[i]);
       if (fields == null) {
         addFieldRow(table, idxFields[i], null, docid);
         continue;
@@ -2521,7 +2522,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   }
 
   Font courier = null;
-  private void addFieldRow(Object table, String fName, Field f, int docid) {
+  private void addFieldRow(Object table, String fName, Fieldable f, int docid) {
     Object row = create("row");
     add(table, row);
     putProperty(row, "field", f);
@@ -4637,7 +4638,7 @@ public Similarity createSimilarity(Object srchOpts) {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 3.1.0 (2011-04-30)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 3.3.0 (2011-07-06)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

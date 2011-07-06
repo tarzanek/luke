@@ -6,6 +6,7 @@ import java.util.HashMap;
 
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.DateTools.Resolution;
+import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
@@ -138,7 +139,7 @@ public class Util {
     return sb.toString();
   }
   
-  public static String fieldFlags(Field f) {
+  public static String fieldFlags(Fieldable f) {
     if (f == null) {
       return "-----------";
     }
