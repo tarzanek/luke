@@ -151,7 +151,7 @@ public class FsDirectory extends Directory {
     fs.rename(new Path(directory, from), target);
   }
 
-  public IndexOutput createOutput(String name) throws IOException {
+  public IndexOutput createOutput(String name, IOContext ctx) throws IOException {
     Path file = new Path(directory, name);
     if (fs.exists(file) && !fs.delete(file, false))      // delete existing, if any
       throw new IOException("Cannot overwrite: " + file);
@@ -160,7 +160,7 @@ public class FsDirectory extends Directory {
   }
 
 
-  public IndexInput openInput(String name) throws IOException {
+  public IndexInput openInput(String name, IOContext ctx) throws IOException {
     int bufSize = this.ioFileBufferSize;
     if (name.endsWith(".nrm")) { // need to read all data
       bufSize += bufSize;

@@ -26,7 +26,7 @@ public class XMLExporter extends Observable {
   private ProgressNotification pn = new ProgressNotification();
   private List<String> fieldNames;
   private Map<String,Decoder> decoders;
-  private Similarity similarity = new DefaultSimilarity();
+  private DefaultSimilarity similarity = new DefaultSimilarity();
   
   public XMLExporter(IndexReader reader, String indexPath, Map<String, Decoder> decoders) {
     if (reader.getSequentialSubReaders() != null) {
@@ -93,7 +93,7 @@ public class XMLExporter extends Observable {
     if (delta == 0) delta = 1;
     int cnt = 0;
     bw = new BufferedWriter(new OutputStreamWriter(output, "UTF-8"));
-    Bits deleted = reader.getDeletedDocs();
+    Bits live = reader.getLiveDocs();
     try {
       // write out XML preamble
       if (preamble) {
@@ -124,7 +124,7 @@ public class XMLExporter extends Observable {
             notifyObservers(pn);
             break;
           }
-          if (deleted != null && deleted.get(i)) continue; // skip deleted docs
+          if (live != null && !live.get(i)) continue; // skip deleted docs
           doc = reader.document(i);
           // write out fields
           writeDoc(bw, i, doc, decode);

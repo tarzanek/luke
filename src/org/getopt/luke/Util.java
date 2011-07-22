@@ -6,6 +6,7 @@ import java.util.HashMap;
 
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.DateTools.Resolution;
+import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
@@ -140,29 +141,92 @@ public class Util {
   
   public static String fieldFlags(Field f) {
     if (f == null) {
-      return "-----------";
+      return "----------------";
     }
     StringBuffer flags = new StringBuffer();
-    if (f != null && f.isIndexed()) flags.append("I");
+    if (f.isIndexed()) flags.append("I");
     else flags.append("-");
-    if (f != null && f.isTokenized()) flags.append("T");
+    IndexOptions opts = f.getIndexOptions();
+    if (f.isIndexed() && opts != null) {
+      switch (opts) {
+      case DOCS_ONLY:
+        flags.append("d--");
+        break;
+      case DOCS_AND_FREQS:
+        flags.append("df-");
+        break;
+      case DOCS_AND_FREQS_AND_POSITIONS:
+        flags.append("dfp");
+      }
+    } else {
+      flags.append("---");
+    }
+    if (f.isTokenized()) flags.append("T");
     else flags.append("-");
-    if (f != null && f.isStored()) flags.append("S");
+    if (f.isStored()) flags.append("S");
     else flags.append("-");
-    if (f != null && f.isTermVectorStored()) flags.append("V");
+    if (f.isTermVectorStored()) flags.append("V");
     else flags.append("-");
-    if (f != null && f.isStoreOffsetWithTermVector()) flags.append("o");
+    if (f.isStoreOffsetWithTermVector()) flags.append("o");
     else flags.append("-");
-    if (f != null && f.isStorePositionWithTermVector()) flags.append("p");
+    if (f.isStorePositionWithTermVector()) flags.append("p");
     else flags.append("-");
-    if (f != null && f.getOmitTermFreqAndPositions()) flags.append("f");
+    if (f.getOmitNorms()) flags.append("N");
     else flags.append("-");
-    if (f != null && f.getOmitNorms()) flags.append("O");
+    if (f.isLazy()) flags.append("L");
     else flags.append("-");
-    if (f != null && f.isLazy()) flags.append("L");
+    if (f.isBinary()) flags.append("B");
     else flags.append("-");
-    if (f != null && f.isBinary()) flags.append("B");
-    else flags.append("-");
+    if (f.hasDocValues()) {
+      flags.append("D");
+      String fl;
+      switch (f.docValuesType()) {
+      case BYTES_FIXED_DEREF:
+        fl = "bfd";
+        break;
+      case BYTES_FIXED_SORTED:
+        fl = "bfs";
+        break;
+      case BYTES_FIXED_STRAIGHT:
+        fl = "bft";
+        break;
+      case BYTES_VAR_DEREF:
+        fl = "bvd";
+        break;
+      case BYTES_VAR_SORTED:
+        fl = "bvs";
+        break;
+      case BYTES_VAR_STRAIGHT:
+        fl = "bvt";
+        break;
+      case FIXED_INTS_8:
+        fl = "i08";
+        break;
+      case FIXED_INTS_16:
+        fl = "i16";
+        break;
+      case FIXED_INTS_32:
+        fl = "i32";
+        break;
+      case FIXED_INTS_64:
+        fl = "i64";
+        break;
+      case VAR_INTS:
+        fl = "vin";
+        break;
+      case FLOAT_32:
+        fl = "f32";
+        break;
+      case FLOAT_64:
+        fl = "f64";
+        break;
+      default:
+        fl = "???";
+      }
+    } else {
+      flags.append("----");
+    }
+    
     return flags.toString();
   }
   

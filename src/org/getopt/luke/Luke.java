@@ -53,7 +53,7 @@ import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.index.TermsEnum.SeekStatus;
 import org.apache.lucene.misc.SweetSpotSimilarity;
-import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.payloads.PayloadNearQuery;
@@ -944,13 +944,18 @@ public class Luke extends Thinlet implements ClipboardOwner {
       throw new Exception("Index directory doesn't exist.");
     }
     Directory res = null;
-    if (dirImpl == null || dirImpl.equals(Directory.class.getName())) {
+    if (dirImpl == null || dirImpl.equals(Directory.class.getName()) || dirImpl.equals(FSDirectory.class.getName())) {
       return FSDirectory.open(f);
     }
     try {
       Class implClass = Class.forName(dirImpl);
       Constructor<Directory> constr = implClass.getConstructor(File.class);
-      res = constr.newInstance(f);
+      if (constr != null) {
+        res = constr.newInstance(f);
+      } else {
+        constr = implClass.getConstructor(File.class, LockFactory.class);
+        res = constr.newInstance(f, (LockFactory)null);
+      }
     } catch (Throwable e) {
       errorMsg("Invalid directory implementation class: " + dirImpl + " " + e);
       return null;
@@ -2118,8 +2123,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
         return;
       }
       setString(docNum, "text", String.valueOf(iNum));
-      org.apache.lucene.util.Bits deleted = MultiFields.getDeletedDocs(ir);
-      if (deleted == null || !deleted.get(iNum)) {
+      org.apache.lucene.util.Bits live = MultiFields.getLiveDocs(ir);
+      if (live == null || live.get(iNum)) {
         SlowThread st = new SlowThread(this) {
           public void execute() {
             try {
@@ -2239,7 +2244,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
                 setBoolean(cbTVF, "selected", f.isTermVectorStored());
                 setBoolean(cbTVFp, "selected", f.isStorePositionWithTermVector());
                 setBoolean(cbTVFo, "selected", f.isStoreOffsetWithTermVector());
-                setBoolean(cbOTF, "selected", f.getOmitTermFreqAndPositions());
+                // XXX omitTF needs fixing!
+                //setBoolean(cbOTF, "selected", f.getOmitTermFreqAndPositions());
               } else {
                 remove(stored);
               }
@@ -2344,7 +2350,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
         f = new Field(name, text, stored, indexed, tv);
       }
       f.setOmitNorms(getBoolean(cbONorms, "selected"));
-      f.setOmitTermFreqAndPositions(getBoolean(cbOTF, "selected"));
+      // XXX omitTF needs fixing
+      // f.setOmitTermFreqAndPositions(getBoolean(cbOTF, "selected"));
       String boostS = getString(fBoost, "text").trim();
       if (!boostS.equals("") && !boostS.equals("1.0")) {
         float boost = 1.0f;
@@ -2451,7 +2458,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       errorMsg("Invalid document number");
       return;
     }
-    MoreLikeThis mlt = new MoreLikeThis(ir, similarity != null ? similarity : new DefaultSimilarity());
+    MoreLikeThis mlt = new MoreLikeThis(ir);
     mlt.setFieldNames((String[])ir.getFieldNames(FieldOption.INDEXED).toArray(new String[0]));
     mlt.setMinTermFreq(1);
     mlt.setMaxQueryTerms(50);
@@ -2529,7 +2536,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   private float decodeNormValue(byte v, String fieldName) {
     try {
-      Similarity s = similarity != null ? similarity : defaultSimilarity;
+      TFIDFSimilarity s = (TFIDFSimilarity)(similarity != null ? similarity : defaultSimilarity);
       return s.decodeNormValue(v);
     } catch (Exception e) {
       showStatus("ERROR decoding norm for field "  + fieldName + ":" + e.toString());
@@ -2539,7 +2546,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   private byte encodeNormValue(float v, String fieldName) {
     try {
-      Similarity s = similarity != null ? similarity : defaultSimilarity;
+      TFIDFSimilarity s = (TFIDFSimilarity)(similarity != null ? similarity : defaultSimilarity);
       return s.encodeNormValue(v);
     } catch (Exception e) {
       showStatus("ERROR encoding norm for field "  + fieldName + ":" + e.toString());
@@ -2797,14 +2804,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Float newFVal = (Float)getProperty(dialog, "newNorm");
     Integer docNum = (Integer)getProperty(dialog, "docNum");
     Field f = (Field)getProperty(dialog, "field");
-    org.apache.lucene.util.Bits deleted = MultiFields.getDeletedDocs(ir);
+    org.apache.lucene.util.Bits live = MultiFields.getLiveDocs(ir);
     byte newBVal = encodeNormValue(newFVal.floatValue(), f.name());
     try {
       if (singleDoc) {
         ir.setNorm(docNum.intValue(), f.name(), newBVal);
       } else if (allDoc) {
         for (int i = 0; i < ir.maxDoc(); i++) {
-          if (deleted != null && deleted.get(i)) continue;
+          if (live != null && !live.get(i)) continue;
           ir.setNorm(i, f.name(), newBVal);
         }
       } else if (ranges) {
@@ -2816,7 +2823,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           DocIdSetIterator it = r.iterator();
           int docId;
           while ((docId = it.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
-            if (deleted != null && deleted.get(docId)) continue;
+            if (live != null && !live.get(docId)) continue;
             ir.setNorm(docId, f.name(), newBVal);
           }
         }
@@ -3106,7 +3113,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
             te = terms.iterator();
             putProperty(fCombo, "te", te);
             putProperty(fCombo, "teField", fld);
-            status = te.seek(new BytesRef(text));
+            status = te.seekCeil(new BytesRef(text));
             if (status.equals(SeekStatus.FOUND)) {
               rawTerm = te.term();
             } else {
@@ -3174,7 +3181,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           if (ir.docFreq(t) == 0) { // missing term
             Terms terms = MultiFields.getTerms(ir, fld);
             TermsEnum te = terms.iterator();
-            te.seek(new BytesRef(text));
+            te.seekCeil(new BytesRef(text));
             t = new Term(fld, te.term().utf8ToString());
           }
           _showTerm(fCombo, fText, t);
@@ -3675,7 +3682,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   }
 
   public SimilarityProvider createSimilarityProvider(final Similarity sim) {
-    return new DefaultSimilarity() {
+    return new DefaultSimilarityProvider() {
 
       @Override
       public Similarity get(String field) {
@@ -4722,7 +4729,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0-dev (2011-03-14)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0-dev (2011-07-19)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

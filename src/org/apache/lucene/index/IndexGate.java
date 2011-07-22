@@ -12,6 +12,7 @@ import org.apache.lucene.index.codecs.CodecProvider;
 import org.apache.lucene.index.codecs.DefaultSegmentInfosWriter;
 import org.apache.lucene.index.codecs.standard.StandardCodec;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.getopt.luke.KeepAllIndexDeletionPolicy;
 
@@ -94,7 +95,7 @@ public class IndexGate {
 
       protected Object doBody(String segmentsFile) throws CorruptIndexException,
           IOException {
-        IndexInput in = dir.openInput(segmentsFile);
+        IndexInput in = dir.openInput(segmentsFile, IOContext.READ);
         Integer indexFormat = new Integer(in.readInt());
         in.close();
         return indexFormat;
@@ -136,7 +137,7 @@ public class IndexGate {
     infos.read(dir);
     int compound = 0, nonCompound = 0;
     for (int i = 0; i < infos.size(); i++) {
-      if (((SegmentInfo)infos.get(i)).getUseCompoundFile()) {
+      if (((SegmentInfo)infos.info(i)).getUseCompoundFile()) {
         compound++;
       } else {
         nonCompound++;

@@ -16,7 +16,8 @@ import org.apache.lucene.index.FieldInvertState;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.DefaultSimilarity;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Explanation.IDFExplanation;
+import org.apache.lucene.search.Explanation;
+import org.apache.lucene.util.TermContext;
 import org.getopt.luke.LukePlugin;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
@@ -270,6 +271,7 @@ class CustomSimilarity extends DefaultSimilarity {
   }
   
   // A
+  /*
   @Override
   public float coord(int arg0, int arg1) {
     Object[] args = new Object[]{new Integer(arg0), new Integer(arg1)};
@@ -282,36 +284,19 @@ class CustomSimilarity extends DefaultSimilarity {
     }
     return f;
   }
-  
-  private static class FakeIDFExplanation extends IDFExplanation {
-    float idf;
-    public FakeIDFExplanation(float idf) {
-      this.idf = idf;
-    }
-
-    @Override
-    public String explain() {
-      return "fake explanation";
-    }
-
-    @Override
-    public float getIdf() {
-      return idf;
-    }
-    
-  }
+  */
   
   @Override
-  public IDFExplanation idfExplain(Term term, IndexSearcher searcher)
+  public Explanation idfExplain(TermContext term, IndexSearcher searcher)
           throws IOException {
     int numDocs = searcher.maxDoc();
-    int docFreq = searcher.docFreq(term);
+    int docFreq = term.docFreq();
     Object[] args = new Object[]{new Integer(docFreq), new Integer(numDocs)};
     Object res = abstractMethods[M_A_IDF].call(cx, scope, scope, args);
     if (res instanceof Number) { // back-compat
-      return new FakeIDFExplanation(((Number)res).floatValue());
+      return new Explanation(((Number)res).floatValue(), "idfExplain(term,searcher)");
     } else {
-      return (IDFExplanation)res;      
+      return (Explanation)res;      
     }
   }
 

@@ -25,7 +25,7 @@ public class DocReconstructor extends Observable {
   private String[] fieldNames = null;
   private IndexReader reader = null;
   private int numTerms;
-  private Bits deleted;
+  private Bits live;
   
   /**
    * Prepare a document reconstructor.
@@ -69,7 +69,7 @@ public class DocReconstructor extends Observable {
       }
       this.numTerms = numTerms;
     }
-    deleted = MultiFields.getDeletedDocs(reader);
+    live = MultiFields.getLiveDocs(reader);
   }
   
   /**
@@ -85,7 +85,7 @@ public class DocReconstructor extends Observable {
       throw new Exception("Document number outside of valid range.");
     }
     Reconstructed res = new Reconstructed();
-    if (deleted != null && deleted.get(docNum)) {
+    if (live != null && !live.get(docNum)) {
       throw new Exception("Document is deleted.");
     } else {
       Document doc = reader.document(docNum);
@@ -151,7 +151,7 @@ public class DocReconstructor extends Observable {
       }
       TermsEnum te = terms.iterator();
       while (te.next() != null) {
-        DocsAndPositionsEnum dpe = te.docsAndPositions(deleted, null);
+        DocsAndPositionsEnum dpe = te.docsAndPositions(live, null);
         if (dpe == null) { // no position info for this field
           break;
         }

@@ -191,8 +191,8 @@ public class HighFreqTerms {
   public static long getTotalTermFreq(IndexReader reader, String field, BytesRef termtext) throws Exception {
     BytesRef br = termtext;
     long totalTF = 0;
-    Bits skipDocs = MultiFields.getDeletedDocs(reader);
-    DocsEnum de = MultiFields.getTermDocsEnum(reader, skipDocs, field, br);
+    Bits liveDocs = MultiFields.getLiveDocs(reader);
+    DocsEnum de = MultiFields.getTermDocsEnum(reader, liveDocs, field, br);
     // if term is not in index return totalTF of 0
     if (de == null) {
       return 0;
