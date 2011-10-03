@@ -4,6 +4,7 @@ Changes in version 3.4.0 (released on 2011.10.03):
   added in 3.4.0. E.g. omitNorms is represented as "with Norms" and marked by "N",
   IndexOptions are expanded to "Idfp" to mark indexed fields with docs, freqs
   and positions.
+Update: version 3.4.0_1 fixes a silly last-minute typo in luke.xml.
 
 Changes in version 3.3.0 (released on 2011.07.06):
 * Issue 40 and 41: Update to Lucene 3.3.0 and fix some deprecated / changed APIs.

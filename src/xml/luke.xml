@@ -208,7 +208,7 @@
 					<header>
 						<column text=" Field"/>
 						<column text="IdfpTSVopNLB" alignment="center" width="110" font="Courier"/>
-						<column text="Norm" width="60	" alignment="center"/>
+						<column text="Norm" width="60" alignment="center"/>
 						<column text=" Value"/>
 					</header>
 					<popupmenu>
