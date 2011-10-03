@@ -3,10 +3,10 @@ package org.getopt.luke;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.util.HashMap;
-
-import org.apache.lucene.document.Field;
 import org.apache.lucene.document.DateTools.Resolution;
 import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
@@ -141,28 +141,41 @@ public class Util {
   
   public static String fieldFlags(Fieldable f) {
     if (f == null) {
-      return "-----------";
+      return "-------------";
     }
     StringBuffer flags = new StringBuffer();
-    if (f != null && f.isIndexed()) flags.append("I");
+    if (f.isIndexed()) flags.append("I");
     else flags.append("-");
-    if (f != null && f.isTokenized()) flags.append("T");
+    IndexOptions opts = f.getIndexOptions();
+    if (f.isIndexed() && opts != null) {
+      switch (opts) {
+      case DOCS_ONLY:
+        flags.append("d--");
+        break;
+      case DOCS_AND_FREQS:
+        flags.append("df-");
+        break;
+      case DOCS_AND_FREQS_AND_POSITIONS:
+        flags.append("dfp");
+      }
+    } else {
+      flags.append("---");
+    }
+    if (f.isTokenized()) flags.append("T");
     else flags.append("-");
-    if (f != null && f.isStored()) flags.append("S");
+    if (f.isStored()) flags.append("S");
     else flags.append("-");
-    if (f != null && f.isTermVectorStored()) flags.append("V");
+    if (f.isTermVectorStored()) flags.append("V");
     else flags.append("-");
-    if (f != null && f.isStoreOffsetWithTermVector()) flags.append("o");
+    if (f.isStoreOffsetWithTermVector()) flags.append("o");
     else flags.append("-");
-    if (f != null && f.isStorePositionWithTermVector()) flags.append("p");
+    if (f.isStorePositionWithTermVector()) flags.append("p");
     else flags.append("-");
-    if (f != null && f.getOmitTermFreqAndPositions()) flags.append("f");
+    if (f.getOmitNorms()) flags.append("-");
+    else flags.append("N");
+    if (f.isLazy()) flags.append("L");
     else flags.append("-");
-    if (f != null && f.getOmitNorms()) flags.append("O");
-    else flags.append("-");
-    if (f != null && f.isLazy()) flags.append("L");
-    else flags.append("-");
-    if (f != null && f.isBinary()) flags.append("B");
+    if (f.isBinary()) flags.append("B");
     else flags.append("-");
     return flags.toString();
   }

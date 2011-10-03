@@ -1,4 +1,11 @@
-Changes in version 3.3.0 (released on 2001.07.06):
+Changes in version 3.4.0 (released on 2011.10.03):
+* Issue 46: and 47: Update to Lucene 3.4.0 and fix some changed APIs.
+* Rearranged "field flags" so that they are more logical and cover index options
+  added in 3.4.0. E.g. omitNorms is represented as "with Norms" and marked by "N",
+  IndexOptions are expanded to "Idfp" to mark indexed fields with docs, freqs
+  and positions.
+
+Changes in version 3.3.0 (released on 2011.07.06):
 * Issue 40 and 41: Update to Lucene 3.3.0 and fix some deprecated / changed APIs.
 
 Changes in version 3.1.0 (released on 2011.04.30):

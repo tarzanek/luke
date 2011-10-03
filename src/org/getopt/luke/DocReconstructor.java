@@ -3,7 +3,7 @@ package org.getopt.luke;
 import java.util.*;
 
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
+import org.apache.lucene.document.Fieldable;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.FieldOption;
 
@@ -81,7 +81,7 @@ public class DocReconstructor extends Observable {
     } else {
       Document doc = reader.document(docNum);
       for (int i = 0; i < fieldNames.length; i++) {
-        Field[] fs = doc.getFields(fieldNames[i]);
+        Fieldable[] fs = doc.getFieldables(fieldNames[i]);
         if (fs != null && fs.length > 0) {
           res.getStoredFields().put(fieldNames[i], fs);
         }
@@ -207,11 +207,11 @@ public class DocReconstructor extends Observable {
    * @author ab
    */
   public static class Reconstructed {
-    private Map<String, Field[]> storedFields;
+    private Map<String, Fieldable[]> storedFields;
     private Map<String, GrowableStringArray> reconstructedFields;
 
     public Reconstructed() {
-      storedFields = new HashMap<String, Field[]>();
+      storedFields = new HashMap<String, Fieldable[]>();
       reconstructedFields = new HashMap<String, GrowableStringArray>();
     }
     
@@ -220,7 +220,7 @@ public class DocReconstructor extends Observable {
      * @param storedFields field data of stored fields
      * @param reconstructedFields field data of unstored fields
      */
-    public Reconstructed(Map<String, Field[]> storedFields,
+    public Reconstructed(Map<String, Fieldable[]> storedFields,
         Map<String, GrowableStringArray> reconstructedFields) {
       this.storedFields = storedFields;
       this.reconstructedFields = reconstructedFields;
@@ -246,7 +246,7 @@ public class DocReconstructor extends Observable {
     /**
      * @return the storedFields
      */
-    public Map<String, Field[]> getStoredFields() {
+    public Map<String, Fieldable[]> getStoredFields() {
       return storedFields;
     }
 

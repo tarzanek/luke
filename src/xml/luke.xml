@@ -195,13 +195,11 @@
 					<label halign="fill" weightx="1" text=" "/>
 					<label text="Flags: " font="bold"/>
 					<panel columns="5" gap="1">
-						<label text="I - Indexed;" font="10"/>
+						<label colspan="2" text="I - Indexed (docs,freqs,pos)" font="10"/>
 						<label text="  T - Tokenized;" font="10"/>
 						<label text="  S - Stored;" font="10"/>
-						<label text="  V - Term Vector " font="10"/>
-						<label text="(o - offsets; p - positions)" font="10"/>
-                                                <label text="O - Omit Norms;" font="10"/>
-                                                <label text="  f - Omit TF;" font="10"/>
+						<label text="  V - Term Vector (offsets,pos)" font="10"/>
+                        <label text="N - with Norms;" font="10"/>
 						<label text="  L - Lazy;" font="10"/>
 						<label text="  B - Binary;" font="10"/>
 					</panel>
@@ -209,8 +207,8 @@
 				<table name="docTable" halign="fill" selection="multiple" weightx="1" valign="fill" weighty="1">
 					<header>
 						<column text=" Field"/>
-						<column text="ITSVopfOLB" alignment="center" width="90" font="Courier"/>
-						<column text="Norm" width="50" alignment="center"/>
+						<column text="IdfpTSVopNLB" alignment="center" width="110" font="Courier"/>
+						<column text="Norm" width="60	" alignment="center"/>
 						<column text=" Value"/>
 					</header>
 					<popupmenu>

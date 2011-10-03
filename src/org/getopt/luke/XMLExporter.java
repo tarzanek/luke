@@ -5,7 +5,8 @@ import java.util.*;
 import java.util.zip.GZIPOutputStream;
 
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
+import org.apache.lucene.document.Fieldable;
+//import org.apache.lucene.document.Field;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.search.Similarity;
@@ -144,7 +145,7 @@ public class XMLExporter extends Observable {
   private void writeDoc(BufferedWriter bw, int docNum, Document doc) throws Exception {
     bw.write("<doc id='" + docNum + "'>\n");
     for (String fieldName : fieldNames) {
-      Field[] fields = doc.getFields(fieldName);
+      Fieldable[] fields = doc.getFieldables(fieldName);
       if (fields == null || fields.length == 0) {
         continue;
       }
@@ -153,7 +154,7 @@ public class XMLExporter extends Observable {
         bw.write("' norm='" + Similarity.decodeNorm(reader.norms(fields[0].name())[docNum]));
       } 
       bw.write("' flags='" + Util.fieldFlags(fields[0]) + "'>\n");
-      for (Field f : fields) {
+      for (Fieldable f : fields) {
         if (f.isBinary()) {
           bw.write("<val>" + Util.bytesToHex(f.getBinaryValue(),
               f.getBinaryOffset(), f.getBinaryLength(), false) + "</val>\n");

@@ -48,6 +48,7 @@ import org.apache.lucene.document.NumberTools;
 import org.apache.lucene.document.Field.Index;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.*;
+import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.index.IndexWriter.MaxFieldLength;
 import org.apache.lucene.misc.SweetSpotSimilarity;
@@ -2184,7 +2185,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           for (int p = 0; p < idxFields.length; p++) {
             String key = idxFields[p];
             if (!doc.hasField(key)) continue;
-            Field[] fields = doc.getStoredFields().get(key);
+            Fieldable[] fields = doc.getStoredFields().get(key);
             GrowableStringArray recField = doc.getReconstructedFields().get(key);
             int count = 0;
             if (recField != null) count = 1;
@@ -2213,9 +2214,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
               Object stored = find(editfield, "stored");
               Object restored = find(editfield, "restored");
               setBoolean(cbONorms, "selected", !ir.hasNorms(key));
-              Field f = null;
+              Fieldable f = null;
               if (fields != null && fields.length > i) {
-                f = (Field) fields[i];
+                f = fields[i];
                 setString(fType, "text", "Original stored field content");
                 String text;
                 if (f.isBinary()) {
@@ -2228,14 +2229,13 @@ public class Luke extends Thinlet implements ClipboardOwner {
                 setString(sText, "text", text);
                 setString(fBoost, "text", String.valueOf(f.getBoost()));
                 setBoolean(cbStored, "selected", f.isStored());
-                // Lucene 3.0 doesn't support compressed fields
-                //setBoolean(cbCmp, "selected", false);
                 setBoolean(cbIndexed, "selected", f.isIndexed());
                 setBoolean(cbTokenized, "selected", f.isTokenized());
                 setBoolean(cbTVF, "selected", f.isTermVectorStored());
                 setBoolean(cbTVFp, "selected", f.isStorePositionWithTermVector());
                 setBoolean(cbTVFo, "selected", f.isStoreOffsetWithTermVector());
-                setBoolean(cbOTF, "selected", f.getOmitTermFreqAndPositions());
+                IndexOptions opts = f.getIndexOptions();
+                setBoolean(cbOTF, "selected", opts == IndexOptions.DOCS_ONLY);
               } else {
                 remove(stored);
               }
@@ -2711,7 +2711,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_NOINDEX);
       return;
     }
-    Field f = (Field) getProperty(row, "field");
+    Fieldable f = (Fieldable) getProperty(row, "field");
     if (f == null) {
       showStatus("No data available for this field");
       return;
@@ -2768,7 +2768,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     boolean ranges = getBoolean(find(dialog, "fList"), "selected");
     Float newFVal = (Float)getProperty(dialog, "newNorm");
     Integer docNum = (Integer)getProperty(dialog, "docNum");
-    Field f = (Field)getProperty(dialog, "field");
+    Fieldable f = (Fieldable)getProperty(dialog, "field");
     try {
       if (singleDoc) {
         ir.setNorm(docNum.intValue(), f.name(), newFVal.floatValue());
@@ -2808,7 +2808,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_NOINDEX);
       return;
     }
-    Field f = (Field) getProperty(row, "field");
+    Fieldable f = (Fieldable) getProperty(row, "field");
     if (f == null) {
       showStatus("No data available for this field");
       return;
@@ -2823,7 +2823,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   public void _showData(Object dialog) {
     Object fDataText = find(dialog, "fDataText");
-    Field f = (Field)getProperty(dialog, "f");
+    Fieldable f = (Fieldable)getProperty(dialog, "f");
     String value = null;
     String enc = "cbUtf";
     Object choice = getSelectedItem(find(dialog, "cbData"));
@@ -2923,7 +2923,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_NOINDEX);
       return;
     }
-    Field f = (Field) getProperty(row, "field");
+    Fieldable f = (Fieldable) getProperty(row, "field");
     if (f == null) {
       showStatus("No data available for this field");
       return;
@@ -2995,7 +2995,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     if (doc == null) return;
     StringBuffer sb = new StringBuffer();
     for (int i = 0; i < rows.length; i++) {
-      Field f = (Field) getProperty(rows[i], "field");
+      Fieldable f = (Fieldable) getProperty(rows[i], "field");
       if (f == null) continue;
       if (i > 0) sb.append('\n');
       sb.append(f.toString());
@@ -3010,7 +3010,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     StringBuffer sb = new StringBuffer();
     Object[] rows = getItems(table);
     for (int i = 0; i < rows.length; i++) {
-      Field f = (Field) getProperty(rows[i], "field");
+      Fieldable f = (Fieldable) getProperty(rows[i], "field");
       if (f == null) continue;
       if (i > 0) sb.append('\n');
       sb.append(f.toString());
@@ -4638,7 +4638,7 @@ public Similarity createSimilarity(Object srchOpts) {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 3.3.0 (2011-07-06)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 3.4.0 (2011-10-03)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;
