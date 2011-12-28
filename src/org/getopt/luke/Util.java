@@ -5,6 +5,7 @@ import java.io.File;
 import java.util.HashMap;
 import org.apache.lucene.document.DateTools.Resolution;
 import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.document.NumericField;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.store.Directory;
@@ -141,7 +142,7 @@ public class Util {
   
   public static String fieldFlags(Fieldable f) {
     if (f == null) {
-      return "-------------";
+      return "--------------";
     }
     StringBuffer flags = new StringBuffer();
     if (f.isIndexed()) flags.append("I");
@@ -176,6 +177,8 @@ public class Util {
     if (f.isLazy()) flags.append("L");
     else flags.append("-");
     if (f.isBinary()) flags.append("B");
+    else flags.append("-");
+    if (f instanceof NumericField) flags.append("#");
     else flags.append("-");
     return flags.toString();
   }

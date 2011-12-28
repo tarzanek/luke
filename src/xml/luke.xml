@@ -202,12 +202,13 @@
                         <label text="N - with Norms;" font="10"/>
 						<label text="  L - Lazy;" font="10"/>
 						<label text="  B - Binary;" font="10"/>
+						<label text="  # - Numeric;" font="10"/>
 					</panel>
 				</panel>
 				<table name="docTable" halign="fill" selection="multiple" weightx="1" valign="fill" weighty="1">
 					<header>
 						<column text=" Field"/>
-						<column text="IdfpTSVopNLB" alignment="center" width="110" font="Courier"/>
+						<column text="IdfpTSVopNLB#" alignment="center" width="110" font="Courier"/>
 						<column text="Norm" width="60" alignment="center"/>
 						<column text=" Value"/>
 					</header>
