@@ -2031,20 +2031,32 @@ public class Luke extends Thinlet implements ClipboardOwner {
           IndexWriterConfig cfg = new IndexWriterConfig(Version.LUCENE_35, new WhitespaceAnalyzer(Version.LUCENE_35));
           cfg.setIndexDeletionPolicy(policy);
           cfg.setTermIndexInterval(tii);
-          ((LogMergePolicy)cfg.getMergePolicy()).setUseCompoundFile(useCompound);
+          MergePolicy p = cfg.getMergePolicy();
+          if (p instanceof LogMergePolicy) {
+            ((LogMergePolicy)p).setUseCompoundFile(useCompound);
+            if (useCompound) {
+              ((LogMergePolicy)p).setNoCFSRatio(1.0);
+            }
+          } else if (p instanceof TieredMergePolicy) {
+            ((TieredMergePolicy)p).setUseCompoundFile(useCompound);            
+            if (useCompound) {
+              ((TieredMergePolicy)p).setNoCFSRatio(1.0);
+            }
+          }
           iw = new IndexWriter(dir, cfg);
           iw.setInfoStream(ppw);
           long startSize = Util.calcTotalFileSize(pName, dir);
           long startTime = System.currentTimeMillis();
           if (expunge) {
-            iw.expungeDeletes();
+            iw.forceMergeDeletes();
           } else {
             if (segnum > 1) {
-              iw.optimize(segnum);
+              iw.forceMerge(segnum, true);
             } else {
-              iw.optimize();
+              iw.forceMerge(1, true);
             }
           }
+          iw.commit();
           long endTime = System.currentTimeMillis();
           long endSize = Util.calcTotalFileSize(pName, dir);
           long deltaSize = startSize - endSize;

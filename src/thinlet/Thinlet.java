@@ -275,6 +275,9 @@ public class Thinlet extends Container implements Runnable, Serializable {
             int cheight = bounds.height - (stacked ? (tabd + 3) : (horizontal ? (tabsize + 3) : 4));
             for (Object tab = get(component, ":comp"); tab != null; tab = get(tab, ":next")) {
                 Rectangle r = getRectangle(tab, "bounds");
+                if (r == null) {
+                  continue;
+                }
                 if (!stacked) {
                     if (horizontal) {
                         if (placement == "bottom") {
@@ -4932,8 +4935,10 @@ public class Thinlet extends Container implements Runnable, Serializable {
     private void repaint(Object component, int x, int y, int width, int height) {
         while ((component = getParent(component)) != null) {
             Rectangle bounds = getRectangle(component, "bounds");
-            x += bounds.x;
-            y += bounds.y;
+            if (bounds != null) {
+              x += bounds.x;
+              y += bounds.y;
+            }
             Rectangle view = getRectangle(component, ":view");
             if (view != null) {
                 Rectangle port = getRectangle(component, ":port");
