@@ -1,3 +1,8 @@
+Changes in version 3.5.0 (released on 2011.12.28):
+* Update to Lucene 3.5.0 and fix some deprecated API usage.
+* Issue 49: fix faulty logic that prevented opening indexes in read-only mode.
+* Issue 43: fix left-over references to Field.
+
 Changes in version 3.4.0 (released on 2011.10.03):
 * Issue 46: and 47: Update to Lucene 3.4.0 and fix some changed APIs.
 * Rearranged "field flags" so that they are more logical and cover index options

@@ -6,7 +6,6 @@ import java.util.zip.GZIPOutputStream;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Fieldable;
-//import org.apache.lucene.document.Field;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.search.Similarity;
@@ -242,7 +241,7 @@ public class XMLExporter extends Observable {
       for (Object o : IndexReader.listCommits(dir)) {
         IndexCommit ic = (IndexCommit)o;
         bw.write("  <commit tstamp='" + new Date(ic.getTimestamp()).toString() +
-            "' segment='" + ic.getSegmentsFileName() + "' optimized='" + ic.isOptimized() + 
+            "' segment='" + ic.getSegmentsFileName() + "' segCount='" + ic.getSegmentCount() + 
             "' deleted='" + ic.isDeleted() + "' files='" + ic.getFileNames().size() + "'>\n");
         for (Object p : ic.getFileNames()) {
           bw.write("   <file name='" + p.toString() + "'/>\n");

@@ -799,19 +799,15 @@ public class Luke extends Thinlet implements ClipboardOwner {
     try {
       Directory d = openDirectory(dirImpl, pName, false);
       if (IndexWriter.isLocked(d)) {
-        if (ro) {
-          errorMsg("Index is locked and Read-Only. Open for read-write and 'Force unlock'.");
-          d.close();
-          d = null;
-          return;
-        }
-        if (force) {
-          IndexWriter.unlock(d);
-        } else {
-          errorMsg("Index is locked. Try 'Force unlock' when opening.");
-          d.close();
-          d = null;
-          return;
+        if (!ro) {
+          if (force) {
+            IndexWriter.unlock(d);
+          } else {
+            errorMsg("Index is locked. Try 'Force unlock' when opening.");
+            d.close();
+            d = null;
+            return;
+          }
         }
       }
       boolean existsSingle = false;
@@ -829,19 +825,15 @@ public class Luke extends Thinlet implements ClipboardOwner {
           }
           Directory d1 = openDirectory(dirImpl, f.toString(), false);
           if (IndexWriter.isLocked(d1)) {
-            if (ro) {
-              errorMsg("Index is locked and Read-Only. Open for read-write and 'Force unlock'.");
-              d1.close();
-              d1 = null;
-              return;
-            }
-            if (force) {
-              IndexWriter.unlock(d1);
-            } else {
-              errorMsg("Index is locked. Try 'Force unlock' when opening.");
-              d1.close();
-              d1 = null;
-              return;
+            if (!ro) {
+              if (force) {
+                IndexWriter.unlock(d1);
+              } else {
+                errorMsg("Index is locked. Try 'Force unlock' when opening.");
+                d1.close();
+                d1 = null;
+                return;
+              }
             }
           }
           existsSingle = false;
@@ -866,8 +858,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
       if (ramdir) {
         showStatus("Loading index into RAMDirectory ...");
         Directory dir1 = new RAMDirectory();
-        IndexWriter iw1 = new IndexWriter(dir1, new SimpleAnalyzer(), MaxFieldLength.UNLIMITED);
-        iw1.addIndexesNoOptimize((Directory[])dirs.toArray(new Directory[dirs.size()]));
+        IndexWriterConfig cfg = new IndexWriterConfig(Version.LUCENE_35, new WhitespaceAnalyzer(Version.LUCENE_35));
+        IndexWriter iw1 = new IndexWriter(dir1, cfg);
+        iw1.addIndexes((Directory[])dirs.toArray(new Directory[dirs.size()]));
         iw1.close();
         showStatus("RAMDirectory loading done!");
         dir.close();
@@ -1274,12 +1267,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setString(cell, "text", String.valueOf(commit.getGeneration()));
       add(row, cell);
       cell = create("cell");
-      char[] flags = new char[]{'-', '-'};
-      if (commit.isDeleted()) flags[0] = 'D';
-      if (commit.isOptimized()) flags[1] = 'O';
-      setString(cell, "text", new String(flags));
-      setFont(cell, "font", courier);
-      setChoice(cell, "alignment", "center");
+      setString(cell, "text", commit.isDeleted() ? "Y" : "");
+      add(row, cell);
+      cell = create("cell");
+      setString(cell, "text", String.valueOf(commit.getSegmentCount()));
       add(row, cell);
       cell = create("cell");
       setString(cell, "text", Long.toHexString(commit.getVersion()));
@@ -2037,10 +2028,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
           } else {
             policy = new KeepLastIndexDeletionPolicy();
           }
-          iw = new IndexWriter(dir, new org.apache.lucene.analysis.WhitespaceAnalyzer(),
-              false, policy, MaxFieldLength.UNLIMITED);
-          iw.setUseCompoundFile(useCompound);
-          iw.setTermIndexInterval(tii);
+          IndexWriterConfig cfg = new IndexWriterConfig(Version.LUCENE_35, new WhitespaceAnalyzer(Version.LUCENE_35));
+          cfg.setIndexDeletionPolicy(policy);
+          cfg.setTermIndexInterval(tii);
+          ((LogMergePolicy)cfg.getMergePolicy()).setUseCompoundFile(useCompound);
+          iw = new IndexWriter(dir, cfg);
           iw.setInfoStream(ppw);
           long startSize = Util.calcTotalFileSize(pName, dir);
           long startTime = System.currentTimeMillis();
@@ -2456,7 +2448,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       // collect text from fields
       StringBuilder sb = new StringBuilder();
       for (int i = 0; i < rows.length; i++) {
-        Field f = (Field)getProperty(rows[i], "field");
+        Fieldable f = (Fieldable)getProperty(rows[i], "field");
         if (f == null) {
           continue;
         }
@@ -2512,9 +2504,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
         continue;
       }
       for (int j = 0; j < fields.length; j++) {
-//        if (fields[j].isBinary()) {
-//          System.out.println("f.len=" + fields[j].getBinaryLength() + ", doc.len=" + doc.getBinaryValue(idxFields[i]).length);
-//        }
         addFieldRow(table, idxFields[i], fields[j], docid);
       }
     }
@@ -4638,7 +4627,7 @@ public Similarity createSimilarity(Object srchOpts) {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 3.4.0 (2011-10-03)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 3.5.0 (2011-12-28)", luke, 800, 600);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

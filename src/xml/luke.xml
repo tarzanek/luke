@@ -393,7 +393,8 @@
                                                 action="showCommitFiles(commitsTable)">
                                                 <header>
                                                         <column text=" Gen" width="30"/>
-                                                        <column text=" Flags" width="35"/>
+                                                        <column text=" Del?" width="35"/>
+                                                        <column text=" Segs" width="45"/>
                                                         <column text=" Version" width="90"/>
                                                         <column text=" Timestamp" width="210"/>
                                                         <column text=" User data"/>

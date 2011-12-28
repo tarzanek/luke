@@ -22,7 +22,7 @@ public class IntervalLimitedCollector extends LimitedHitCollector {
     this.outOfOrder = outOfOrder;
     this.shouldScore = shouldScore;
     tdc = TopScoreDocCollector.create(1000, outOfOrder);
-    thc = new TimeLimitingCollector(tdc, maxTime);
+    thc = new TimeLimitingCollector(tdc, TimeLimitingCollector.getGlobalCounter(), maxTime);
   }
 
   /* (non-Javadoc)
@@ -100,6 +100,6 @@ public class IntervalLimitedCollector extends LimitedHitCollector {
   public void reset() {
     lastDoc = 0;
     tdc = TopScoreDocCollector.create(1000, outOfOrder);
-    thc = new TimeLimitingCollector(tdc, maxTime);
+    thc = new TimeLimitingCollector(tdc, TimeLimitingCollector.getGlobalCounter(), maxTime);
   }
 }
