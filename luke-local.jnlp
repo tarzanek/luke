@@ -12,8 +12,8 @@
 		<all-permissions/>
 	</security>
 	<resources>
-		<j2se version="1.5+" />
-		<jar href="lukeall-3.3.0.jar" />
+		<j2se version="1.6+" />
+		<jar href="lukeall-3.5.0.jar" />
 	</resources>
 	<application-desc main-class="org.getopt.luke.Luke" />
 </jnlp>
