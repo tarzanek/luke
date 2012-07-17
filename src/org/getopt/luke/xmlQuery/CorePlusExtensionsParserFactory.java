@@ -1,8 +1,8 @@
 package org.getopt.luke.xmlQuery;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.xmlparser.CoreParser;
-import org.apache.lucene.xmlparser.CorePlusExtensionsParser;
+import org.apache.lucene.queryparser.xml.CoreParser;
+import org.apache.lucene.queryparser.xml.CorePlusExtensionsParser;
 
 public class CorePlusExtensionsParserFactory implements XmlQueryParserFactory{
 

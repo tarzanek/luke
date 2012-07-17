@@ -2,8 +2,8 @@ package org.getopt.luke;
 
 import java.io.IOException;
 
+import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TimeLimitingCollector;
 import org.apache.lucene.search.TopDocs;
@@ -23,7 +23,7 @@ public class IntervalLimitedCollector extends LimitedHitCollector {
     this.outOfOrder = outOfOrder;
     this.shouldScore = shouldScore;
     tdc = TopScoreDocCollector.create(1000, outOfOrder);
-    thc = new TimeLimitingCollector(tdc, maxTime);
+    thc = new TimeLimitingCollector(tdc, TimeLimitingCollector.getGlobalCounter(), maxTime);
   }
 
   /* (non-Javadoc)
@@ -101,6 +101,6 @@ public class IntervalLimitedCollector extends LimitedHitCollector {
   public void reset() {
     lastDoc = 0;
     tdc = TopScoreDocCollector.create(1000, outOfOrder);
-    thc = new TimeLimitingCollector(tdc, maxTime);
+    thc = new TimeLimitingCollector(tdc, TimeLimitingCollector.getGlobalCounter(), maxTime);
   }
 }

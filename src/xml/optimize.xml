@@ -11,14 +11,18 @@
         <checkbox weightx="1" halign="fill" group="ckOpt" name="optCompound" text="Use Compound file format" selected="true"/>
         <checkbox weightx="1" halign="fill" group="ckOpt" name="optStandard" text="Use Standard file format"/>
         <label weightx="1" halign="fill" text=" "/>
-        <label text=" Expert options:"/>
-        <panel gap="3" columns="2">
+        <checkbox font="10" group="ckOpt" name="optExpunge" text="Just expunge deleted docs without re-merging"/>
+        <label weightx="1" halign="fill" text=" "/>
+        <panel gap="3" columns="2" border="true" top="5" bottom="5" right="5" left="7" text=" Expert options: ">
+           <label colspan="2" font="10" text="You can keep all commit points, and/or optimize from non-latest (currently open) commit point."/>
+           <checkbox weightx="1" colspan="2" name="optKeepAll" text="Keep all commit points" selected="false"/>
+           <checkbox weightx="1" colspan="2" name="optLastCommit" text="Use latest commit point" selected="true"/>
+           <label weightx="1" colspan="2" halign="fill" text=" "/>
            <label font="10" halign="left" text="  Term Index Interval:"/>
            <spinbox font="10" halign="left" columns="4" text="128" name="tii"/>
            <label font="10" halign="left" text="  Max num. of segments:"/>
            <spinbox font="10" halign="left" columns="4" text="1" name="segnum"/>
         </panel>
-        <checkbox font="10" group="ckOpt" name="optExpunge" text="Just expunge deleted docs without re-merging"/>
         <label weightx="1" halign="fill" text=" "/>
 	<panel gap="2">
 	       <label text="Current status:"/>

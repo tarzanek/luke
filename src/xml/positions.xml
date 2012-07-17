@@ -9,6 +9,8 @@
 		<label name="term" font="bold"/>
 		<label halign="right" text="Frequency:"/>
 		<label name="freq" font="bold"/>
+		<label halign="right" text="Offsets:"/>
+		<label name="offs" font="bold" text="false"/>
 	</panel>
 	<separator/>
 	<panel columns="1" halign="fill" weightx="1" gap="2">
@@ -24,6 +26,7 @@
 	<table colspan="3" name="pTable" halign="fill" valign="fill" weightx="1" weighty="1">
 		<header>
 			<column text="Pos." width="35"/>
+			<column text="Offsets" width="80"/>
 			<column text="Payload"/>
 		</header>
 	</table>

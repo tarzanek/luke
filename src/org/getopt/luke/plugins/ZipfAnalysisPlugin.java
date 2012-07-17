@@ -5,13 +5,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.index.TermsEnum;
 import org.getopt.luke.LukePlugin;
 import org.getopt.luke.SlowThread;
+import org.getopt.luke.Util;
 
 import thinlet.Thinlet;
 
@@ -62,9 +63,9 @@ public class ZipfAnalysisPlugin extends LukePlugin {
     Object container = app.getParent(bean);
     chart = new VocabChart(app, container);
     app.setComponent(bean, "bean", chart);
-    IndexReader reader = getIndexReader();
+    IndexReader reader = getReader();
     if (reader != null) {
-      Collection fieldNames = reader.getFieldNames(FieldOption.INDEXED);
+      Collection<String> fieldNames = Util.fieldNames(reader, true);
       String firstField = null;
       for (Iterator iter = fieldNames.iterator(); iter.hasNext();) {
         String fieldName = (String) iter.next();
@@ -92,7 +93,7 @@ public class ZipfAnalysisPlugin extends LukePlugin {
   public void analyze() {
     Object combobox = app.find(myUi, "fields");
     final String field = app.getString(combobox, "text");
-    IndexReader reader = getIndexReader();
+    IndexReader reader = getReader();
     if (reader == null) {
       app.showStatus("No index loaded");
       cleanChart();
@@ -102,8 +103,8 @@ public class ZipfAnalysisPlugin extends LukePlugin {
       public void execute() {
         try {
           int numBuckets = 100;
-          TermsEnum te = MultiFields.getTerms(ir, field).iterator();
-          ArrayList terms = new ArrayList();
+          TermsEnum te = MultiFields.getTerms(ir, field).iterator(null);
+          ArrayList<TermCount> terms = new ArrayList<TermCount>();
 
           // most terms occur very infrequently - just keep group totals for the DFs
           // representing these "long tail" terms.

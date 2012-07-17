@@ -7,14 +7,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.FieldsEnum;
 import org.apache.lucene.index.IndexGate;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.IndexGate.FormatDetails;
-import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.store.Directory;
 
 public class IndexInfo {
@@ -23,7 +24,6 @@ public class IndexInfo {
   private String indexPath;
   private long totalFileSize;
   private int numTerms = -1;
-  private int indexFormat;
   private FormatDetails formatDetails;
   private TermStats[] topTerms = null;
   private List<String> fieldNames;
@@ -34,29 +34,22 @@ public class IndexInfo {
   
   public IndexInfo(IndexReader reader, String indexPath) throws Exception {
     this.reader = reader;
-    try {
-      this.dir = reader.directory();
+    this.dir = null;
+    this.dirImpl = "N/A";
+    if (reader instanceof DirectoryReader) {
+      this.dir = ((DirectoryReader)reader).directory();
       this.dirImpl = dir.getClass().getName();
-    } catch (UnsupportedOperationException uoe) {
-      this.dir = null;
-      this.dirImpl = "N/A";
-    }
-    try {
-      this.version = Long.toString(reader.getVersion());
-    } catch (UnsupportedOperationException uoe) {
-      this.dir = null;      
+      this.version = Long.toString(((DirectoryReader)reader).getVersion());
     }
     this.indexPath = indexPath;
-    lastModified = dir == null ? "N/A" : new Date(IndexReader.lastModified(reader.directory())).toString();
-    totalFileSize = dir == null ? -1 : Util.calcTotalFileSize(indexPath, reader.directory());
+    lastModified = "N/A";
+    totalFileSize = dir == null ? -1 : Util.calcTotalFileSize(indexPath, dir);
     fieldNames = new ArrayList<String>();
-    fieldNames.addAll(reader.getFieldNames(FieldOption.ALL));
+    fieldNames.addAll(Util.fieldNames(reader, false));
     Collections.sort(fieldNames);
     if (dir != null) {
-      indexFormat = IndexGate.getIndexFormat(dir);
-      formatDetails = IndexGate.getFormatDetails(indexFormat);
+      formatDetails = IndexGate.getIndexFormat(dir);
     } else {
-      indexFormat = -1;
       formatDetails = new FormatDetails();
     }
   }
@@ -67,13 +60,17 @@ public class IndexInfo {
     Fields fields = MultiFields.getFields(reader);
     FieldsEnum fe = fields.iterator();
     String fld = null;
+    TermsEnum te = null;
     while ((fld = fe.next()) != null) {
       FieldTermCount ftc = new FieldTermCount();
       ftc.fieldname = fld;
-      TermsEnum te = fe.terms();
-      while (te.next() != null) {
-        ftc.termCount++;
-        numTerms++;
+      Terms terms = fe.terms();
+      if (terms != null) { // count terms
+        te = terms.iterator(te);
+        while (te.next() != null) {
+          ftc.termCount++;
+          numTerms++;
+        }
       }
       termCounts.put(fld, ftc);
     }
@@ -115,16 +112,9 @@ public class IndexInfo {
   }
 
   /**
-   * @return the indexFormat
-   */
-  public int getIndexFormat() {
-    return indexFormat;
-  }
-
-  /**
    * @return the formatDetails
    */
-  public FormatDetails getFormatDetails() {
+  public FormatDetails getIndexFormat() {
     return formatDetails;
   }
   

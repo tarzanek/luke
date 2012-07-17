@@ -4,16 +4,21 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-import org.apache.lucene.index.codecs.CodecProvider;
-import org.apache.lucene.index.codecs.DefaultSegmentInfosWriter;
-import org.apache.lucene.index.codecs.standard.StandardCodec;
+import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
+import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.util.Version;
+import org.getopt.luke.Luke;
 import org.getopt.luke.KeepAllIndexDeletionPolicy;
 
 /**
@@ -24,44 +29,13 @@ import org.getopt.luke.KeepAllIndexDeletionPolicy;
  *
  */
 public class IndexGate {
-  static Field deletable = null;
-  static Field hasChanges = null;
-  static PrintStream infoStream = IndexWriter.getDefaultInfoStream();
   static HashMap<String, String> knownExtensions = new HashMap<String, String>();
   
   static {
     knownExtensions.put(IndexFileNames.COMPOUND_FILE_EXTENSION, "compound file with various index data");
-    knownExtensions.put(IndexFileNames.COMPOUND_FILE_STORE_EXTENSION, "compound shared doc store file");
-    knownExtensions.put(IndexFileNames.DELETES_EXTENSION, "list of deleted documents");
-    knownExtensions.put(IndexFileNames.FIELD_INFOS_EXTENSION, "field names / infos");
-    knownExtensions.put(IndexFileNames.FIELDS_EXTENSION, "stored fields data");
-    knownExtensions.put(IndexFileNames.FIELDS_INDEX_EXTENSION, "stored fields index data");
+    knownExtensions.put(IndexFileNames.COMPOUND_FILE_ENTRIES_EXTENSION, "compound file entries list");
     knownExtensions.put(IndexFileNames.GEN_EXTENSION, "generation number - global file");
-    knownExtensions.put(IndexFileNames.NORMS_EXTENSION, "norms data for all fields");
-    knownExtensions.put(IndexFileNames.SEGMENTS, "per-commit list of segments");
-    knownExtensions.put(IndexFileNames.SEPARATE_NORMS_EXTENSION, "separate per-field norms data");
-    knownExtensions.put(IndexFileNames.VECTORS_DOCUMENTS_EXTENSION, "term vectors document data");
-    knownExtensions.put(IndexFileNames.VECTORS_FIELDS_EXTENSION, "term vector field data");
-    knownExtensions.put(IndexFileNames.VECTORS_INDEX_EXTENSION, "term vectors index");
-    CodecProvider codecs = CodecProvider.getDefault();
-    HashSet<String> std = new HashSet<String>();
-    StandardCodec.getStandardExtensions(std);
-    for (String ext : codecs.getAllExtensions()) {
-      if (knownExtensions.containsKey(ext)) {
-        continue;
-      } else {
-        knownExtensions.put(ext, "codec-specific data" + (std.contains(ext) ? " (StandardCodec)" : ""));
-      }
-    }
-
-    try {
-      deletable = IndexFileDeleter.class.getDeclaredField("deletable");
-      deletable.setAccessible(true);
-      hasChanges = IndexReader.class.getDeclaredField("hasChanges");
-      hasChanges.setAccessible(true);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
+    knownExtensions.put(IndexFileNames.SEGMENTS, "per-commit list of segments and user data");
   }
   
   public static String getFileFunction(String file) {
@@ -90,46 +64,41 @@ public class IndexGate {
     return res;
   }
   
-  public static int getIndexFormat(final Directory dir) throws Exception {
+  public static FormatDetails getIndexFormat(final Directory dir) throws Exception {
     SegmentInfos.FindSegmentsFile fsf = new SegmentInfos.FindSegmentsFile(dir) {
 
       protected Object doBody(String segmentsFile) throws CorruptIndexException,
           IOException {
+        FormatDetails res = new FormatDetails();
+        res.capabilities = "unknown";
+        res.genericName = "unknown";
         IndexInput in = dir.openInput(segmentsFile, IOContext.READ);
-        Integer indexFormat = new Integer(in.readInt());
-        in.close();
-        return indexFormat;
+        try {
+          int indexFormat = in.readInt();
+          if (indexFormat == CodecUtil.CODEC_MAGIC) {
+            res.genericName = "Lucene 4.x";
+            res.capabilities = "flexible, codec-specific";
+            int actualVersion = SegmentInfos.VERSION_40;
+            try {
+              actualVersion = CodecUtil.checkHeaderNoMagic(in, "segments", SegmentInfos.VERSION_40, Integer.MAX_VALUE);
+              if (actualVersion > SegmentInfos.VERSION_40) {
+                res.capabilities += " (WARNING: newer version of Lucene that this tool)";
+              }
+            } catch (Exception e) {
+              e.printStackTrace();
+              res.capabilities += " (error reading: " + e.getMessage() + ")";
+            }
+            res.genericName = "Lucene 4." + actualVersion;
+          } else {
+            res.genericName = "Lucene 3.x or prior";
+          }
+        } finally {
+          in.close();          
+        }
+        return res;
       }
     };
-    Integer indexFormat = (Integer)fsf.run();
-    return indexFormat.intValue();
-  }
-  
-  public static int getCurrentIndexFormat() {
-    return DefaultSegmentInfosWriter.FORMAT_CURRENT;
-  }
-  
-  public static FormatDetails getFormatDetails(int format) {
-    FormatDetails res = new FormatDetails();
-    switch (format) {
-    case DefaultSegmentInfosWriter.FORMAT_4_0:
-      res.capabilities = "flex";
-      res.genericName = "Lucene 4.x";
-      break;
-    case DefaultSegmentInfosWriter.FORMAT_DIAGNOSTICS:
-      res.capabilities = "pre-flex, diagnostics, userDataMap";
-      res.genericName = "Lucene 4.x";
-      break;
-    default:
-      res.capabilities = "unknown";
-      res.genericName = "Lucene 3.x or prior";
-      break;
-    }
-    if (DefaultSegmentInfosWriter.FORMAT_CURRENT > format) {
-      res.capabilities = "(WARNING: newer version of Lucene that this tool)";
-      res.genericName = "UNKNOWN";
-    }
-    return res;
+    return (FormatDetails)fsf.run();
   }
   
   public static boolean preferCompoundFormat(Directory dir) throws Exception {
@@ -137,7 +106,7 @@ public class IndexGate {
     infos.read(dir);
     int compound = 0, nonCompound = 0;
     for (int i = 0; i < infos.size(); i++) {
-      if (((SegmentInfo)infos.info(i)).getUseCompoundFile()) {
+      if (((SegmentInfoPerCommit)infos.info(i)).info.getUseCompoundFile()) {
         compound++;
       } else {
         nonCompound++;
@@ -149,28 +118,36 @@ public class IndexGate {
   public static void deletePendingFiles(Directory dir, IndexDeletionPolicy policy) throws Exception {
     SegmentInfos infos = new SegmentInfos();
     infos.read(dir);
-    IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, infoStream, CodecProvider.getDefault());
+    IndexWriterConfig cfg = new IndexWriterConfig(Luke.LV, new WhitespaceAnalyzer(Luke.LV));
+    IndexWriter iw = new IndexWriter(dir, cfg);
+    IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, null, iw);
     deleter.close();
+    iw.close();
   }
   
   public static List<String> getDeletableFiles(Directory dir) throws Exception {
-    SegmentInfos infos = new SegmentInfos();
-    infos.read(dir);
-    IndexFileDeleter deleter = new IndexFileDeleter(dir, new KeepAllIndexDeletionPolicy(), infos, infoStream, CodecProvider.getDefault());
-    return (List<String>)deletable.get(deleter);
-  }
+    List<String> known = getIndexFiles(dir);
+    Set<String> dirFiles = new HashSet<String>(Arrays.asList(dir.listAll()));
+    dirFiles.removeAll(known);
+    return new ArrayList<String>(dirFiles);
+   }
   
   public static List<String> getIndexFiles(Directory dir) throws Exception {
-    SegmentInfos infos = new SegmentInfos();
-    infos.read(dir);
-    ArrayList<String> names = new ArrayList<String>();
-    for (int i = 0; i < infos.size(); i++) {
-      SegmentInfo info = (SegmentInfo)infos.info(i);
-      names.addAll(info.files());
-      names.add(info.getDelFileName());
+    List<IndexCommit> commits = null;
+    try {
+      commits = DirectoryReader.listCommits(dir);
+    } catch (IndexNotFoundException e) {
+      return Collections.emptyList();
     }
-    names.add(infos.getCurrentSegmentFileName());
-    names.add(IndexFileNames.SEGMENTS_GEN);
+    Set<String> known = new HashSet<String>();
+    for (IndexCommit ic : commits) {
+      known.addAll(ic.getFileNames());
+    }
+    if (dir.fileExists(IndexFileNames.SEGMENTS_GEN)) {
+      known.add(IndexFileNames.SEGMENTS_GEN);
+    }
+    List<String> names = new ArrayList<String>(known);
+    Collections.sort(names);
     return names;
   }
   
@@ -178,16 +155,4 @@ public class IndexGate {
     public String genericName = "N/A";
     public String capabilities = "N/A";
   }
-  
-  public static boolean hasChanges(IndexReader ir) {
-    if (ir == null) {
-      return false;
-    }
-    try {
-      return hasChanges.getBoolean(ir);
-    } catch (Exception e) {
-      return false;
-    }
-  }
-
 }

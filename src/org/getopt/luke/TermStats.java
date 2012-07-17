@@ -26,13 +26,13 @@ public final class TermStats {
   public long totalTermFreq;
   
   TermStats(String field, BytesRef termtext, int df) {
-    this.termtext = new BytesRef(termtext);
+    this.termtext = (BytesRef)termtext.clone();
     this.field = field;
     this.docFreq = df;
   }
   
   TermStats(String field, BytesRef termtext, int df, long tf) {
-    this.termtext = new BytesRef(termtext);
+    this.termtext = (BytesRef)termtext.clone();
     this.field = field;
     this.docFreq = df;
     this.totalTermFreq = tf;
@@ -40,5 +40,9 @@ public final class TermStats {
   
   String getTermText() {
     return termtext.utf8ToString();
+  }
+  
+  public String toString() {
+    return field + ":" + termtext.utf8ToString() + ":" + docFreq + ":" + totalTermFreq;
   }
 }

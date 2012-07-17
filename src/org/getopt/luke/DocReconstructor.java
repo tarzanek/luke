@@ -2,10 +2,10 @@ package org.getopt.luke;
 
 import java.util.*;
 
+import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.*;
-import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
@@ -23,7 +23,7 @@ import org.apache.lucene.util.BytesRef;
 public class DocReconstructor extends Observable {
   private ProgressNotification progress = new ProgressNotification();
   private String[] fieldNames = null;
-  private IndexReader reader = null;
+  private AtomicReader reader = null;
   private int numTerms;
   private Bits live;
   
@@ -49,10 +49,16 @@ public class DocReconstructor extends Observable {
     if (reader == null) {
       throw new Exception("IndexReader cannot be null.");
     }
-    this.reader = reader;
+    if (reader instanceof CompositeReader) {
+      this.reader = new SlowCompositeReaderWrapper((CompositeReader)reader);
+    } else if (reader instanceof AtomicReader) {
+      this.reader = (AtomicReader)reader;
+    } else {
+      throw new Exception("Unsupported IndexReader class " + reader.getClass().getName());
+    }
     if (fieldNames == null || fieldNames.length == 0) {
       // collect fieldNames
-      this.fieldNames = (String[])reader.getFieldNames(FieldOption.ALL).toArray(new String[0]);
+      this.fieldNames = (String[])Util.fieldNames(reader, false).toArray(new String[0]);
     } else {
       this.fieldNames = fieldNames;
     }
@@ -62,7 +68,8 @@ public class DocReconstructor extends Observable {
       FieldsEnum fe = fields.iterator();
       String fld = null;
       while ((fld = fe.next()) != null) {
-        TermsEnum te = fe.terms();
+        Terms t = fe.terms();
+        TermsEnum te = t.iterator(null);
         while (te.next() != null) {
           numTerms++;
         }
@@ -90,7 +97,7 @@ public class DocReconstructor extends Observable {
     } else {
       Document doc = reader.document(docNum);
       for (int i = 0; i < fieldNames.length; i++) {
-        Field[] fs = doc.getFields(fieldNames[i]);
+        IndexableField[] fs = doc.getFields(fieldNames[i]);
         if (fs != null && fs.length > 0) {
           res.getStoredFields().put(fieldNames[i], fs);
         }
@@ -102,37 +109,30 @@ public class DocReconstructor extends Observable {
     progress.maxValue = fieldNames.length;
     progress.curValue = 0;
     progress.minValue = 0;
+    TermsEnum te = null;
+    DocsAndPositionsEnum dpe = null;
     for (int i = 0; i < fieldNames.length; i++) {
-      TermFreqVector tvf = reader.getTermFreqVector(docNum, fieldNames[i]);
-      if (tvf != null && tvf.size() > 0 && (tvf instanceof TermPositionVector)) {
-        TermPositionVector tpv = (TermPositionVector)tvf;
-        progress.message = "Reading term vectors ...";
+      Terms tvf = reader.getTermVector(docNum, fieldNames[i]);
+      if (tvf != null) { // has vectors for this field
+        te = tvf.iterator(te);
+        progress.message = "Checking term vectors for '" + fieldNames[i] + "' ...";
         progress.curValue = i;
         setChanged();
         notifyObservers(progress);
-        BytesRef[] tv = tpv.getTerms();
-        for (int k = 0; k < tv.length; k++) {
-          // do we have positions?
-          int[] posArr = tpv.getTermPositions(k);
-          if (posArr == null) {
-            // only offsets
-            TermVectorOffsetInfo[] offsets = tpv.getOffsets(k);
-            if (offsets.length == 0) {
-              continue;
-            }
-            // convert offsets into positions
-            posArr = convertOffsets(offsets);
-          }
+        List<IntPair> vectors = TermVectorMapper.map(tvf, te, false, true);
+        if (vectors != null) {
           GrowableStringArray gsa = res.getReconstructedFields().get(fieldNames[i]);
           if (gsa == null) {
             gsa = new GrowableStringArray();
             res.getReconstructedFields().put(fieldNames[i], gsa);
           }
-          for (int m = 0; m < posArr.length; m++) {
-            gsa.append(posArr[m], "|", tv[k].utf8ToString());
+          for (IntPair ip : vectors) {
+            for (int m = 0; m < ip.positions.length; m++) {
+              gsa.append(ip.positions[m], "|", ip.text);
+            }
           }
+          fields.remove(fieldNames[i]); // got what we wanted
         }
-        fields.remove(fieldNames[i]); // got what we wanted
       }
     }
     // this loop collects data only from left-over fields
@@ -149,12 +149,13 @@ public class DocReconstructor extends Observable {
       if (terms == null) { // no terms in this field
         continue;
       }
-      TermsEnum te = terms.iterator();
+      te = terms.iterator(te);
       while (te.next() != null) {
-        DocsAndPositionsEnum dpe = te.docsAndPositions(live, null);
-        if (dpe == null) { // no position info for this field
+        DocsAndPositionsEnum newDpe = te.docsAndPositions(live, dpe, false);
+        if (newDpe == null) { // no position info for this field
           break;
         }
+        dpe = newDpe;
         int num = dpe.advance(docNum);
         if (num != docNum) { // either greater than or NO_MORE_DOCS
           continue; // no data for this term in this doc
@@ -179,43 +180,16 @@ public class DocReconstructor extends Observable {
     return res;
   }
   
-  private int[] convertOffsets(TermVectorOffsetInfo[] offsets) {
-    int[] posArr = new int[offsets.length];
-    int curPos = 0;
-    int maxDelta = 3; // allow 3 characters diff, otherwise insert a skip
-    int avgTermLen = 5; // assume this is the avg. term length of missing terms
-    for (int m = 0; m < offsets.length; m++) {
-      int curStart = offsets[m].getStartOffset();
-      if (m > 0) {
-        int prevEnd = offsets[m - 1].getEndOffset();
-        int prevStart = offsets[m - 1].getStartOffset();
-        if (curStart == prevStart) {
-          curPos--; // overlapping token
-        } else {
-          if (prevEnd + maxDelta < curStart) { // possibly a gap
-            // calculate the number of missing tokens
-            int increment = (curStart - prevEnd) / (maxDelta + avgTermLen);
-            if (increment == 0) increment++;
-            curPos += increment;
-          }
-        }
-      }
-      posArr[m] = curPos;
-      curPos++;
-    }
-    return posArr;
-  }
-
   /**
    * This class represents a reconstructed document.
    * @author ab
    */
   public static class Reconstructed {
-    private Map<String, Field[]> storedFields;
+    private Map<String, IndexableField[]> storedFields;
     private Map<String, GrowableStringArray> reconstructedFields;
 
     public Reconstructed() {
-      storedFields = new HashMap<String, Field[]>();
+      storedFields = new HashMap<String, IndexableField[]>();
       reconstructedFields = new HashMap<String, GrowableStringArray>();
     }
     
@@ -224,7 +198,7 @@ public class DocReconstructor extends Observable {
      * @param storedFields field data of stored fields
      * @param reconstructedFields field data of unstored fields
      */
-    public Reconstructed(Map<String, Field[]> storedFields,
+    public Reconstructed(Map<String, IndexableField[]> storedFields,
         Map<String, GrowableStringArray> reconstructedFields) {
       this.storedFields = storedFields;
       this.reconstructedFields = reconstructedFields;
@@ -250,7 +224,7 @@ public class DocReconstructor extends Observable {
     /**
      * @return the storedFields
      */
-    public Map<String, Field[]> getStoredFields() {
+    public Map<String, IndexableField[]> getStoredFields() {
       return storedFields;
     }
 

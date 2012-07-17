@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.TreeMap;
 
-import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.document.Field;
 import org.apache.solr.schema.FieldType;
 import org.getopt.luke.ClassFinder;
 
@@ -73,7 +73,7 @@ public class SolrDecoder implements Decoder {
     return fieldType.indexedToReadable(value.toString());
   }
   
-  public String decodeStored(String fieldName, Fieldable value) throws Exception {
+  public String decodeStored(String fieldName, Field value) throws Exception {
     return fieldType.storedToReadable(value);
   }
   

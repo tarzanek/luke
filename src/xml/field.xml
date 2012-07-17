@@ -16,7 +16,8 @@
 			<choice name="cbDef" text="String default enc."/>
 			<choice name="cbHex" text="Hex dump"/>
 			<choice name="cbDate" text="Date / Time"/>
-			<choice name="cbNum" text="Number"/>
+			<choice name="cbNum" text="Numeric"/>
+			<choice name="cbLong" text="Long (prefix-coded)"/>
 			<choice name="cbInt" text="Array of int"/>
 			<choice name="cbFloat" text="Array of float"/>
 		</combobox>

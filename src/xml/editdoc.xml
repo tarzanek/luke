@@ -21,7 +21,6 @@
 	</panel>
 	<panel weightx="1" halign="right" top="6" bottom="6" right="6" gap="8">
 		<button text="Add to index" halign="center" action="actionEditAdd(editdoc)"/>
-		<button name="bDelAdd" text="Delete old &amp; Add" halign="center" action="actionEditReplace(editdoc)"/>
 		<label text="  "/>
 		<button type="default" text="Cancel" halign="center" action="remove(editdoc)"/>
 	</panel>

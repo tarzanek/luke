@@ -6,8 +6,8 @@ package org.getopt.luke;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexReader.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 
 class AllHitsCollector extends AccessibleHitCollector {

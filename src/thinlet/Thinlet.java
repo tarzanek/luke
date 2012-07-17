@@ -4932,8 +4932,10 @@ public class Thinlet extends Container implements Runnable, Serializable {
     private void repaint(Object component, int x, int y, int width, int height) {
         while ((component = getParent(component)) != null) {
             Rectangle bounds = getRectangle(component, "bounds");
-            x += bounds.x;
-            y += bounds.y;
+            if (bounds != null) {
+              x += bounds.x;
+              y += bounds.y;
+            }
             Rectangle view = getRectangle(component, ":view");
             if (view != null) {
                 Rectangle port = getRectangle(component, ":port");

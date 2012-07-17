@@ -24,6 +24,10 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.ClipboardOwner;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
+import java.beans.BeanInfo;
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -46,19 +50,22 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.Fieldable;
-import org.apache.lucene.document.Field.Index;
-import org.apache.lucene.document.Field.Store;
+import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.*;
-import org.apache.lucene.index.IndexReader.FieldOption;
+import org.apache.lucene.index.CheckIndex.Status.SegmentInfoStatus;
+import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.TermsEnum.SeekStatus;
+import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.misc.SweetSpotSimilarity;
+import org.apache.lucene.queries.mlt.MoreLikeThis;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.payloads.PayloadNearQuery;
 import org.apache.lucene.search.payloads.PayloadTermQuery;
-import org.apache.lucene.search.similar.MoreLikeThis;
+import org.apache.lucene.search.similarities.DefaultSimilarity;
+import org.apache.lucene.search.similarities.Similarity;
+import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.search.spans.SpanFirstQuery;
 import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanNotQuery;
@@ -70,8 +77,8 @@ import org.apache.lucene.store.*;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.Version;
-import org.apache.lucene.xmlparser.CoreParser;
-import org.apache.lucene.xmlparser.CorePlusExtensionsParser;
+import org.apache.lucene.queryparser.xml.CoreParser;
+import org.apache.lucene.queryparser.xml.CorePlusExtensionsParser;
 import org.getopt.luke.DocReconstructor.Reconstructed;
 import org.getopt.luke.decoders.BinaryDecoder;
 import org.getopt.luke.decoders.DateDecoder;
@@ -99,13 +106,17 @@ public class Luke extends Thinlet implements ClipboardOwner {
 
   private static final long serialVersionUID = -470469999079073156L;
   
+  public static Version LV = Version.LUCENE_40;
+  
   private Directory dir = null;
   String pName = null;
   private IndexReader ir = null;
+  private AtomicReader ar = null;
   private IndexSearcher is = null;
   private boolean slowAccess = false;
   private List<String> fn = null;
   private String[] idxFields = null;
+  private FieldInfos infos = null;
   private IndexInfo idxInfo = null;
   private Map<String, FieldTermCount> termCounts;
   private List<LukePlugin> plugins = new ArrayList<LukePlugin>();
@@ -114,8 +125,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private Object statmsg = null;
   private Object slowstatus = null;
   private Object slowmsg = null;
-  private Analyzer stdAnalyzer = new StandardAnalyzer(Version.LUCENE_CURRENT);
-  private Analyzer analyzer = null;
+  private Analyzer stdAnalyzer = new StandardAnalyzer(LV);
   //private QueryParser qp = null;
   private boolean readOnly = false;
   private boolean ram = false;
@@ -127,7 +137,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private Object lastST;
   private HashMap<String, Decoder> decoders = new HashMap<String, Decoder>();
   private Decoder defDecoder = new StringDecoder();
-  private Version LV = Version.LUCENE_40;
   
   /** Default salmon theme. */
   public static final int THEME_DEFAULT     = 0;
@@ -160,8 +169,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
 
   private static final String MSG_NOINDEX = "FAILED: No index, or index is closed. Reopen it.";
   private static final String MSG_READONLY = "FAILED: Read-Only index.";
+  private static final String MSG_EMPTY_INDEX = "Index is empty.";
   private static final String MSG_CONV_ERROR = "Some values could not be properly represented in this format. " + 
                       "They are marked in grey and presented as a hex dump.";
+  private static final String MSG_LUCENE3828 = "Sorry. This functionality doesn't work with Lucene trunk. See LUCENE-3828 for more details.";
 
   /** Default constructor, loads preferences, initializes plugins and GUI. */ 
   public Luke() {
@@ -668,7 +679,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       addComponent(this, "/xml/luke.xml", null, null);
       try {
         Directory d = openDirectory(dirClass, pName, false);
-        if (IndexReader.indexExists(d)) {
+        if (DirectoryReader.indexExists(d)) {
           throw new Exception("there is no valid Lucene index in this directory.");
         }
         dir = d;
@@ -686,8 +697,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
   public void actionClose() {
     if (ir != null) {
       try {
-        if (is != null) is.close();
+        if (is != null) is = null;
         ir.close();
+        if (ar != null) ar.close();
         if (dir != null) dir.close();
       } catch (Exception e) {
         e.printStackTrace();
@@ -695,6 +707,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
     }
     ir = null;
+    ar = null;
     dir = null;
     is = null;
     removeAll();
@@ -707,19 +720,24 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_NOINDEX);
       return;
     }
+    if (!(ir instanceof DirectoryReader)) {
+      showStatus("Commit not possible with " + ir.getClass().getSimpleName());
+      return;
+    }
     if (readOnly) {
       showStatus(MSG_READONLY);
       return;
     }
-    if (!IndexGate.hasChanges(ir)) {
-      showStatus("No changes - commit ignored.");
-      return;
+    try {
+      IndexCommit commit = ((DirectoryReader)ir).getIndexCommit();
+      Map<String,String> userData = commit.getUserData();
+      TreeMap<String,String> ud = new TreeMap<String,String>(userData);
+      Object dialog = addComponent(this, "/xml/commit.xml", null, null);
+      putProperty(dialog, "userData", ud);
+      _showUserData(dialog);
+    } catch (Exception e) {
+      errorMsg("Exception retrieving user data: " + e.toString());
     }
-    Object dialog = addComponent(this, "/xml/commit.xml", null, null);
-    Map<String,String> userData = ir.getCommitUserData();
-    TreeMap<String,String> ud = new TreeMap<String,String>(userData);
-    putProperty(dialog, "userData", ud);
-    _showUserData(dialog);
   }
   
   private void _showUserData(Object dialog) {
@@ -767,13 +785,46 @@ public class Luke extends Thinlet implements ClipboardOwner {
     _showUserData(dialog);
   }
   
+  private IndexWriter createIndexWriter() {
+    try {
+      IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer(LV));
+      IndexDeletionPolicy policy;
+      if (keepCommits) {
+        policy = new KeepAllIndexDeletionPolicy();
+      } else {
+        policy = new KeepLastIndexDeletionPolicy();
+      }
+      cfg.setIndexDeletionPolicy(policy);
+      MergePolicy mp = cfg.getMergePolicy();
+      if (mp instanceof LogMergePolicy) {
+        ((LogMergePolicy)mp).setUseCompoundFile(IndexGate.preferCompoundFormat(dir));
+      } else if (mp instanceof TieredMergePolicy) {
+        ((TieredMergePolicy)cfg.getMergePolicy()).setUseCompoundFile(IndexGate.preferCompoundFormat(dir));
+      }
+      IndexWriter iw = new IndexWriter(dir, cfg);
+      return iw;
+    } catch (Exception e) {
+      errorMsg("Error creating IndexWriter: " + e.toString());
+      return null;
+    }    
+  }
+  
+  private void refreshAfterWrite() throws Exception {
+    actionReopen();
+  }
+  
   public void commitUserData(Object dialog) {
     Map<String,String> userData = (Map<String,String>)getProperty(dialog, "userData");
     remove(dialog);
+    if (!(ir instanceof DirectoryReader)) {
+      errorMsg("Not possible with " + ir.getClass().getSimpleName());
+      return;
+    }
     try {
-      ir.flush(userData);
-      initOverview();
-      showFiles(dir, Collections.EMPTY_LIST);
+      IndexWriter iw = createIndexWriter();
+      iw.commit(userData);
+      iw.close();
+      refreshAfterWrite();
     } catch (Exception e) {
       errorMsg("Error: " + e.toString());
     }
@@ -786,6 +837,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     openIndex(pName, false, dir.getClass().getName(), readOnly, ram,
         keepCommits, currentCommit, tiiDiv);
   }
+  
   /**
    * Open indicated index and re-initialize all GUI and plugins.
    * @param pName path to index
@@ -805,6 +857,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     if (dir != null) {
       try {
         if (ir != null) ir.close();
+        if (ar != null) ar.close();
       } catch (Exception e) {}
       ;
       try {
@@ -813,32 +866,31 @@ public class Luke extends Thinlet implements ClipboardOwner {
       ;
     }
     ArrayList<Directory> dirs = new ArrayList<Directory>();
+    Throwable lastException = null;
     try {
       Directory d = openDirectory(dirImpl, pName, false);
       if (IndexWriter.isLocked(d)) {
-        if (ro) {
-          errorMsg("Index is locked and Read-Only. Open for read-write and 'Force unlock'.");
-          d.close();
-          d = null;
-          return;
-        }
-        if (force) {
-          IndexWriter.unlock(d);
-        } else {
-          errorMsg("Index is locked. Try 'Force unlock' when opening.");
-          d.close();
-          d = null;
-          return;
+        if (!ro) {
+          if (force) {
+            IndexWriter.unlock(d);
+          } else {
+            errorMsg("Index is locked. Try 'Force unlock' when opening.");
+            d.close();
+            d = null;
+            return;
+          }
         }
       }
       boolean existsSingle = false;
+      // IR.indexExists doesn't report the cause of error
       try {
-        existsSingle = IndexReader.indexExists(d);
-      } catch (Exception e) {
+        new SegmentInfos().read(d);
+        existsSingle = true;
+      } catch (Throwable e) {
         e.printStackTrace();
+        lastException = e;
         //
       }
-      
       if (!existsSingle) { // try multi
         File[] files = baseFileDir.listFiles();
         for (File f : files) {
@@ -847,25 +899,25 @@ public class Luke extends Thinlet implements ClipboardOwner {
           }
           Directory d1 = openDirectory(dirImpl, f.toString(), false);
           if (IndexWriter.isLocked(d1)) {
-            if (ro) {
-              errorMsg("Index is locked and Read-Only. Open for read-write and 'Force unlock'.");
-              d1.close();
-              d1 = null;
-              return;
-            }
-            if (force) {
-              IndexWriter.unlock(d1);
-            } else {
-              errorMsg("Index is locked. Try 'Force unlock' when opening.");
-              d1.close();
-              d1 = null;
-              return;
+            if (!ro) {
+              if (force) {
+                IndexWriter.unlock(d1);
+              } else {
+                errorMsg("Index is locked. Try 'Force unlock' when opening.");
+                d1.close();
+                d1 = null;
+                return;
+              }
             }
           }
           existsSingle = false;
           try {
-            existsSingle = IndexReader.indexExists(d1);
-          } catch (Exception e) {};
+            new SegmentInfos().read(d1);
+            existsSingle = true;
+          } catch (Throwable e) {
+            lastException = e;
+            e.printStackTrace();
+          }
           if (!existsSingle) {
             d1.close();
             continue;
@@ -877,7 +929,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
       
       if (dirs.size() == 0) {
-        errorMsg("No valid directory at the location, try another location.");
+        if (lastException != null) {
+          errorMsg("Invalid directory at the location, check console for more information. Last exception:\n" + lastException.toString());
+        } else {
+          errorMsg("No valid directory at the location, try another location.\nCheck console for other possible causes.");
+        }
         return;
       }
 
@@ -899,19 +955,19 @@ public class Luke extends Thinlet implements ClipboardOwner {
       } else {
         policy = new KeepLastIndexDeletionPolicy();
       }
-      ArrayList<IndexReader> readers = new ArrayList<IndexReader>();
+      ArrayList<DirectoryReader> readers = new ArrayList<DirectoryReader>();
       for (Directory dd : dirs) {
-        IndexReader reader;
+        DirectoryReader reader;
         if (tiiDivisor > 1) {
-          reader = IndexReader.open(dd, policy, ro, tiiDivisor);
+          reader = DirectoryReader.open(dd, tiiDivisor);
         } else {
-          reader = IndexReader.open(dd, policy, ro);
+          reader = DirectoryReader.open(dd);
         }
         readers.add(reader);
       }
       if (readers.size() == 1) {
         ir = readers.get(0);
-        dir = ir.directory();
+        dir = ((DirectoryReader)ir).directory();
       } else {
         ir = new MultiReader((IndexReader[])readers.toArray(new IndexReader[readers.size()]));
       }
@@ -997,7 +1053,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       LukePlugin plugin = (LukePlugin) plugins.get(i);
       addPluginTab(pluginsTabs, plugin);
       plugin.setDirectory(dir);
-      plugin.setIndexReader(ir);
+      plugin.setReader(ir);
       try {
         plugin.init();
       } catch (Exception e) {
@@ -1051,12 +1107,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }      
       // we need IndexReader from now on
       idxInfo = new IndexInfo(ir, pName);
-      Object iMod = find(pOver, "iMod");
-      String modText = "N/A";
-      if (dir != null) {
-        modText = new Date(IndexReader.lastModified(dir)).toString();
-      }
-      setString(iMod, "text", modText);
       Object iDocs = find(pOver, "iDocs");
       String numdocs = String.valueOf(ir.numDocs());
       setString(iDocs, "text", numdocs);
@@ -1068,6 +1118,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
         showStatus("Empty index.");
       }
       showFiles(dir, null);
+      if (ir instanceof CompositeReader) {
+        ar = new SlowCompositeReaderWrapper((CompositeReader)ir);
+      } else if (ir instanceof AtomicReader) {
+        ar = (AtomicReader)ir;
+      }
+      if (ar != null) {
+        infos = ar.getFieldInfos();
+      }
       showCommits();
       final Object fList = find(pOver, "fList");
       final Object defFld = find("defFld");
@@ -1091,6 +1149,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
               setString(iTerms, "text", String.valueOf(numTerms));
               initFieldList(fList, fCombo, defFld);
             } catch (Exception e) {
+              e.printStackTrace();
               numTerms = -1;
               termCounts = Collections.emptyMap();
               showStatus("ERROR: can't count terms per field");
@@ -1104,13 +1163,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
       Object iDel = find(pOver, "iDelOpt");
       String sDel = ir.hasDeletions() ? "Yes (" + ir.numDeletedDocs() + ")" : "No";
-      String sDelOpt = sDel + " / " +
-                      (ir.isOptimized() ? "Yes" : "No");
+      IndexCommit ic = ir instanceof DirectoryReader ? ((DirectoryReader)ir).getIndexCommit() : null;
+      String opt = ic != null ? (ic.getSegmentCount() == 1 ? "Yes" : "No") : "?";
+      String sDelOpt = sDel + " / " + opt;
       setString(iDel, "text", sDelOpt);
       Object iVer = find(pOver, "iVer");
       String verText = "N/A";
-      if (dir != null) {
-        verText = Long.toHexString(IndexReader.getCurrentVersion(dir));
+      if (ic != null) {
+        verText = Long.toHexString(((DirectoryReader)ir).getVersion());
       }
       setString(iVer, "text", verText);
       Object iFormat = find(pOver, "iFormat");
@@ -1118,40 +1178,39 @@ public class Luke extends Thinlet implements ClipboardOwner {
       String formatText = "N/A";
       String formatCaps = "N/A";
       if (dir != null) {
-        int format = idxInfo.getIndexFormat();
-        IndexGate.FormatDetails formatDetails = IndexGate.getFormatDetails(format);
-        formatText = format + " (" + formatDetails.genericName + ")";
+        IndexGate.FormatDetails formatDetails = IndexGate.getIndexFormat(dir);
+        formatText = formatDetails.genericName;
         formatCaps = formatDetails.capabilities;
       }
       setString(iFormat, "text", formatText);
       setString(iCaps, "text", formatCaps);
       Object iTiiDiv = find(pOver, "iTiiDiv");
       String divText = "N/A";
-      // not available in Lucene 3.0
-//      try {
-//        divText = String.valueOf(ir.getTermInfosIndexDivisor());
-//      } catch (UnsupportedOperationException uoe) {
-//      }
+      if (ir instanceof DirectoryReader) {
+        List<? extends AtomicReader> readers = ((DirectoryReader)ir).getSequentialSubReaders();
+        if (readers.size() > 0 && readers.get(0) instanceof SegmentReader) {
+          divText = String.valueOf(((SegmentReader)readers.get(0)).getTermInfosIndexDivisor());
+        }
+      }
       setString(iTiiDiv, "text", divText);
       Object iCommit = find(pOver, "iCommit");
       String commitText = "N/A";
-      try {
-        IndexCommit commit = ir.getIndexCommit();
-        commitText = commit.getSegmentsFileName() + " (" +
-          new Date(commit.getTimestamp()).toString() + ")";
-      } catch (UnsupportedOperationException uoe) {
+      if (ic != null) {
+        commitText = ic.getSegmentsFileName() +
+                " (generation=" + ic.getGeneration() + ", segs=" +
+                ic.getSegmentCount() + ")";
       }
       setString(iCommit, "text", commitText);
       Object iUser = find(pOver, "iUser");
       String userData = null;
-      try {
-        Map<String,String> userDataMap = ir.getCommitUserData();
+      if (ic != null) {
+        Map<String,String> userDataMap = ic.getUserData();
         if (userDataMap != null && !userDataMap.isEmpty()) {
-          userData = ir.getCommitUserData().toString();
+          userData = userDataMap.toString();
         } else {
           userData = "--";
         }
-      } catch (UnsupportedOperationException uoe) {
+      } else {
         userData = "(not supported)";
       }
       setString(iUser, "text", userData);
@@ -1260,14 +1319,19 @@ public class Luke extends Thinlet implements ClipboardOwner {
       add(commitsTable, row);
       return;
     }
-    Collection<IndexCommit> commits = IndexReader.listCommits(dir);
+    List<IndexCommit> commits = DirectoryReader.listCommits(dir);
+    IndexCommit current = ir instanceof DirectoryReader ? ((DirectoryReader)ir).getIndexCommit() : null;
     // commits are ordered from oldest to newest ?
     Iterator<IndexCommit> it = commits.iterator();
     int rowNum = 0;
     while (it.hasNext()) {
-      IndexCommit commit = it.next();
+      IndexCommit commit = (IndexCommit)it.next();
+      // figure out the name of the segment files
+      Collection<String> files = commit.getFileNames();
+      Iterator<String> itf = files.iterator();
       Object row = create("row");
       boolean enabled = rowNum < commits.size() - 1;
+      Color color = Color.BLUE;
       rowNum++;
       add(commitsTable, row);
       putProperty(row, "commit", commit);
@@ -1275,31 +1339,251 @@ public class Luke extends Thinlet implements ClipboardOwner {
         putProperty(row, "commitDeletable", Boolean.TRUE);
       }
       Object cell = create("cell");
-      setString(cell, "text", String.valueOf(commit.getGeneration()));
+      String gen = String.valueOf(commit.getGeneration());
+      setString(cell, "text", gen);
       add(row, cell);
       cell = create("cell");
-      char[] flags = new char[]{'-', '-'};
-      if (commit.isDeleted()) flags[0] = 'D';
-      if (commit.isOptimized()) flags[1] = 'O';
-      setString(cell, "text", new String(flags));
-      setFont(cell, "font", courier);
-      setChoice(cell, "alignment", "center");
+      setString(cell, "text", commit.isDeleted() ? "Y" : "N");
       add(row, cell);
       cell = create("cell");
-      setString(cell, "text", Long.toHexString(commit.getVersion()));
+      setString(cell, "text", String.valueOf(commit.getSegmentCount()));
       add(row, cell);
       cell = create("cell");
-      setString(cell, "text", new Date(commit.getTimestamp()).toString());
-      add(row, cell);
-      cell = create("cell");
-      Map<String,String> userData = commit.getUserData();
+      Map userData = commit.getUserData();
       if (userData != null && !userData.isEmpty()) {
         setString(cell, "text", userData.toString());
       } else {
-        setString(cell, "text", "--");
+        setString(cell, "text", "");
       }
       add(row, cell);
+      if (commit.equals(current)) {
+        Object[] cells = getItems(row);
+        for (Object c : cells) {
+          setColor(c, "foreground", color);
+        }
+      }
     }
+  }
+  
+  public void showSegments(Object commitsTable) throws Exception {
+    Object segTable = find("segmentsTable");
+    removeAll(segTable);
+    Object[] rows = getSelectedItems(commitsTable);
+    if (rows == null || rows.length == 0) {
+      showStatus("No commit point selected.");
+      return;
+    }
+    Object row = rows[0];
+    IndexCommit commit = (IndexCommit)getProperty(row, "commit");
+    if (commit == null) {
+      showStatus("Can't retrieve commit point (application error)");
+      return;
+    }
+    Object segGen = find("segGen");
+    setString(segGen, "text", commit.getSegmentsFileName() + " (gen " + commit.getGeneration() + ")");
+    String segName = commit.getSegmentsFileName();
+    SegmentInfos infos = new SegmentInfos();
+    try {
+      infos.read(dir, segName);
+    } catch (Exception e) {
+      e.printStackTrace();
+      errorMsg("Error reading segment infos for '" + segName + ": " + e.toString());
+      return;
+    }
+    for (SegmentInfoPerCommit si : infos.asList()) {
+      Object r = create("row");
+      add(segTable, r);
+      Object cell = create("cell");
+      add(r, cell);
+      setString(cell, "text", si.info.name);
+      cell = create("cell");
+      add(r, cell);
+      setString(cell, "text", String.valueOf(si.getDelGen()));
+      setChoice(cell, "alignment", "right");
+      cell = create("cell");
+      add(r, cell);
+      setString(cell, "text", String.valueOf(si.getDelCount()));
+      setChoice(cell, "alignment", "right");
+      cell = create("cell");
+      add(r, cell);
+      setString(cell, "text", String.valueOf(si.info.getDocCount()));
+      setChoice(cell, "alignment", "right");
+      cell = create("cell");
+      add(r, cell);
+      setString(cell, "text", si.info.getVersion());
+      cell = create("cell");
+      add(r, cell);
+      setString(cell, "text", si.info.getCodec().getName());
+      long size = si.sizeInBytes();
+      cell = create("cell");
+      add(r, cell);
+      setString(cell, "text", Util.normalizeSize(size) + Util.normalizeUnit(size));
+      setChoice(cell, "alignment", "right");
+      cell = create("cell");
+      add(r, cell);
+      setString(cell, "text", si.info.getUseCompoundFile() ? "Y" : "N");
+      
+      putProperty(r, "si", si);
+    }
+    Object diagsTable = find("diagsTable");
+    removeAll(diagsTable);
+  }
+  
+  public void showDiagnostics(Object segmentsTable) {
+    Object diagsTable = find("diagsTable");
+    removeAll(diagsTable);
+    Object row = getSelectedItem(segmentsTable);
+    if (row == null) {
+      return;
+    }
+    SegmentInfoPerCommit si = (SegmentInfoPerCommit)getProperty(row, "si");
+    if (si == null) {
+      showStatus("Missing SegmentInfoPerCommit???");
+      return;
+    }
+    Map<String,String> map = si.info.attributes();
+    if (map != null) {
+      for (Entry<String,String> e : map.entrySet()) {
+        Object r = create("row");
+        add(diagsTable, r);
+        Object cell = create("cell");
+        setString(cell, "text", "A");
+        add(r, cell);
+        cell = create("cell");
+        setString(cell, "text", e.getKey());
+        add(r, cell);
+        cell = create("cell");
+        setString(cell, "text", e.getValue());
+        add(r, cell);
+      }
+    }
+    // separator
+//    Object r1 = create("row");
+//    add(diagsTable, r1);
+//    Object c1 = create("cell");
+//    setBoolean(c1, "enabled", false);
+//    add(r1, c1);
+    map = si.info.getDiagnostics();
+    if (map != null) {
+      for (Entry<String,String> e : map.entrySet()) {
+        Object r = create("row");
+        add(diagsTable, r);
+        Object cell = create("cell");
+        setString(cell, "text", "D");
+        add(r, cell);
+        cell = create("cell");
+        setString(cell, "text", e.getKey());
+        add(r, cell);
+        cell = create("cell");
+        setString(cell, "text", e.getValue());
+        add(r, cell);
+      }
+    }
+    // separator
+    Object r1 = create("row");
+    add(diagsTable, r1);
+    Object c1 = create("cell");
+    setBoolean(c1, "enabled", false);
+    add(r1, c1);
+    // codec info
+    Codec codec = si.info.getCodec();
+    map = new LinkedHashMap<String,String>();
+    map.put("codecName", codec.getName());
+    map.put("codecClassName", codec.getClass().getName());
+    map.put("docValuesFormat", codec.docValuesFormat().getClass().getName());
+    map.put("fieldInfosFormat", codec.fieldInfosFormat().getClass().getName());
+    map.put("liveDocsFormat", codec.liveDocsFormat().getClass().getName());
+    map.put("normsFormat", codec.normsFormat().getClass().getName());
+    map.put("postingsFormat", codec.postingsFormat().toString() + " " + codec.postingsFormat().getClass().getName());
+    map.put("segmentInfoFormat", codec.segmentInfoFormat().getClass().getName());
+    map.put("storedFieldsFormat", codec.storedFieldsFormat().getClass().getName());
+    map.put("termVectorsFormat", codec.termVectorsFormat().getClass().getName());
+    for (Entry<String,String> e : map.entrySet()) {
+      Object r = create("row");
+      add(diagsTable, r);
+      Object cell = create("cell");
+      setString(cell, "text", "C");
+      add(r, cell);
+      cell = create("cell");
+      setString(cell, "text", e.getKey());
+      add(r, cell);
+      cell = create("cell");
+      setString(cell, "text", e.getValue());
+      add(r, cell);
+    }
+    // fieldInfos
+    try {
+      SegmentReader sr = new SegmentReader(si, 1, IOContext.READ);
+      FieldInfos fis = sr.getFieldInfos();
+      map = new LinkedHashMap<String,String>();
+      List<String> flds = new ArrayList<String>(fis.size());
+      for (FieldInfo fi : fis) {
+        flds.add(fi.name);
+      }
+      Collections.sort(flds);
+      map.put("Lfields", flds.toString());
+      for (String fn : flds) {
+        FieldInfo fi = fis.fieldInfo(fn);
+        map.put("A" + fi.name, fi.attributes().toString());
+      }
+      map.put("F----------", "IdfpoPVNtxxDtxx");
+      for (String fn : flds) {
+        FieldInfo fi = fis.fieldInfo(fn);
+        map.put("F" + fi.name, Util.fieldFlags(null, fi));
+      }
+      sr.close();
+      // separator
+      r1 = create("row");
+      add(diagsTable, r1);
+      c1 = create("cell");
+      setBoolean(c1, "enabled", false);
+      add(r1, c1);
+      for (Entry<String,String> e : map.entrySet()) {
+        Object r = create("row");
+        add(diagsTable, r);
+        Object cell = create("cell");
+        setString(cell, "text", "F" + e.getKey().charAt(0));
+        add(r, cell);
+        cell = create("cell");
+        setString(cell, "text", e.getKey().substring(1));
+        add(r, cell);
+        cell = create("cell");
+        setString(cell, "text", e.getValue());
+        if (e.getKey().startsWith("F")) {
+          setFont(cell, courier);
+        }
+        add(r, cell);
+      }
+    } catch (IOException e1) {
+      e1.printStackTrace();
+    }
+  }
+  
+  public void openCommit(Object commitsTable) throws IOException {
+    Object row = getSelectedItem(commitsTable);
+    if (row == null) {
+      showStatus("No commit point selected.");
+      return;
+    }
+    IndexCommit commit = (IndexCommit)getProperty(row, "commit");
+    if (commit == null) {
+      showStatus("Can't retrieve commit point (application error)");
+      return;
+    }
+    IndexCommit current = ir instanceof DirectoryReader ? ((DirectoryReader)ir).getIndexCommit() : null;
+    if (commit.equals(current)) {
+      showStatus("Already open at this commit point.");
+      return;
+    }
+    ir.close();
+    IndexDeletionPolicy policy;
+    if (keepCommits) {
+      policy = new KeepAllIndexDeletionPolicy();
+    } else {
+      policy = new KeepLastIndexDeletionPolicy();
+    }
+    ir = DirectoryReader.open(commit);
+    initOverview();
   }
   
   public void showCommitFiles(Object commitTable) throws Exception {
@@ -1316,6 +1600,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
     }
     showFiles(dir, commits);
+    showSegments(commitTable);
   }
 
   private void showFiles(Directory dir, List<IndexCommit> commits) throws Exception {
@@ -1330,8 +1615,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       add(filesTable, row);
       return;
     }
+    Object iFileSize = find("iFileSize");
+    long totalSize = 0;
     String[] physFiles = dir.listAll();
-    List<String> files = new ArrayList<String>();
+    Set<String> files = new HashSet<String>();
     if (commits != null && commits.size() > 0) {
       for (int i = 0; i < commits.size(); i++) {
         IndexCommit commit = commits.get(i);
@@ -1340,12 +1627,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
     } else {
       files.addAll(Arrays.asList(physFiles));
     }
-    Collections.sort(files);
+    List<String> uFiles = new ArrayList<String>(files);
+    Collections.sort(uFiles);
     List<String> segs = getIndexFileNames(dir);
     List<String> dels = getIndexDeletableNames(dir);
+    Font courier2 = courier.deriveFont((float)courier.getSize() * 1.1f);
     removeAll(filesTable);
-    for (int i = 0; i < files.size(); i++) {
-      String fileName = files.get(i);
+    for (int i = 0; i < uFiles.size(); i++) {
+      String fileName = uFiles.get(i);
       String pathName;
       if (pName.endsWith(File.separator)) {
         pathName = pName;
@@ -1353,19 +1642,20 @@ public class Luke extends Thinlet implements ClipboardOwner {
         pathName = pName + File.separator;
       }
       File file = new File(pathName + fileName);
+      boolean deletable = dels.contains(fileName.intern());
+      String inuse = getFileFunction(fileName);
       Object row = create("row");
       Object nameCell = create("cell");
       setString(nameCell, "text", fileName);
+      setString(nameCell, "tooltip", inuse);
       add(row, nameCell);
       Object sizeCell = create("cell");
-      setString(sizeCell, "text", Util.normalizeSize(file.length()));
+      long length = file.length();
+      totalSize += length;
+      setString(sizeCell, "text", Util.normalizeSize(length) + Util.normalizeUnit(length));
       setChoice(sizeCell, "alignment", "right");
+      setFont(sizeCell, courier2);
       add(row, sizeCell);
-      Object unitCell = create("cell");
-      setString(unitCell, "text", Util.normalizeUnit(file.length()));
-      add(row, unitCell);
-      boolean deletable = dels.contains(fileName.intern());
-      String inuse = getFileFunction(fileName);
       Object delCell = create("cell");
       setString(delCell, "text", deletable ? "YES" : "-");
       add(row, delCell);
@@ -1374,6 +1664,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       add(row, inuseCell);
       add(filesTable, row);
     }
+    setString(iFileSize, "text", Util.normalizeSize(totalSize) + Util.normalizeUnit(totalSize));
   }
   
   private String getFileFunction(String file) {
@@ -1541,6 +1832,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_READONLY);
       return;
     }
+    if (!(ir instanceof DirectoryReader)) {
+      showStatus("Not possible with " + ir.getClass().getSimpleName());
+      return;
+    }
+    errorMsg("Not supported in Lucene 4 API");
+    /*
     try {
       ir.undeleteAll();
       initOverview();
@@ -1548,6 +1845,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       e.printStackTrace();
       errorMsg(e.getMessage());
     }
+    */
   }
 
   /** Not implemented yet... */
@@ -1584,20 +1882,23 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     try {
       if (is != null) {
-        is.close();
         is = null;
       }
       if (ir != null) {
         ir.close();
         ir = null;
       }
+      if (ar != null) {
+        ar.close();
+        ar = null;
+      }
       if (dir != null) {
         dir.close();
         dir = null;
       }
-      try {
-        dir = reader.directory();
-      } catch (UnsupportedOperationException uoe) {
+      if (reader instanceof DirectoryReader) {
+        dir = ((DirectoryReader)reader).directory();
+      } else {
         dir = null;
       }
       ir = reader;
@@ -1702,10 +2003,22 @@ public class Luke extends Thinlet implements ClipboardOwner {
           errorMsg("You need to run 'Check Index' first.");
           return;
         }
+        // use codec from the first valid segment
+        Codec c = null;
+        for (SegmentInfoStatus ssi : status.segmentInfos) {
+          if (ssi.codec != null) {
+            c = ssi.codec;
+            break;
+          }
+        }
+        if (c == null) {
+          showStatus("Can't determine Codec, using default");
+          c = Codec.getDefault();
+        }
         Object fixRes = find(dialog, "fixRes");
         PanelPrintWriter ppw = (PanelPrintWriter)getProperty(dialog, "ppw");
         try {
-          ci.fixIndex(status);
+          ci.fixIndex(status, c);
           setString(fixRes, "text", "DONE. Review the output above.");
         } catch (Exception e) {
           ppw.println("\nERROR during Fix Index:");
@@ -1802,7 +2115,15 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   public void _actionCleanup(Object filesTable) {
     try {
-      ir.close();
+      if (is != null) {
+        is = null;
+      }
+      if (ir != null) {
+        ir.close();
+      }
+      if (ar != null) {
+        ar.close();
+      }
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -1945,13 +2266,17 @@ public class Luke extends Thinlet implements ClipboardOwner {
     setBoolean(find(dialog, "startButton"), "visible", false);
     setBoolean(find(dialog, "abortButton"), "visible", true);
     setBoolean(find(dialog, "closeButton"), "enabled", false);
-    _runExport(out, gzip, obs, dialog, ranges);
+    try {
+      _runExport(out, gzip, obs, dialog, ranges);
+    } catch (IOException ioe) {
+      errorMsg("Export failed: " + ioe.toString());
+    }
   }
   
   XMLExporter exporter = null;
   
   public void _runExport(final File out, final boolean gzip, Observer obs,
-      final Object dialog, final Ranges ranges) {
+      final Object dialog, final Ranges ranges) throws IOException {
     exporter = new XMLExporter(ir, pName, decoders);
     exporter.addObserver(obs);
     Thread t = new Thread() {
@@ -2030,40 +2355,61 @@ public class Luke extends Thinlet implements ClipboardOwner {
         PanelPrintWriter ppw = new PanelPrintWriter(Luke.this, msg);
         boolean useCompound = getBoolean(find(dialog, "optCompound"), "selected");
         boolean expunge = getBoolean(find(dialog, "optExpunge"), "selected");
+        boolean keep = getBoolean(find(dialog, "optKeepAll"), "selected");
+        boolean useLast = getBoolean(find(dialog, "optLastCommit"), "selected");
         Object tiiSpin = find(dialog, "tii");
         Object segnumSpin = find(dialog, "segnum");
         int tii = Integer.parseInt(getString(tiiSpin, "text"));
         int segnum = Integer.parseInt(getString(segnumSpin, "text"));
         try {
-          if (is != null) is.close();
+          if (is != null) is = null;
           if (ir != null) ir.close();
+          if (ar != null) ar.close();
           IndexDeletionPolicy policy;
-          if (keepCommits) {
+          if (keep) {
             policy = new KeepAllIndexDeletionPolicy();
           } else {
             policy = new KeepLastIndexDeletionPolicy();
           }
           IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer(LV));
+          if (!useLast) {
+            IndexCommit ic = ((DirectoryReader)ir).getIndexCommit();
+            if (ic != null) {
+              cfg.setIndexCommit(ic);
+            }
+          }
           cfg.setIndexDeletionPolicy(policy);
           cfg.setTermIndexInterval(tii);
-          ((LogMergePolicy)cfg.getMergePolicy()).setUseCompoundFile(useCompound);
+          MergePolicy p = cfg.getMergePolicy();
+          if (p instanceof LogMergePolicy) {
+            ((LogMergePolicy)p).setUseCompoundFile(useCompound);
+            if (useCompound) {
+              ((LogMergePolicy)p).setNoCFSRatio(1.0);
+            }
+          } else if (p instanceof TieredMergePolicy) {
+            ((TieredMergePolicy)p).setUseCompoundFile(useCompound);            
+            if (useCompound) {
+              ((TieredMergePolicy)p).setNoCFSRatio(1.0);
+            }
+          }
+          cfg.setInfoStream(ppw);
           iw = new IndexWriter(dir, cfg);
-          iw.setInfoStream(ppw);
           long startSize = Util.calcTotalFileSize(pName, dir);
           long startTime = System.currentTimeMillis();
           if (expunge) {
-            iw.expungeDeletes();
+            iw.forceMergeDeletes();
           } else {
             if (segnum > 1) {
-              iw.optimize(segnum);
+              iw.forceMerge(segnum, true);
             } else {
-              iw.optimize();
+              iw.forceMerge(1, true);
             }
           }
+          iw.commit();
           long endTime = System.currentTimeMillis();
           long endSize = Util.calcTotalFileSize(pName, dir);
           long deltaSize = startSize - endSize;
-          String sign = deltaSize > 0 ? " Increased " : " Reduced ";
+          String sign = deltaSize < 0 ? " Increased " : " Reduced ";
           String sizeMsg = sign + Util.normalizeSize(Math.abs(deltaSize)) + Util.normalizeUnit(Math.abs(deltaSize));
           String timeMsg = String.valueOf(endTime - startTime) + " ms";
           showStatus(sizeMsg + " in " + timeMsg);
@@ -2123,7 +2469,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         return;
       }
       setString(docNum, "text", String.valueOf(iNum));
-      org.apache.lucene.util.Bits live = MultiFields.getLiveDocs(ir);
+      org.apache.lucene.util.Bits live = ar.getLiveDocs();
       if (live == null || live.get(iNum)) {
         SlowThread st = new SlowThread(this) {
           public void execute() {
@@ -2193,7 +2539,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           for (int p = 0; p < idxFields.length; p++) {
             String key = idxFields[p];
             if (!doc.hasField(key)) continue;
-            Field[] fields = doc.getStoredFields().get(key);
+            IndexableField[] fields = doc.getStoredFields().get(key);
             GrowableStringArray recField = doc.getReconstructedFields().get(key);
             int count = 0;
             if (recField != null) count = 1;
@@ -2221,29 +2567,31 @@ public class Luke extends Thinlet implements ClipboardOwner {
               Object cbOTF = find(editfield, "cbOTF");
               Object stored = find(editfield, "stored");
               Object restored = find(editfield, "restored");
-              setBoolean(cbONorms, "selected", !ir.hasNorms(key));
+              if (ar != null) {
+                setBoolean(cbONorms, "selected", !ar.hasNorms(key));
+              }
               Field f = null;
               if (fields != null && fields.length > i) {
-                f = (Field) fields[i];
+                f = (Field)fields[i];
                 setString(fType, "text", "Original stored field content");
                 String text;
-                if (f.isBinary()) {
-                  text = Util.bytesToHex(f.getBinaryValue(),
-                      f.getBinaryOffset(), f.getBinaryLength(), true);
+                if (f.binaryValue() != null) {
+                  text = Util.bytesToHex(f.binaryValue(), true);
                   setBoolean(cbBin, "selected", true);
                 } else {
                   text = f.stringValue();
                 }
                 setString(sText, "text", text);
-                setString(fBoost, "text", String.valueOf(f.getBoost()));
-                setBoolean(cbStored, "selected", f.isStored());
+                setString(fBoost, "text", String.valueOf(f.boost()));
+                IndexableFieldType t = f.fieldType();
+                setBoolean(cbStored, "selected", t.stored());
                 // Lucene 3.0 doesn't support compressed fields
                 //setBoolean(cbCmp, "selected", false);
-                setBoolean(cbIndexed, "selected", f.isIndexed());
-                setBoolean(cbTokenized, "selected", f.isTokenized());
-                setBoolean(cbTVF, "selected", f.isTermVectorStored());
-                setBoolean(cbTVFp, "selected", f.isStorePositionWithTermVector());
-                setBoolean(cbTVFo, "selected", f.isStoreOffsetWithTermVector());
+                setBoolean(cbIndexed, "selected", t.indexed());
+                setBoolean(cbTokenized, "selected", t.tokenized());
+                setBoolean(cbTVF, "selected", t.storeTermVectors());
+                setBoolean(cbTVFp, "selected", t.storeTermVectorPositions());
+                setBoolean(cbTVFo, "selected", t.storeTermVectorOffsets());
                 // XXX omitTF needs fixing!
                 //setBoolean(cbOTF, "selected", f.getOmitTermFreqAndPositions());
               } else {
@@ -2289,6 +2637,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
     String clazz = getString(cbAnalyzers, "text");
     setString(cbType, "text", clazz);
     Analyzer a = createAnalyzer(srchTabs);
+    if (a == null) {
+      return false;
+    }
     Object editTabs = find(editdoc, "editTabs");
     Object[] tabs = getItems(editTabs);
     for (int i = 0; i < tabs.length; i++) {
@@ -2310,34 +2661,34 @@ public class Luke extends Thinlet implements ClipboardOwner {
       String text = getString(fText, "text");
       byte[] binValue;
       boolean binary = getBoolean(cbBin, "selected");
-      Field.TermVector tv;
+      FieldType ft = new FieldType();
       if (getBoolean(cbTVF, "selected")) {
+        ft.setStoreTermVectors(true);
         if (getBoolean(cbTVFo, "selected")) {
-          if (getBoolean(cbTVFp, "selected")) {
-            tv = Field.TermVector.WITH_POSITIONS_OFFSETS;
-          } else {
-            tv = Field.TermVector.WITH_OFFSETS;
-          }
-        } else {
-          if (getBoolean(cbTVFp, "selected")) {
-            tv = Field.TermVector.WITH_POSITIONS;
-          } else {
-            tv = Field.TermVector.YES;
-          }
+          ft.setStoreTermVectorOffsets(true);
+        }
+        if (getBoolean(cbTVFp, "selected")) {
+          ft.setStoreTermVectorPositions(true);
         }
       } else {
-        tv = Field.TermVector.NO;
+        ft.setStoreTermVectors(false);
       }
-      Field f;
-      Store stored = getBoolean(cbStored, "selected") ? Field.Store.YES :
-            Field.Store.NO;
-      Index indexed = getBoolean(cbIndexed, "selected") ?
-          (getBoolean(cbTokenized, "selected") ? Field.Index.ANALYZED : Field.Index.NOT_ANALYZED) :
-            Field.Index.NO;
-      if (stored.equals(Store.NO) && indexed.equals(Index.NO)) {
+      // XXX omitTF needs fixing
+      // f.setOmitTermFreqAndPositions(getBoolean(cbOTF, "selected"));
+      if (getBoolean(cbOTF, "selected")) {
+        ft.setIndexOptions(IndexOptions.DOCS_ONLY);
+      } else {
+        ft.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+      }
+      ft.setStored(getBoolean(cbStored, "selected"));
+      ft.setIndexed(getBoolean(cbIndexed, "selected"));
+      ft.setTokenized(getBoolean(cbTokenized, "selected"));
+      if (ft.stored() == false && ft.indexed() == false) {
         errorMsg("Field '" + name + "' is neither stored nor indexed.");
         return false;
       }
+      ft.setOmitNorms(getBoolean(cbONorms, "selected"));
+      Field f;
       if (binary) {
         try {
           binValue = Util.hexToBytes(text);
@@ -2345,13 +2696,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
           errorMsg("Field '" + name + "': " + e.getMessage());
           return false;
         }
-        f = new Field(name, binValue, 0, binValue.length);
+        f = new Field(name, binValue, 0, binValue.length, ft);
       } else {
-        f = new Field(name, text, stored, indexed, tv);
+        f = new Field(name, text, ft);
       }
-      f.setOmitNorms(getBoolean(cbONorms, "selected"));
-      // XXX omitTF needs fixing
-      // f.setOmitTermFreqAndPositions(getBoolean(cbOTF, "selected"));
       String boostS = getString(fBoost, "text").trim();
       if (!boostS.equals("") && !boostS.equals("1.0")) {
         float boost = 1.0f;
@@ -2369,16 +2717,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
     String msg = null;
     try {
       ir.close();
-      IndexDeletionPolicy policy;
-      if (keepCommits) {
-        policy = new KeepAllIndexDeletionPolicy();
-      } else {
-        policy = new KeepLastIndexDeletionPolicy();
+      if (ar != null) {
+        ar.close();
       }
-      IndexWriterConfig cfg = new IndexWriterConfig(Version.LUCENE_40, a);
-      cfg.setIndexDeletionPolicy(policy);
-      ((LogMergePolicy)cfg.getMergePolicy()).setUseCompoundFile(IndexGate.preferCompoundFormat(dir));
-      writer = new IndexWriter(dir, cfg);
+      writer = createIndexWriter();
       writer.addDocument(doc);
       res = true;
     } catch (Exception e) {
@@ -2409,19 +2751,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
       errorMsg(msg);
     }
     return res;
-  }
-
-  public void actionEditReplace(Object editdoc) {
-    if (!actionEditAdd(editdoc)) return;
-    Integer DocNum = (Integer) getProperty(editdoc, "docNum");
-    if (DocNum == null) return;
-    try {
-      ir.deleteDocument(DocNum.intValue());
-    } catch (Exception e) {
-      e.printStackTrace();
-      errorMsg("ERROR deleting: " + e.getMessage());
-      return;
-    }
   }
 
   public void actionEditAddField(Object editdoc) {
@@ -2459,10 +2788,19 @@ public class Luke extends Thinlet implements ClipboardOwner {
       return;
     }
     MoreLikeThis mlt = new MoreLikeThis(ir);
-    mlt.setFieldNames((String[])ir.getFieldNames(FieldOption.INDEXED).toArray(new String[0]));
+    try {
+      mlt.setFieldNames((String[])Util.fieldNames(ir, true).toArray(new String[0]));
+    } catch (Exception e) {
+      errorMsg("Exception collecting field names: " + e.toString());
+      return;
+    }
     mlt.setMinTermFreq(1);
     mlt.setMaxQueryTerms(50);
-    mlt.setAnalyzer(createAnalyzer(find("srchOptTabs")));
+    Analyzer a = createAnalyzer(find("srchOptTabs"));
+    if (a == null) {
+      return;
+    }
+    mlt.setAnalyzer(a);
     Object[] rows = getSelectedItems(docTable);
     BooleanQuery similar = null;
     if (rows != null && rows.length > 0) {
@@ -2481,7 +2819,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         sb.append(s);
       }
       try {
-        similar = (BooleanQuery)mlt.like(new StringReader(sb.toString()));
+        similar = (BooleanQuery)mlt.like(new StringReader(sb.toString()), "field");
       } catch (Exception e) {
         e.printStackTrace();
         errorMsg("FAILED: " + e.getMessage());
@@ -2509,6 +2847,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   private void _showDocFields(int docid, Document doc) {
     Object table = find("docTable");
+    Object srchOpts = find("srchOptTabs");
+    Similarity sim = createSimilarity(srchOpts);
+    if (sim == null || !(sim instanceof TFIDFSimilarity)) {
+      sim = defaultSimilarity;
+    }
     setString(find("docNum"), "text", String.valueOf(docid));
     removeAll(table);
     putProperty(table, "doc", doc);
@@ -2519,67 +2862,47 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     setString(find("docNum1"), "text", String.valueOf(docid));
     for (int i = 0; i < idxFields.length; i++) {
-      Field[] fields = doc.getFields(idxFields[i]);
+      IndexableField[] fields = doc.getFields(idxFields[i]);
       if (fields == null) {
-        addFieldRow(table, idxFields[i], null, docid);
+        addFieldRow(table, idxFields[i], null, docid, null);
         continue;
       }
       for (int j = 0; j < fields.length; j++) {
-//        if (fields[j].isBinary()) {
-//          System.out.println("f.len=" + fields[j].getBinaryLength() + ", doc.len=" + doc.getBinaryValue(idxFields[i]).length);
-//        }
-        addFieldRow(table, idxFields[i], fields[j], docid);
+        addFieldRow(table, idxFields[i], fields[j], docid, (TFIDFSimilarity)sim);
       }
     }
     doLayout(table);
   }
   
-  private float decodeNormValue(byte v, String fieldName) {
-    try {
-      TFIDFSimilarity s = (TFIDFSimilarity)(similarity != null ? similarity : defaultSimilarity);
-      return s.decodeNormValue(v);
-    } catch (Exception e) {
-      showStatus("ERROR decoding norm for field "  + fieldName + ":" + e.toString());
-      return 0;
-    }
-  }
-  
-  private byte encodeNormValue(float v, String fieldName) {
-    try {
-      TFIDFSimilarity s = (TFIDFSimilarity)(similarity != null ? similarity : defaultSimilarity);
-      return s.encodeNormValue(v);
-    } catch (Exception e) {
-      showStatus("ERROR encoding norm for field "  + fieldName + ":" + e.toString());
-      return 0;
-    }    
-  }
-
   Font courier = null;
-  private void addFieldRow(Object table, String fName, Field f, int docid) {
+  private void addFieldRow(Object table, String fName, IndexableField ixf, int docid, TFIDFSimilarity sim) {
     Object row = create("row");
     add(table, row);
-    putProperty(row, "field", f);
+    putProperty(row, "field", ixf);
     putProperty(row, "fName", fName);
     Object cell = create("cell");
     setString(cell, "text", fName );
     add(row, cell);
     cell = create("cell");
-    
-    setString(cell, "text", Util.fieldFlags(f));
-    if (f == null) {
+    Field f = (Field)ixf;
+    setString(cell, "text", Util.fieldFlags(f, infos.fieldInfo(f.name())));
+    if (ixf == null) {
       setBoolean(cell, "enabled", false);
     }
     setFont(cell, "font", courier);
     setChoice(cell, "alignment", "center");
     add(row, cell);
     cell = create("cell");
+    FieldInfo info = infos.fieldInfo(fName);
     if (f != null) {
       try {
-        if (ir.hasNorms(fName)) {
-          byte[] norms = MultiNorms.norms(ir, fName);
-          setString(cell, "text", String.valueOf(decodeNormValue(norms[docid], fName)));
+        if (ar != null && info.hasNorms()) {
+          DocValues norms = ar.normValues(fName);
+          String val = Util.normsToString(norms, fName, docid, sim);
+          setString(cell, "text", val);
         } else {
           setString(cell, "text", "---");
+          setBoolean(cell, "enabled", false);
         }
       } catch (IOException ioe) {
         ioe.printStackTrace();
@@ -2593,14 +2916,17 @@ public class Luke extends Thinlet implements ClipboardOwner {
     cell = create("cell");
     if (f != null) {
       String text = f.stringValue();
-      if (text == null && f.isBinary()) {
-        text = Util.bytesToHex(f.getBinaryValue(), f.getBinaryOffset(),
-            f.getBinaryLength(), false);
+      if (text == null) {
+        if (f.binaryValue() != null) {
+          text = Util.bytesToHex(f.binaryValue(), false);
+        } else {
+          text = "(null)";
+        }
       }
       Decoder dec = decoders.get(f.name());
       if (dec == null) dec = defDecoder;
       try {
-        if (f.isStored()) {
+        if (f.fieldType().stored()/* && f.numericValue() == null && f.binaryValue() == null*/) {
           text = dec.decodeStored(f.name(), f);
         } else {
           text = dec.decodeTerm(f.name(), text);
@@ -2619,7 +2945,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   public void showTV(Object table) {
     final Object row = getSelectedItem(table);
     if (row == null) return;
-    if (ir == null) {
+    if (ar == null) {
       showStatus(MSG_NOINDEX);
       return;
     }
@@ -2632,65 +2958,56 @@ public class Luke extends Thinlet implements ClipboardOwner {
       public void execute() {
         try {
           String fName = (String) getProperty(row, "fName");
-          TermFreqVector tfv = ir.getTermFreqVector(DocId.intValue(), fName);
+          Terms tfv = ar.getTermVector(DocId.intValue(), fName);
           if (tfv == null) {
+            showStatus("Term Vector not available.");
+            return;
+          }
+          List<IntPair> tvs = TermVectorMapper.map(tfv, null, true, false);
+          if (tvs == null || tvs.isEmpty()) {
             showStatus("Term Vector not available.");
             return;
           }
           Object dialog = addComponent(null, "/xml/vector.xml", null, null);
           setString(find(dialog, "fld"), "text", fName);
           Object vTable = find(dialog, "vTable");
-          IntPair[] tvs = new IntPair[tfv.size()];
-          BytesRef[] terms = tfv.getTerms();
-          int[] freqs = tfv.getTermFrequencies();
-          TermPositionVector tpv = null;
           Decoder dec = decoders.get(fName);
           if (dec == null) dec = defDecoder;
-          if (tfv instanceof TermPositionVector) tpv = (TermPositionVector)tfv;
-          for (int i = 0; i < terms.length; i++) {
-            IntPair ip = new IntPair(freqs[i], terms[i].utf8ToString());
-            if (tpv != null) {
-              ip.offsets = tpv.getOffsets(i);
-              ip.positions = tpv.getTermPositions(i);
-            }
-            tvs[i] = ip;
-          }
-          
-          Arrays.sort(tvs, new IntPair.PairComparator(false, true));
-          for (int i = 0; i < tvs.length; i++) {
+          Collections.sort(tvs, new IntPair.PairComparator(false, true));
+          for (int i = 0; i < tvs.size(); i++) {
             Object r = create("row");
             add(vTable, r);
-            putProperty(r, "tf", tvs[i]);
+            IntPair ip = tvs.get(i);
+            putProperty(r, "tf", ip);
             Object cell = create("cell");
             String s;
             try {
-              s = dec.decodeTerm(fName, tvs[i].text);
+              s = dec.decodeTerm(fName, ip.text);
             } catch (Throwable e) {
-              s = tvs[i].text;
+              s = ip.text;
               setColor(cell, "foreground", Color.RED);
             }
             setString(cell, "text", Util.escape(s));
             add(r, cell);
             cell = create("cell");
-            setString(cell, "text", String.valueOf(tvs[i].cnt));
+            setString(cell, "text", String.valueOf(ip.cnt));
             add(r, cell);
             cell = create("cell");
-            if (tvs[i].positions != null) {
+            if (ip.positions != null) {
               StringBuilder sb = new StringBuilder();
-              for (int k = 0; k < tvs[i].positions.length; k++) {
+              for (int k = 0; k < ip.positions.length; k++) {
                 if (k > 0) sb.append(',');
-                sb.append(String.valueOf(tvs[i].positions[k]));
+                sb.append(String.valueOf(ip.positions[k]));
               }
               setString(cell, "text", sb.toString());
             }
             add(r, cell);
             cell = create("cell");
-            if (tvs[i].offsets != null) {
+            if (ip.starts != null) {
               StringBuilder sb = new StringBuilder();
-              for (int k = 0; k < tvs[i].offsets.length; k++) {
+              for (int k = 0; k < ip.starts.length; k++) {
                 if (k > 0) sb.append(',');
-                TermVectorOffsetInfo tvfi = tvs[i].offsets[k];
-                sb.append(tvfi.getStartOffset() + "-" + tvfi.getEndOffset());
+                sb.append(ip.starts[k] + "-" + ip.ends[k]);
               }
               setString(cell, "text", sb.toString());
             }
@@ -2723,13 +3040,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
           sb.append(String.valueOf(tf.positions[k]));
         }
       }
-      if (tf.offsets != null) {
+      if (tf.starts != null) {
         if (tf.positions == null) sb.append("\t");
         sb.append("\t");
-        for (int k = 0; k < tf.offsets.length; k++) {
+        for (int k = 0; k < tf.starts.length; k++) {
           if (k > 0) sb.append(',');
-          TermVectorOffsetInfo tvfi = tf.offsets[k];
-          sb.append(tvfi.getStartOffset() + "-" + tvfi.getEndOffset());
+          sb.append(tf.starts[i] + "-" + tf.ends[i]);
         }
       }
       sb.append("\n");
@@ -2738,7 +3054,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, this);
   }
   
-  public void actionSetNorm(Object table) throws Exception {
+  public void actionExamineNorm(Object table) throws Exception {
     Object row = getSelectedItem(table);
     if (row == null) return;
     if (ir == null) {
@@ -2750,8 +3066,13 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus("No data available for this field");
       return;
     }
-    if (!f.isIndexed()) {
-      showStatus("Cannot set norm value - this field is not indexed.");
+    FieldInfo info = infos.fieldInfo(f.name());
+    if (!info.isIndexed()) {
+      showStatus("Cannot examine norm value - this field is not indexed.");
+      return;
+    }
+    if (!info.hasNorms()) {
+      showStatus("Cannot examine norm value - this field has no norms.");
       return;
     }
     Object dialog = addComponent(null, "/xml/fnorm.xml", null, null);
@@ -2763,18 +3084,31 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Object encNorm = find(dialog, "encNorm");
     Object doc = find(dialog, "docNum");
     Object fld = find(dialog, "fld");
+    Object srchOpts = find("srchOptTabs");
+    Similarity sim = createSimilarity(srchOpts);
+    TFIDFSimilarity s = null;
+    if (sim != null && (sim instanceof TFIDFSimilarity)) {
+      s = (TFIDFSimilarity)sim;
+    } else {
+      s = defaultSimilarity;
+    }
     setString(doc, "text", String.valueOf(docNum.intValue()));
     setString(fld, "text", f.name());
-    try {
-      byte curBVal = MultiNorms.norms(ir, f.name())[docNum.intValue()];
-      float curFVal = decodeNormValue(curBVal, f.name());
-      setString(curNorm, "text", String.valueOf(curFVal));
-      setString(newNorm, "text", String.valueOf(curFVal));
-      setString(encNorm, "text", String.valueOf(curFVal) +
+    putProperty(dialog, "similarity", s);
+    if (ar != null) {
+     try {
+       DocValues norms = ar.normValues(f.name());
+       byte curBVal = (byte)norms.getSource().getInt(docNum.intValue());
+       float curFVal = Util.decodeNormValue(curBVal, f.name(), s);
+       setString(curNorm, "text", String.valueOf(curFVal));
+       setString(newNorm, "text", String.valueOf(curFVal));
+       setString(encNorm, "text", String.valueOf(curFVal) +
           " (0x" + Util.byteToHex(curBVal) + ")");
-    } catch (Exception e) {
-      errorMsg("Error reading norm: " + e.toString());
-      return;
+     } catch (Exception e) {
+       e.printStackTrace();
+       errorMsg("Error reading norm: " + e.toString());
+       return;
+     }
     }
     add(dialog);
     displayNewNorm(dialog);
@@ -2784,10 +3118,30 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Object newNorm = find(dialog, "newNorm");
     Object encNorm = find(dialog, "encNorm");
     Field f = (Field)getProperty(dialog, "field");
+    TFIDFSimilarity s = (TFIDFSimilarity)getProperty(dialog, "similarity");
+    Object sim = find(dialog, "sim");
+    String simClassString = getString(sim, "text");
+    if (simClassString != null && simClassString.trim().length() > 0
+            && !simClassString.equals(defaultSimilarity.getClass().getName())) {
+      try {
+        Class cls = Class.forName(simClassString.trim());
+        if (TFIDFSimilarity.class.isAssignableFrom(cls)) {
+          s = (TFIDFSimilarity)cls.newInstance();
+          putProperty(dialog, "similarity", s);
+        }
+      } catch (Throwable t) {
+        t.printStackTrace();
+        showStatus("Invalid similarity class " + simClassString + ", using DefaultSimilarity.");
+      }
+    }
+    if (s == null) {
+      s = defaultSimilarity;
+    }
+    setString(sim, "text", s.getClass().getName());
     try {
       float newFVal = Float.parseFloat(getString(newNorm, "text"));
-      byte newBVal = encodeNormValue(newFVal, f.name());
-      float encFVal = decodeNormValue(newBVal, f.name());
+      byte newBVal = Util.encodeNormValue(newFVal, f.name(), s);
+      float encFVal = Util.decodeNormValue(newBVal, f.name(), s);
       setString(encNorm, "text", String.valueOf(encFVal) +
           " (0x" + Util.byteToHex(newBVal) + ")");
       putProperty(dialog, "newNorm", new Float(newFVal));
@@ -2795,47 +3149,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
     } catch (Exception e) {
       // XXX eat silently
     }
-  }
-  
-  public void setNorm(Object dialog) {
-    boolean singleDoc = getBoolean(find(dialog, "fDoc"), "selected");
-    boolean allDoc = getBoolean(find(dialog, "fAll"), "selected");
-    boolean ranges = getBoolean(find(dialog, "fList"), "selected");
-    Float newFVal = (Float)getProperty(dialog, "newNorm");
-    Integer docNum = (Integer)getProperty(dialog, "docNum");
-    Field f = (Field)getProperty(dialog, "field");
-    org.apache.lucene.util.Bits live = MultiFields.getLiveDocs(ir);
-    byte newBVal = encodeNormValue(newFVal.floatValue(), f.name());
-    try {
-      if (singleDoc) {
-        ir.setNorm(docNum.intValue(), f.name(), newBVal);
-      } else if (allDoc) {
-        for (int i = 0; i < ir.maxDoc(); i++) {
-          if (live != null && !live.get(i)) continue;
-          ir.setNorm(i, f.name(), newBVal);
-        }
-      } else if (ranges) {
-        String expr = getString(find(dialog, "frange"), "text");
-        Ranges r = Ranges.parse(expr);
-        if (r.cardinality() == 0) {
-          infoMsg("Empty list - no documents selected, no modifications.");
-        } else {
-          DocIdSetIterator it = r.iterator();
-          int docId;
-          while ((docId = it.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
-            if (live != null && !live.get(docId)) continue;
-            ir.setNorm(docId, f.name(), newBVal);
-          }
-        }
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-      errorMsg("Set norms failed: " + e.toString());
-    }
-    remove(dialog);
-    Object table = find("docTable");
-    Document doc = (Document)getProperty(table, "doc");
-    _showDocFields(docNum.intValue(), doc);
   }
   
   public void showTField(Object table) {
@@ -2869,12 +3182,13 @@ public class Luke extends Thinlet implements ClipboardOwner {
     if (selEnc != null) enc = selEnc;
     int len = 0;
     byte[] data = null;
-    if (f.isBinary()) {
-      data = new byte[f.getBinaryLength()];
-      System.arraycopy(f.getBinaryValue(), f.getBinaryOffset(), data, 0,
-          f.getBinaryLength());
+    if (f.binaryValue() != null) {
+      BytesRef bytes = f.binaryValue();
+      data = new byte[bytes.length];
+      System.arraycopy(bytes.bytes, bytes.offset, data, 0,
+          bytes.length);
     }
-    else {
+    else if (f.stringValue() != null) {
       try {
         data = f.stringValue().getBytes("UTF-8");
       } catch (UnsupportedEncodingException uee) {
@@ -2905,12 +3219,19 @@ public class Luke extends Thinlet implements ClipboardOwner {
         warn = true;
         value = Util.bytesToHex(data, 0, data.length, true);
       }
-    } else if (enc.equals("cbNum")) {
+    } else if (enc.equals("cbLong")) {
       try {
         long num = NumericUtils.prefixCodedToLong(new BytesRef(f.stringValue()));
         value = String.valueOf(num);
         len = 1;
       } catch (Exception e) {
+        warn = true;
+        value = Util.bytesToHex(data, 0, data.length, true);
+      }
+    } else if (enc.equals("cbNum")) {
+      if (f.numericValue() != null) {
+        value = f.numericValue().toString() + " (" + f.numericValue().getClass().getSimpleName() + ")";
+      } else {
         warn = true;
         value = Util.bytesToHex(data, 0, data.length, true);
       }
@@ -2984,7 +3305,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Object progress = null;
     try {
       byte[] data = null;
-      if (f.isBinary()) data = f.getBinaryValue();
+      if (f.binaryValue() != null) {
+        BytesRef bytes = f.binaryValue();
+        data = new byte[bytes.length];
+        System.arraycopy(bytes.bytes, bytes.offset, data, 0,
+            bytes.length);
+      }
       else {
         try {
           data = f.stringValue().getBytes("UTF-8");
@@ -3066,7 +3392,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         try {
           String fld = getString(fCombo, "text");
           Terms terms = MultiFields.getTerms(ir, fld);
-          TermsEnum te = terms.iterator();
+          TermsEnum te = terms.iterator(null);
           putProperty(fCombo, "te", te);
           putProperty(fCombo, "teField", fld);
           BytesRef term = te.next();
@@ -3110,7 +3436,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           String rawString = rawTerm != null ? rawTerm.utf8ToString() : null;
           if (te == null || !teField.equals(fld) || !text.equals(rawString)) {
             Terms terms = MultiFields.getTerms(ir, fld);
-            te = terms.iterator();
+            te = terms.iterator(null);
             putProperty(fCombo, "te", te);
             putProperty(fCombo, "teField", fld);
             status = te.seekCeil(new BytesRef(text));
@@ -3132,7 +3458,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
               if (terms == null) {
                 continue;
               }
-              te = terms.iterator();
+              te = terms.iterator(null);
               rawTerm = te.next();
               putProperty(fCombo, "te", te);
               putProperty(fCombo, "teField", fld);
@@ -3180,7 +3506,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           Term t = new Term(fld, text);
           if (ir.docFreq(t) == 0) { // missing term
             Terms terms = MultiFields.getTerms(ir, fld);
-            TermsEnum te = terms.iterator();
+            TermsEnum te = terms.iterator(null);
             te.seekCeil(new BytesRef(text));
             t = new Term(fld, te.term().utf8ToString());
           }
@@ -3271,11 +3597,22 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_NOINDEX);
       return;
     }
+    if (ar == null) {
+      errorMsg(MSG_LUCENE3828);
+      return;
+    }
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          DocsEnum td = MultiFields.getTermDocsEnum(ir, null, t.field(), new BytesRef(t.text()));
-          td.nextDoc();
+          DocsEnum td = ar.termDocsEnum(ar.getLiveDocs(), t.field(), new BytesRef(t.text()), false);
+          if (td == null) {
+            showStatus("No such term: " + t);
+            return;
+          }
+          if (td.nextDoc() == DocsEnum.NO_MORE_DOCS) {
+            showStatus("No documents with this term: " + t + " (NO_MORE_DOCS)");
+            return;
+          }
           setString(find("tdNum"), "text", "1");
           putProperty(fText, "td", td);
           _showTermDoc(fText, td);
@@ -3307,7 +3644,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
             showFirstTermDoc(fText);
             return;
           }
-          if (td.nextDoc() == DocsEnum.NO_MORE_DOCS) return;
+          if (td.nextDoc() == DocsEnum.NO_MORE_DOCS) {
+            showStatus("No more docs for this term");
+            return;
+          }
           Object tdNum = find("tdNum");
           String sCnt = getString(tdNum, "text");
           int cnt = 1;
@@ -3337,16 +3677,36 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_NOINDEX);
       return;
     }
+    if (ar == null) {
+      errorMsg(MSG_LUCENE3828);
+      return;
+    }
     SlowThread st = new SlowThread(this) {
       public void execute() {
+        
         try {
-          DocsEnum tdd = (DocsEnum) getProperty(fText, "td");
-          
+          FieldInfo fi = infos.fieldInfo(t.field());
+          boolean withOffsets = false;
+          if (fi != null) {
+            IndexOptions opts = fi.getIndexOptions();
+            if (opts != null) {
+              if (opts.equals(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS)) {
+                withOffsets = true;
+              }
+            }
+          }
+          DocsEnum tdd = (DocsEnum)getProperty(fText, "td");
           if (tdd == null) {
+            showStatus("Unknown document number.");
             return;
           }
-          DocsAndPositionsEnum td = MultiFields.getTermPositionsEnum(ir, null, t.field(), t.bytes());
-          if (td.advance(tdd.docID()) != tdd.docID()) {
+          DocsAndPositionsEnum td = ar.termPositionsEnum(ar.getLiveDocs(), t.field(), t.bytes(), withOffsets);
+          if (td == null) {
+            showStatus("No position information available for this term.");
+            return;
+          }
+          if (td.advance(tdd.docID()) != td.docID()) {
+            showStatus("No position available for this doc and this term.");
             return;
           }
           Object dialog = addComponent(null, "/xml/positions.xml", null, null);
@@ -3354,6 +3714,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           String docNum = getString(find("docNum"), "text");
           setString(find(dialog, "docNum"), "text", docNum);
           setString(find(dialog, "freq"), "text", String.valueOf(td.freq()));
+          setString(find(dialog, "offs"), "text", String.valueOf(withOffsets));
           putProperty(dialog, "td", td);
           Object pTable = find(dialog, "pTable");
           removeAll(pTable);
@@ -3367,9 +3728,17 @@ public class Luke extends Thinlet implements ClipboardOwner {
               add(r, cell);
               cell = create("cell");
               add(r, cell);
+              if (withOffsets) {
+                setString(cell, "text", td.startOffset() + "-" + td.endOffset());
+              } else {
+                setString(cell, "text", "---");
+                setBoolean(cell, "enabled", false);
+              }
+              cell = create("cell");
+              add(r, cell);
               if (td.hasPayload()) {
                 BytesRef payload = td.getPayload();
-                putProperty(r, "payload", new BytesRef(payload));
+                putProperty(r, "payload", (BytesRef)payload.clone());
               }
               add(pTable, r);
             } catch (IOException ioe) {
@@ -3403,7 +3772,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     for (int i = 0; i < rows.length; i++) {
       BytesRef payload = (BytesRef)getProperty(rows[i], "payload");
       if (payload == null) continue;
-      Object cell = getItem(rows[i], 1);
+      Object cell = getItem(rows[i], 2);
       String curEnc = enc;
       if (enc.equals("cbInt") || enc.equals("cbFloat")) {
         if (payload.length % 4 != 0)
@@ -3498,10 +3867,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
           e.printStackTrace();
           errorMsg(e.getMessage());
         } finally {
-          if (is != null) try {
-            is.close();
-          } catch (Exception e1) {}
-          ;
+          if (is != null) {
+            is = null;
+          }
         }        
       }
     };
@@ -3570,8 +3938,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
     } catch (Exception e) {
       e.printStackTrace();
-      errorMsg("Analyzer '" + sAType + "' error: " + e.getMessage() + ". Using StandardAnalyzer.");
-      res = stdAnalyzer;
+      errorMsg("Analyzer '" + sAType + "' error: " + e.getMessage());
+      return null;
     }
     Prefs.setProperty(Prefs.P_ANALYZER, res.getClass().getName());
     return res;
@@ -3597,7 +3965,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public Query createQuery(String queryString) throws Exception {
     Object srchOpts = find("srchOptTabs");
-    analyzer = createAnalyzer(srchOpts);
+    Analyzer analyzer = createAnalyzer(srchOpts);
+    if (analyzer == null) {
+      return null;
+    }
     String defField = getDefaultField(srchOpts);
     QueryParser qp = new QueryParser(Version.LUCENE_CURRENT, defField, analyzer);
     Object ckXmlParser = find(srchOpts, "ckXmlParser");
@@ -3681,17 +4052,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
   }
 
-  public SimilarityProvider createSimilarityProvider(final Similarity sim) {
-    return new DefaultSimilarityProvider() {
-
-      @Override
-      public Similarity get(String field) {
-        return sim;
-      }
-      
-    };
-  }
-  
   public AccessibleHitCollector createCollector(Object srchOpts) throws Exception {
     Object ckNormRes = find(srchOpts, "ckNormRes");
     Object ckAllRes = find(srchOpts, "ckAllRes");
@@ -3839,7 +4199,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       FuzzyQuery fq = (FuzzyQuery)q;
       Object n1 = create("node");
       setString(n1, "text", "field=" + fq.getField() + ", prefixLen=" + fq.getPrefixLength() +
-              ", minSimilarity=" + df.format(fq.getMinSimilarity()));
+              ", maxEdits=" + df.format(fq.getMaxEdits()));
       add(n, n1);
       // do some tricks with reflection...
       try {
@@ -4029,6 +4389,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     try {
       Query q = createQuery(queryS);
+      if (q == null) {
+        return;
+      }
       setString(qFieldParsed, "text", q.toString());
       putProperty(qField, "qParsed", q);
       q = q.rewrite(ir);
@@ -4049,6 +4412,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_NOINDEX);
       return;
     }
+    if (ir.numDocs() == 0) {
+      showStatus(MSG_EMPTY_INDEX);
+      return;
+    }
     String queryS = getString(qField, "text");
     if (queryS.trim().equals("")) {
       showStatus("FAILED: Empty query.");
@@ -4057,7 +4424,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Object srchOpts = find("srchOptTabs");
     // query parser opts
     Similarity sim = createSimilarity(srchOpts);
-    SimilarityProvider provider = createSimilarityProvider(sim);
     AccessibleHitCollector col;
     try {
       col = createCollector(srchOpts);
@@ -4072,7 +4438,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Query q = null;
     try {
       q = createQuery(queryS);
-      is.setSimilarityProvider(provider);
+      if (q == null) {
+        return;
+      }
+      is.setSimilarity(sim);
       showParsed();
       _search(q, is, col, sTable, repeat);
     } catch (Throwable e) {
@@ -4242,14 +4611,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
       cell = create("cell");
       Decoder dec = decoders.get(idxFields[j]);
       if (dec == null) dec = defDecoder;
-      Fieldable[] values = doc.getFieldables(idxFields[j]);
+      IndexableField[] values = doc.getFields(idxFields[j]);
       vals.setLength(0);
       boolean decodeErr = false;
       if (values != null) for (int k = 0; k < values.length; k++) {
         if (k > 0) vals.append(' ');
         String v;
         try {
-          v = dec.decodeStored(idxFields[j], values[k]);
+          v = dec.decodeStored(idxFields[j], (Field)values[k]);
         } catch (Throwable e) {
           e.printStackTrace();
           v = values[k].stringValue();
@@ -4285,7 +4654,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         try {
           IndexSearcher is = new IndexSearcher(ir);
           Similarity sim = createSimilarity(find("srchOptTabs"));
-          is.setSimilarityProvider(createSimilarityProvider(sim));
+          is.setSimilarity(sim);
           Explanation expl = is.explain(q, docid.intValue());
           Object dialog = addComponent(null, "/xml/explain.xml", null, null);
           Object eTree = find(dialog, "eTree");
@@ -4392,17 +4761,18 @@ public class Luke extends Thinlet implements ClipboardOwner {
       return;
     }
     try {
-      showNextTerm(find("fCombo"), fText);
-      ir.deleteDocuments(t);
+      IndexWriter iw = createIndexWriter();
+      iw.deleteDocuments(t);
+      iw.close();
+      refreshAfterWrite();
+      infoMsg("Deleted docs for query '" + t + "'. Term dictionary and statistics will be incorrect until next merge or expunge deletes.");
     } catch (Exception e) {
       e.printStackTrace();
-      showStatus(e.getMessage());
+      errorMsg("Error deleting doc: " + e.toString());
     }
-    initOverview();
   }
 
-  public void deleteDoc(Object docNum) {
-    int docid = 0;
+  public void deleteDocs(Object sTable) {
     if (ir == null) {
       showStatus(MSG_NOINDEX);
       return;
@@ -4411,79 +4781,21 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_READONLY);
       return;
     }
+    Query q = (Query)getProperty(sTable, "query");
+    if (q == null) {
+      errorMsg("Empty query.");
+      return;
+    }
+    removeAll(sTable);
     try {
-      docid = Integer.parseInt(getString(docNum, "text"));
-      ir.deleteDocument(docid);
-      showDoc(docNum);
-      initOverview();
-      showFiles(dir, Collections.EMPTY_LIST);
-      showStatus("Document #" + docid + " deleted OK.");
-    } catch (Exception e) {
-      showStatus(e.getMessage());
+      IndexWriter iw = createIndexWriter();
+      iw.deleteDocuments(q);
+      iw.close();
+      refreshAfterWrite();
+      infoMsg("Deleted docs for query '" + q + "'. Term dictionary and statistics will be incorrect until next merge or expunge deletes.");
+    } catch (Throwable e) {
       e.printStackTrace();
-    }
-
-  }
-  
-  public void actionDeleteDocList(Object docList) {
-    if (ir == null) {
-      showStatus(MSG_NOINDEX);
-      return;
-    }
-    if (readOnly) {
-      showStatus(MSG_READONLY);
-      return;
-    }
-    try {
-      String list = getString(docList, "text");
-      Ranges ranges = Ranges.parse(list);
-      if (ranges.cardinality() == 0) {
-        infoMsg("Empty list - no documents deleted.");
-        return;
-      }
-      long count = ranges.cardinality();
-      DocIdSetIterator it = ranges.iterator();
-      int doc;
-      while ((doc = it.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
-        ir.deleteDocument(doc);
-      }
-      showDoc(find("docNum"));
-      initOverview();
-      showFiles(dir, Collections.EMPTY_LIST);
-      showStatus(count + " documents marked as deleted.");
-    } catch (Exception e) {
-      errorMsg("Error: " + e.toString());
-      e.printStackTrace();
-    }
-
-  }
-
-  public void deleteDocList(Object searchTable) {
-    Object[] rows = getSelectedItems(searchTable);
-    if (rows == null || rows.length == 0) return;
-    if (ir == null) {
-      showStatus(MSG_NOINDEX);
-      return;
-    }
-    if (readOnly) {
-      showStatus(MSG_READONLY);
-      return;
-    }
-    for (int i = 0; i < rows.length; i++) {
-      Integer docId = (Integer) getProperty(rows[i], "docid");
-      if (docId == null) continue;
-      try {
-        ir.deleteDocument(docId.intValue());
-      } catch (Exception e) {
-        continue;
-      }
-      remove(rows[i]);
-    }
-    try {
-      initOverview();
-      showFiles(dir, Collections.EMPTY_LIST);
-    } catch (Exception e) {
-      errorMsg("Error: " + e.toString());
+      errorMsg("Error deleting documents: " + e.toString());
     }
   }
 
@@ -4632,7 +4944,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     return similarity;
   }
   
-  private static DefaultSimilarity defaultSimilarity = new DefaultSimilarity();
+  private static TFIDFSimilarity defaultSimilarity = new DefaultSimilarity();
   
   /**
    * Set the current custom similarity implementation.
@@ -4691,6 +5003,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       ir.close();
     } catch (Exception e) {}
     ;
+    if (ar != null) try {
+      ar.close();
+    } catch (Exception e) {}
+    ;
     if (dir != null) try {
       dir.close();
     } catch (Exception e) {}
@@ -4729,7 +5045,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0-dev (2011-07-19)", luke, 800, 600);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0_ALPHA (2012-07-17)", luke, 850, 650);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

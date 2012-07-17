@@ -213,7 +213,7 @@ public class FsDirectory extends Directory {
     private String keyPrefix;
 
     public DfsIndexInput(Path path, int ioFileBufferSize, IOReporter reporter) throws IOException {
-      super(ioFileBufferSize);
+      super(path.getName(), ioFileBufferSize);
       descriptor = new Descriptor(path,ioFileBufferSize);
       length = fs.getFileStatus(path).getLen();
       this.reporter = reporter;
@@ -221,12 +221,6 @@ public class FsDirectory extends Directory {
       keyPrefix = path.toString() + ":";
     }
 
-    @Override
-    public void setBufferSize(int newSize) {
-      reporter.reportStatus(name + ": setBufferSize=" + newSize);
-      super.setBufferSize(newSize);
-    }
-    
     protected void readInternal(byte[] b, int offset, int len)
       throws IOException {
       synchronized (descriptor) {
@@ -283,7 +277,8 @@ public class FsDirectory extends Directory {
       close();                                      // close the file
     }
 
-    public Object clone() {
+    @Override
+    public BufferedIndexInput clone() {
       DfsIndexInput clone = (DfsIndexInput)super.clone();
       clone.isClone = true;
       return clone;

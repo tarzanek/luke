@@ -3,14 +3,15 @@ package org.getopt.luke.plugins;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.index.IndexReader.FieldOption;
 import org.apache.lucene.index.TermsEnum;
 import org.getopt.luke.LukePlugin;
 import org.getopt.luke.SlowThread;
+import org.getopt.luke.Util;
 
 import thinlet.Thinlet;
 
@@ -60,11 +61,11 @@ public class VocabAnalysisPlugin extends LukePlugin {
     Object bean = app.find(myUi, "vocabchart");
     Object container = app.getParent(bean);
     chart = new VocabChart(app, container);
-    IndexReader reader = getIndexReader();
+    IndexReader reader = getReader();
     if (reader != null) {
-      Collection fieldNames = reader.getFieldNames(FieldOption.INDEXED);
+      Collection<String> fieldNames = Util.fieldNames(reader, true);
       String firstField = null;
-      for (Iterator iter = fieldNames.iterator(); iter.hasNext();) {
+      for (Iterator<String> iter = fieldNames.iterator(); iter.hasNext();) {
         String fieldName = (String) iter.next();
         if (firstField == null) {
           firstField = fieldName;
@@ -93,7 +94,7 @@ public class VocabAnalysisPlugin extends LukePlugin {
     final String field = app.getString(combobox, "text");
     Object ckbox = app.find(myUi, "cumul");
     final boolean cumul = app.getBoolean(ckbox, "selected");
-    IndexReader reader = getIndexReader();
+    IndexReader reader = getReader();
     if (reader == null) {
       app.showStatus("No index loaded");
       cleanChart();
@@ -106,9 +107,9 @@ public class VocabAnalysisPlugin extends LukePlugin {
           float numDocs = ir.maxDoc();
           if (numDocs < numAgeGroups) numAgeGroups = ir.maxDoc();
           float ageTotals[] = new float[numAgeGroups];
-          TermsEnum te = MultiFields.getTerms(ir, field).iterator();
+          TermsEnum te = MultiFields.getTerms(ir, field).iterator(null);
           while (te.next() != null) {
-            DocsEnum td = te.docs(null, null);
+            DocsEnum td = te.docs(null, null, false);
             td.nextDoc();
             float firstDocId = td.docID();
             int ageBracket = (int) ((firstDocId / numDocs) * numAgeGroups);

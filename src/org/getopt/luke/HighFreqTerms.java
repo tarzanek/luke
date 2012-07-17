@@ -17,13 +17,13 @@ package org.getopt.luke;
  * limitations under the License.
  */
 
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.index.FieldsEnum;
 import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.FieldReaderException;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.PriorityQueue;
@@ -80,7 +80,7 @@ public class HighFreqTerms {
       }
     }
     String[] fields = field != null ? new String[]{field} : null;
-    reader = IndexReader.open(dir, true);
+    reader = DirectoryReader.open(dir);
     TermStats[] terms = getHighFreqTerms(reader, numTerms, fields);
     if (!IncludeTermFreqs) {
       //default HighFreqTerms behavior
@@ -117,6 +117,7 @@ public class HighFreqTerms {
    */
   public static TermStats[] getHighFreqTerms(IndexReader reader, int numTerms, String[] fieldNames) throws Exception {
     TermStatsQueue tiq = null;
+    TermsEnum te = null;
     
     if (fieldNames != null) {
       Fields fields = MultiFields.getFields(reader);
@@ -128,8 +129,8 @@ public class HighFreqTerms {
       for (String field : fieldNames) {
         Terms terms = fields.terms(field);
         if (terms != null) {
-          TermsEnum termsEnum = terms.iterator();
-          fillQueue(termsEnum, tiq, field);
+          te = terms.iterator(te);
+          fillQueue(te, tiq, field);
         }
       }
     } else {
@@ -143,8 +144,9 @@ public class HighFreqTerms {
       while (true) {
         String field = fieldsEnum.next();
         if (field != null) {
-          TermsEnum terms = fieldsEnum.terms();
-          fillQueue(terms, tiq, field);
+          Terms terms = fieldsEnum.terms();
+          te = terms.iterator(te);
+          fillQueue(te, tiq, field);
         } else {
           break;
         }
@@ -191,23 +193,13 @@ public class HighFreqTerms {
   public static long getTotalTermFreq(IndexReader reader, String field, BytesRef termtext) throws Exception {
     BytesRef br = termtext;
     long totalTF = 0;
-    Bits liveDocs = MultiFields.getLiveDocs(reader);
-    DocsEnum de = MultiFields.getTermDocsEnum(reader, liveDocs, field, br);
-    // if term is not in index return totalTF of 0
-    if (de == null) {
+    try {
+      Bits liveDocs = MultiFields.getLiveDocs(reader);
+      totalTF = MultiFields.totalTermFreq(reader, field, termtext);
+      return totalTF;
+    } catch (Exception e) {
       return 0;
     }
-    // use DocsEnum.read() and BulkResult api
-    final DocsEnum.BulkReadResult bulkresult = de.getBulkResult();
-    int count;
-    while ((count = de.read()) != 0) {
-      final int[] freqs = bulkresult.freqs.ints;
-      final int limit = bulkresult.freqs.offset + count;
-      for(int i=bulkresult.freqs.offset;i<limit;i++) {
-        totalTF += freqs[i];
-      }
-    }
-    return totalTF;
   }
   
   public static void fillQueue(TermsEnum termsEnum, TermStatsQueue tiq, String field) throws Exception {
@@ -215,7 +207,9 @@ public class HighFreqTerms {
   while (true) {
       BytesRef term = termsEnum.next();
       if (term != null) {
-        tiq.insertWithOverflow(new TermStats(field, term, termsEnum.docFreq()));
+        BytesRef r = new BytesRef();
+        r.copyBytes(term);
+        tiq.insertWithOverflow(new TermStats(field, r, termsEnum.docFreq()));
       } else {
         break;
       }

@@ -1,6 +1,6 @@
 package org.getopt.luke.decoders;
 
-import org.apache.lucene.document.Fieldable;
+import org.apache.lucene.document.Field;
 import org.apache.lucene.util.BytesRef;
 
 public class StringDecoder implements Decoder {
@@ -18,11 +18,15 @@ public class StringDecoder implements Decoder {
   }
   
   @Override
-  public String decodeStored(String fieldName, Fieldable value) throws Exception {
-    if (value.isBinary()) {
+  public String decodeStored(String fieldName, Field value) throws Exception {
+    if (value.binaryValue() != null) {
       return b.decodeStored(fieldName, value);
     }
-    return decodeTerm(fieldName, value.stringValue());
+    String val = value.stringValue();
+    if (val == null && value.numericValue() != null) {
+      val = value.numericValue().toString();
+    }
+    return decodeTerm(fieldName, val);
   }
 
   public String toString() {

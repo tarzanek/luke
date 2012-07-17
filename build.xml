@@ -25,6 +25,7 @@
 			source="1.5"
 			target="1.5"
 			srcdir="src"
+			debug="on"
 			destdir="${build.dir}">
 			<classpath>
       			<fileset dir="lib">
@@ -89,7 +90,7 @@
 		<unjar dest="${build.dir}">
 			<fileset dir="lib" includes="lucene-core-*.jar"/>
 			<patternset>
-				<include name="META-INF/MANIFEST.MF"/>
+				<include name="META-INF/**"/>
 			</patternset>
 		</unjar>
 		<manifest file="${build.dir}/META-INF/MANIFEST.MF" mode="update">
@@ -98,7 +99,8 @@
 		<jar basedir="${build.dir}"
 			jarfile="${jarallfile}"
 			manifest="${build.dir}/META-INF/MANIFEST.MF"
-			includes="META-INF/*,.plugins,img/,net/,com/,org/,thinlet/,xml/,**/*.properties,**/*.xml" >
+			includes=".plugins,img/,net/,com/,org/,thinlet/,xml/,**/*.properties,**/*.xml" >
+			<metainf dir="${build.dir}/META-INF" includes="*/**"/>
 		</jar>
 	</target>
 	

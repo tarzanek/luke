@@ -13,9 +13,9 @@ import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
-import org.apache.lucene.index.Payload;
 import org.apache.lucene.util.Attribute;
 import org.apache.lucene.util.AttributeSource;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
 import org.getopt.luke.LukePlugin;
 import org.getopt.luke.Util;
@@ -167,10 +167,9 @@ public class AnalyzerToolPlugin extends LukePlugin {
         OffsetAttribute off = (OffsetAttribute)att;
         val = off.startOffset() + "," + off.endOffset();
       } else if (attClass.equals("PayloadAttribute")) {
-        Payload payload = ((PayloadAttribute)att).getPayload();
+        BytesRef payload = ((PayloadAttribute)att).getPayload();
         if (payload != null) {
-          byte[] data = payload.getData();
-          val = Util.bytesToHex(data, 0, data.length, false);
+          val = Util.bytesToHex(payload.bytes, payload.offset, payload.length, false);
         } else {
           val = "";
         }

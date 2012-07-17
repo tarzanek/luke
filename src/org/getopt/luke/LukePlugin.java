@@ -1,5 +1,6 @@
 package org.getopt.luke;
 
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.store.Directory;
 
@@ -53,9 +54,9 @@ public abstract class LukePlugin {
      * Set a reference to the IndexReader currently open in
      * the application.
      * 
-     * @param ir IndexReader for the current index
+     * @param ir DirectoryReader for the current index
      */
-    public void setIndexReader(IndexReader ir) {
+    public void setReader(IndexReader ir) {
         this.ir = ir;
     }
     
@@ -63,7 +64,7 @@ public abstract class LukePlugin {
      * Returns a reference to the IndexReader currently open
      * in the application.
      */
-    public IndexReader getIndexReader() {
+    public IndexReader getReader() {
         return ir;
     }
     

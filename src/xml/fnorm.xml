@@ -1,28 +1,27 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <dialog text=" Field norm" name="fNorm" icon="/img/luke.gif" modal="true"
-	columns="1" top="8" left="8" bottom="8" right="8" gap="3" close="remove(fNorm)"
+	columns="1" top="8" left="8" bottom="4" right="8" gap="4" close="remove(fNorm)"
 	resizable="true">
-	<panel columns="2" weightx="1" halign="fill" gap="3">
+	<panel columns="2" weightx="1" halign="fill" gap="4">
                 <label text="Document id: "/>
                 <label name="docNum" font="bold"/>
 		<label text="Field name: "/>
 		<label name="fld" font="bold"/>
-		<label text="Current field norm: "/>
+		<label text="Field norm: "/>
 		<label name="curNorm" font="bold"/>
-		<label text="Updated field norm: "/>
+		<separator colspan="2"/>
+		<label colspan="2" text="Encode other field norm using this TFIDFSimilarity (full class name): "/>
+		<panel gap="2" colspan="2" weightx="1" halign="fill">
+			<textfield weightx="1" halign="fill" name="sim" font="10"/>
+			<button type="default" tooltip="Refresh" icon="/img/refresh.png" action="displayNewNorm(fNorm)"/>
+		</panel>
+		<label text="Enter norm value:"/>
 		<textfield name="newNorm" action="displayNewNorm(fNorm)" />
+    	<label colspan="2"/>
 		<label text="Encoded value rounded to:"/>
 		<label name="encNorm"/>
 	</panel>
-	<separator/>
-	<label text="Set new norm value on this field in:"/>
-	<checkbox group="fgroup" name="fDoc" selected="true" text="this document only"/>
-	<checkbox group="fgroup" name="fAll" text="all documents"/>
-	<checkbox group="fgroup" name="fList" text="list of documents:"/>
-	<textfield name="frange" weightx="1" halign="fill"/>
-	<label font="10" text="Example: 0,12,45-90,17,123,30-32"/>
-        <panel weightx="1" halign="right" top="6" bottom="6" right="6" gap="8">
-                <button text="Set norm" halign="center" action="setNorm(fNorm)"/>
-                <button type="default" text="Cancel" halign="center" action="remove(fNorm)"/>
-        </panel>
+    <panel weightx="1" halign="center" top="8" bottom="4" right="6" gap="8">
+        <button type="default" text="Close" halign="center" action="remove(fNorm)"/>
+    </panel>
 </dialog>

@@ -11,7 +11,6 @@
 				<menuitem text="Exit" action="actionExit"/>
 			</menu>
 			<menu text="Tools" mnemonic="0">
-				<menuitem text="Undelete All" tooltip="Undelete all deleted documents" action="actionUndelete"/>
 				<menuitem text="Optimize Index" tooltip="Optimize Index" action="actionOptimize"/>
                                 <menuitem text="Cleanup Index Dir" tooltip="Remove all non-index files from index dir" action="actionCleanup"/>
                                 <menuitem text="Check Index tool" tooltip="Run Lucene CheckIndex tool" action="actionCheckIndex"/>
@@ -47,7 +46,6 @@
 					<label halign="right" text="Number of documents:"/><label font="12 bold" name="iDocs" text="?"/>
 					<label halign="right" text="Number of terms:"/><label font="12 bold" name="iTerms" text="?"/>
 					<label halign="right" text="Has deletions? / Optimized?:"/><label font="12 bold" name="iDelOpt" text="? / ?"/>
-					<label halign="right" text="Last modified:"/><label font="12 bold" name="iMod" text="?"/>
                                         <label halign="right" font="10" text="Index version:"/><label font="10" name="iVer" text="?"/>
                                         <label halign="right" font="10" text="Index format:"/><label font="10" name="iFormat" text="?"/>
                                         <label halign="right" font="10" text="Index functionality:"/><label font="10" name="iCaps" text="?"/>
@@ -96,8 +94,8 @@
 						<label text="Top ranking terms. (Right-click for more options)"/>
 						<table name="tTable" valign="fill" weighty="1" halign="fill" weightx="1" perform="browseTermDocs(tTable)">
 							<header>
-								<column text="No" width="35"/>
-								<column text="Rank" width="60" sort="ascent"/>
+								<column text="Rank" width="35"/>
+								<column text="Freq" width="60" sort="ascent"/>
 								<column text="Field"/>
 								<column text="Text"/>
 							</header>
@@ -130,16 +128,8 @@
 						<panel gap="3" halign="center" columns="2">
               <button text="Add" tooltip="Add new document" action="actionAddDocument(docTable)"/>
 							<button text="Reconstruct &amp; Edit" tooltip="Reconstruct all field contents &amp; edit doc" action="actionReconstruct(docNum)"/>
-							<button text="Delete" halign="center" tooltip="Delete this document (NO WARNING)" icon="/img/delete.gif" action="deleteDoc(docNum)"/>
               <button text="More like this..." tooltip="Generate More Like This query" action="actionMLT(docNum, docTable)"/>
 						</panel>
-						<label text=" "/>
-						<label text="Delete specified list of documents:"/>
-						<panel gap="2" halign="fill" weightx="1">
-						  <textfield name="delList" weightx="1" halign="fill"/>
-						  <button text="Del List" tooltip="Delete specified list" action="actionDeleteDocList(delList)"/>
-						</panel>
-						<label font="10" text="Example: 0,12,45-90,17,123,30-32"/>
 					</panel>
 					<separator/>
 					<panel halign="fill" columns="1" weightx="1" gap="2">
@@ -192,28 +182,28 @@
 					<label name="docNum1" text="?" font="bold"/>
 					<label halign="fill" weightx="1" text=" "/>
 					<label text="Flags: " font="bold"/>
-					<panel columns="5" gap="1">
-						<label colspan="2" text="I - Indexed (docs,freqs,pos)" font="10"/>
-						<label text="  T - Tokenized;" font="10"/>
+					<panel columns="4" gap="1">
+						<label text="I - Indexed (docs,freqs,pos,offsets)" font="10"/>
+						<label text="  P - Payloads" font="10"/>
 						<label text="  S - Stored;" font="10"/>
-						<label text="  V - Term Vector (offsets,pos)" font="10"/>
-                        <label text="N - Omit Norms;" font="10"/>
-						<label text="  L - Lazy;" font="10"/>
+						<label text="  V - Term Vector" font="10"/>
 						<label text="  B - Binary;" font="10"/>
-						<label colspan="2" text="  D - DocValues (type/precision)" font="10"/>
+                        <label text="Ntxx - Norms (type/precision);" font="10"/>
+						<label text="  #txx - Numeric (type/precision);" font="10"/>
+						<label text="  Dtxx - DocValues (type/precision)" font="10"/>
 					</panel>
 				</panel>
 				<table name="docTable" halign="fill" selection="multiple" weightx="1" valign="fill" weighty="1">
 					<header>
 						<column text=" Field"/>
-						<column text="IdfpTSVopNLBDtyp" alignment="center" width="140" font="Courier"/>
+						<column text="IdfpoPSVBNtxx#txxDtxx" alignment="center" width="150" font="Courier"/>
 						<column text="Norm" width="50" alignment="center"/>
 						<column text=" Value"/>
 					</header>
 					<popupmenu>
 						<menuitem text="Field's Term Vector" action="showTV(docTable)"/>
                                                 <menuitem text="Show Full Text" action="showTField(docTable)"/>
-                                                <menuitem text="Set norm" action="actionSetNorm(docTable)"/>
+                                                <menuitem text="Set norm" action="actionExamineNorm(docTable)"/>
 						<menuitem text="Save binary field" action="saveField(docTable)"/>
 					</popupmenu>
 				</table>
@@ -221,7 +211,7 @@
 				    <label text="Selected field: "/>
 					<button text="TV" tooltip="Show Term Vector of selected field" action="showTV(docTable)"/>
                                         <button text="Show" tooltip="Show full text of selected field" action="showTField(docTable)"/>
-                                        <button text="Set norm" tooltip="Set norm value of selected field" action="actionSetNorm(docTable)"/>
+                                        <button text="Examine norm" tooltip="Examine norm value of selected field" action="actionExamineNorm(docTable)"/>
 					<button text="Save" tooltip="Save binary value of selected field" action="saveField(docTable)"/>
 					<label text=" " weightx="1" halign="fill"/>
 					<label text="Copy text to Clipboard:"/>
@@ -347,6 +337,8 @@
 					     <spinbox name="cntRepeat"  tooltip="Repeat &amp; calc. avg. time, then display" value="1" text="1"/>
 					     <label text=" times."/>
 					    </panel>
+					    <separator/>
+                        <button text="Delete All" icon="/img/delete.gif" tooltip="Delete all matching docs (WARNING: no questions asked!)" action="deleteDocs(sTable)"/>
 					  </panel>
 				    </panel>
 				</panel>
@@ -358,8 +350,6 @@
 							<label font="10" text="  (Hint: Double-click on results to display all fields)" weightx="1" halign="fill"/>
 							<separator/>
 							<button text="Explain" icon="/img/info.gif" tooltip="Explain selected result" action="explainResult(sTable)"/>
-                                                        <separator/>
-                                                        <button text="Delete" icon="/img/delete.gif" tooltip="Delete selected docs" action="deleteDocList(sTable)"/>
                                                         <separator/>
 							<label name="resNum" text="0"/>
 							<label text="doc(s) "/>
@@ -379,41 +369,72 @@
 				</panel>
 			</panel>
 		</tab>
-		<tab name="commitsTab" text="Files" icon="/img/files.gif">
-				<splitpane weightx="1" weighty="1" halign="fill" valign="fill" orientation="vertical">
-				    <panel weighty="1" weightx="1" halign="fill" valign="fill" gap="5" top="2" left="2"
+		<tab name="commitsTab" text="Commits" icon="/img/files.gif">
+				<splitpane weightx="1" weighty="1" halign="fill" valign="fill" orientation="horizontal">
+				    <splitpane weightx="1" weighty="1" halign="fill" valign="fill" orientation="vertical">
+				        <panel weighty="1" weightx="1" halign="fill" valign="fill" gap="5" top="2" left="2"
 				            right="2" bottom="2" columns="1">
-				        <panel gap="10">
+				            <panel gap="10">
         				        <label font="bold" text="Select commit point (or all):"/>
+        				        <label text="" weightx="1"/>
+                                <button tooltip="Open IndexReader at this commit point" text="Open commit" action="openCommit(commitsTable)"/>
         				        <separator/>
-                                                <label font="10" text="Hint: use Shift-Click to select ranges, or Ctrl-Click to select multiple fields (or unselect all)."/>
-        				</panel>
-                                        <table name="commitsTable" halign="fill" valign="fill" weightx="1" weighty="1"
+                            </panel>
+                            <label font="10" text="Hint: use Shift-Click to select ranges, or Ctrl-Click to select multiple fields (or unselect)."/>
+                            <table name="commitsTable" halign="fill" valign="fill" weightx="1" weighty="1"
                                                 action="showCommitFiles(commitsTable)">
-                                                <header>
-                                                        <column text=" Gen" width="30"/>
-                                                        <column text=" Flags" width="35"/>
-                                                        <column text=" Version" width="90"/>
-                                                        <column text=" Timestamp" width="210"/>
-                                                        <column text=" User data"/>
-                                                </header>
-                                        </table>
-                                    </panel>
-                                    <panel weighty="1" halign="fill" valign="fill" gap="5" top="2" left="2"
+                                 <header>
+                                      <column text=" Gen" width="30"/>
+                                      <column text=" Del?" width="35"/>
+                                      <column text=" Segs" width="45"/>
+                                      <column text=" User data"/>
+                                 </header>
+                            </table>
+                        </panel>
+				        <panel weighty="1" weightx="1" halign="fill" valign="fill" gap="5" top="2" left="2"
+				            right="2" bottom="2" columns="1">
+				            <panel gap="2">
+                                <label text="List of segments in commit point: "/>
+                                <label name="segGen" font="bold"/>
+				            </panel>
+                            <table name="segmentsTable" halign="fill" valign="fill" weightx="1" weighty="1" action="showDiagnostics(segmentsTable)">
+                                 <header>
+                                      <column text=" Seg" width="45"/>
+                                      <column text="DelGen" width="45"/>
+                                      <column text=" Dels" width="35"/>
+                                      <column text=" Docs" width="45"/>
+                                      <column text=" Ver" width="45"/>
+                                      <column text=" Codec" width="90"/>
+                                      <column text=" Internal size"/>
+                                      <column text=" CFS" width="35"/>
+                                 </header>
+                            </table>
+                            <label text="(A)ttributes, (D)iagnostics, (C)odec and (F)ield info of selected segment:"/>
+                            <panel halign="fill" valign="fill" weightx="1" weighty="1" scrollable="true">
+                                <table name="diagsTable" halign="fill" valign="fill" weightx="1" weighty="1">
+                                    <header>
+                                        <column text="Inf" width="30"/>
+                                        <column text=" Key" width="100"/>
+                                        <column text=" Value" width="5000"/>
+                                    </header>
+                                </table>
+                            </panel>
+                        </panel>
+				    </splitpane>
+                    <panel weighty="1" halign="fill" valign="fill" gap="5" top="2" left="2"
                                             right="2" bottom="2" columns="1">
-                                        <panel columns="2" gap="3" weightx="1" bottom="3" top="3">
-                                                <label halign="right" text=" Total size of selected commits (or all):"/>
-                                                <label font="13 bold" name="iFileSize" text="?"/>
-                                        </panel>
-					<table name="filesTable" halign="fill" weightx="1" valign="fill" weighty="1">
-						<header>
-							<column text=" Filename" width="90"/>
-							<column text=" Size"/>
-							<column text=" Unit"/>
-							<column text=" Deletable?"/>
-							<column text=" In Use / Function"/>
-						</header>
-					</table>
+                         <panel columns="2" gap="3" weightx="1" bottom="3" halign="right" top="3">
+                              <label halign="right" text=" Total real size of files in selected commits (or all):"/>
+                              <label font="13 bold" name="iFileSize" text="?"/>
+                         </panel>
+					     <table name="filesTable" halign="fill" weightx="1" valign="fill" weighty="1">
+						      <header>
+							       <column text=" Filename" width="90"/>
+					               <column text=" Size" width="70"/>
+                                   <column text=" Del?" width="35"/>
+                                   <column text=" In Use / Function"/>
+						      </header>
+					     </table>
 				    </panel>
 				</splitpane>
 		</tab>		

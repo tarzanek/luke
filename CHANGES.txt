@@ -1,4 +1,24 @@
-Changes in unreleased version:
+Changes in v. 4.0-ALPHA (released on 2012.07.17):
+
+This is a major upgrade of Luke to Lucene 4.0-ALPHA.
+
+ +-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  NOTE !!! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-+
+ |This upgrade changes and/or removes some of the Luke functionality, either because    |
+ |it's no longer available in Lucene or it would be too difficult to port. Specifically:|
+ |- norms modification is not supported                                                 |
+ |- deleting by docid (and ranges) is not supported, instead you can delete by query.   |
+ |- "replacing" document is not supported (not easy to pinpoint the document to delete).|
+ +-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  NOTE !!! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-+
+
+Large parts of Luke had to be re-written or heavily modified. As a consequence
+I'm pretty sure there will be many new bugs or missing features. Please report these,
+preferably with Apache-style patches to fix them - thank you!
+
+Other changes in this version:
+
+* Add term offsets when available to "Show Positions" dialog.
+* Modify the list of shown field flags to better reflect the available field information.
+* Add detailed segment information in the Files section.
 
 * Issue 36: XMLExporter generating invalid XML, when special characters are present
   in a TermVector field (Craig.Stires)

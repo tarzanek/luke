@@ -5,16 +5,15 @@
 
 package org.getopt.luke;
 
-import org.apache.lucene.index.TermVectorOffsetInfo;
-
 /**
  *
  * @author  Administrator
  */
 public class IntPair {
     
-    public TermVectorOffsetInfo[] offsets;
     public int[] positions;
+    public int[] starts;
+    public int[] ends;
     public int cnt = 0;
     public String text = null;
     

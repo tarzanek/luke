@@ -14,10 +14,9 @@ import javax.swing.JFileChooser;
 
 import org.apache.lucene.index.FieldInvertState;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.DefaultSimilarity;
+import org.apache.lucene.search.similarities.DefaultSimilarity;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Explanation;
-import org.apache.lucene.util.TermContext;
 import org.getopt.luke.LukePlugin;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
@@ -287,16 +286,13 @@ class CustomSimilarity extends DefaultSimilarity {
   */
   
   @Override
-  public Explanation idfExplain(TermContext term, IndexSearcher searcher)
-          throws IOException {
-    int numDocs = searcher.maxDoc();
-    int docFreq = term.docFreq();
-    Object[] args = new Object[]{new Integer(docFreq), new Integer(numDocs)};
+  public float idf(long docFreq, long numDocs) {
+    Object[] args = new Object[]{new Long(docFreq), new Long(numDocs)};
     Object res = abstractMethods[M_A_IDF].call(cx, scope, scope, args);
     if (res instanceof Number) { // back-compat
-      return new Explanation(((Number)res).floatValue(), "idfExplain(term,searcher)");
+      return ((Number)res).floatValue();
     } else {
-      return (Explanation)res;      
+      return 0f;
     }
   }
 

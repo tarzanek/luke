@@ -1,15 +1,32 @@
 package org.getopt.luke;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.DateTools.Resolution;
+import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.FieldType.NumericType;
+import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.CompositeReader;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.DocValues;
+import org.apache.lucene.index.DocValues.Source;
+import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.SlowCompositeReaderWrapper;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
+import org.apache.lucene.index.FieldInfos;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.util.BytesRef;
 
 public class Util {
   
@@ -39,6 +56,10 @@ public class Util {
       }
     }
     return sb.toString();
+  }
+  
+  public static String bytesToHex(BytesRef bytes, boolean wrap) {
+    return bytesToHex(bytes.bytes, bytes.offset, bytes.length, wrap);
   }
 
   public static String bytesToHex(byte bytes[], int offset, int length, boolean wrap) {
@@ -139,95 +160,230 @@ public class Util {
     return sb.toString();
   }
   
-  public static String fieldFlags(Field f) {
-    if (f == null) {
-      return "----------------";
+  public static Collection<String> fieldNames(IndexReader r, boolean indexedOnly) throws IOException {
+    AtomicReader reader;
+    if (r instanceof CompositeReader) {
+      reader = new SlowCompositeReaderWrapper((CompositeReader)r);
+    } else {
+      reader = (AtomicReader)r;
+    }
+    Set<String> res = new HashSet<String>();
+    FieldInfos infos = reader.getFieldInfos();
+    for (FieldInfo info : infos) {
+      if (indexedOnly && info.isIndexed()) {
+        res.add(info.name);
+        continue;
+      }
+      res.add(info.name);
+    }
+    return res;
+  }
+  
+  public static String normsToString(DocValues norms, String fName, int docid, TFIDFSimilarity sim) {
+    if (norms == null) {
+      return "-?-";
+    }
+    Source src;
+    try {
+      src = norms.getSource();
+    } catch (IOException e1) {
+      e1.printStackTrace();
+      return "???" + e1.getMessage();
+    }
+    switch (norms.getType()) {
+    case FIXED_INTS_8:
+      if (sim != null) {
+        try {
+          return String.valueOf(decodeNormValue((byte)src.getInt(docid), fName, sim));
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+      return String.valueOf(src.getInt(docid));
+    case FIXED_INTS_16:
+    case FIXED_INTS_32:
+    case FIXED_INTS_64:
+    case VAR_INTS:
+      return String.valueOf(src.getInt(docid));
+    case FLOAT_32:
+    case FLOAT_64:
+      return String.valueOf(src.getFloat(docid));
+    case BYTES_FIXED_DEREF:
+    case BYTES_FIXED_SORTED:
+    case BYTES_FIXED_STRAIGHT:
+    case BYTES_VAR_DEREF:
+    case BYTES_VAR_SORTED:
+    case BYTES_VAR_STRAIGHT:
+      BytesRef val = src.getBytes(docid, null);
+      return bytesToHex(val, false);
+    }
+    return "???unknown type";
+  }
+  
+  public static float decodeNormValue(byte v, String fieldName, TFIDFSimilarity sim) throws Exception {
+    try {
+      return sim.decodeNormValue(v);
+    } catch (Exception e) {
+      throw new Exception("ERROR decoding norm for field "  + fieldName + ":" + e.toString());
+    }
+  }
+  
+  public static byte encodeNormValue(float v, String fieldName, TFIDFSimilarity sim) throws Exception {
+    try {
+      return sim.encodeNormValue(v);
+    } catch (Exception e) {
+      throw new Exception("ERROR encoding norm for field "  + fieldName + ":" + e.toString());
+    }    
+  }
+
+
+  // IdfpoPSVBNtxx#txxDtxx  - when field is present
+  // IdfpoPVNtxxDtxx        - when only field info is present
+  public static String fieldFlags(Field fld, FieldInfo info) {
+    FieldType t = null;
+    BytesRef binary = null;
+    Number numeric = null;
+    if (fld == null) {
+      t = new FieldType();
+    } else {
+      t = fld.fieldType();
+      binary = fld.binaryValue();
+      numeric = fld.numericValue();
     }
     StringBuffer flags = new StringBuffer();
-    if (f.isIndexed()) flags.append("I");
+    if (info.isIndexed()) flags.append("I");
     else flags.append("-");
-    IndexOptions opts = f.getIndexOptions();
-    if (f.isIndexed() && opts != null) {
+    IndexOptions opts = info.getIndexOptions();
+    if (info.isIndexed() && opts != null) {
       switch (opts) {
       case DOCS_ONLY:
-        flags.append("d--");
+        flags.append("d---");
         break;
       case DOCS_AND_FREQS:
-        flags.append("df-");
+        flags.append("df--");
         break;
       case DOCS_AND_FREQS_AND_POSITIONS:
-        flags.append("dfp");
-      }
-    } else {
-      flags.append("---");
-    }
-    if (f.isTokenized()) flags.append("T");
-    else flags.append("-");
-    if (f.isStored()) flags.append("S");
-    else flags.append("-");
-    if (f.isTermVectorStored()) flags.append("V");
-    else flags.append("-");
-    if (f.isStoreOffsetWithTermVector()) flags.append("o");
-    else flags.append("-");
-    if (f.isStorePositionWithTermVector()) flags.append("p");
-    else flags.append("-");
-    if (f.getOmitNorms()) flags.append("N");
-    else flags.append("-");
-    if (f.isLazy()) flags.append("L");
-    else flags.append("-");
-    if (f.isBinary()) flags.append("B");
-    else flags.append("-");
-    if (f.hasDocValues()) {
-      flags.append("D");
-      String fl;
-      switch (f.docValuesType()) {
-      case BYTES_FIXED_DEREF:
-        fl = "bfd";
+        flags.append("dfp-");
         break;
-      case BYTES_FIXED_SORTED:
-        fl = "bfs";
-        break;
-      case BYTES_FIXED_STRAIGHT:
-        fl = "bft";
-        break;
-      case BYTES_VAR_DEREF:
-        fl = "bvd";
-        break;
-      case BYTES_VAR_SORTED:
-        fl = "bvs";
-        break;
-      case BYTES_VAR_STRAIGHT:
-        fl = "bvt";
-        break;
-      case FIXED_INTS_8:
-        fl = "i08";
-        break;
-      case FIXED_INTS_16:
-        fl = "i16";
-        break;
-      case FIXED_INTS_32:
-        fl = "i32";
-        break;
-      case FIXED_INTS_64:
-        fl = "i64";
-        break;
-      case VAR_INTS:
-        fl = "vin";
-        break;
-      case FLOAT_32:
-        fl = "f32";
-        break;
-      case FLOAT_64:
-        fl = "f64";
-        break;
-      default:
-        fl = "???";
+      case DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS:
+        flags.append("dfpo");
       }
     } else {
       flags.append("----");
     }
-    
+    if (info.hasPayloads()) flags.append("P");
+    else flags.append("-");
+    if (fld != null) {
+      if (t.stored()) flags.append("S");
+      else flags.append("-");
+    }
+    if (info.hasVectors()) flags.append("V");
+    else flags.append("-");
+    if (fld != null) {
+      if (binary != null) flags.append("B");
+      else flags.append("-");
+    }
+    if (info.hasNorms()) {
+      flags.append("N");
+      flags.append(dvToString(info.getNormType()));
+    }
+    else flags.append("----");
+    if (fld != null) {
+      if (numeric != null) {
+        flags.append("#");
+        NumericType nt = t.numericType();
+        if (nt != null) {
+          flags.append(nt.toString().charAt(0));
+          int prec = t.numericPrecisionStep();
+          String p = Integer.toHexString(prec);
+          if (p.length() == 1) {
+            p = "0" + p;
+          }
+          flags.append(p);
+        } else {
+          // try faking it
+          if (numeric instanceof Integer) {
+            flags.append("i32");
+          } else if (numeric instanceof Long) {
+            flags.append("i64");
+          } else if (numeric instanceof Float) {
+            flags.append("f32");
+          } else if (numeric instanceof Double) {
+            flags.append("f64");
+          } else if (numeric instanceof Short) {
+            flags.append("i16");
+          } else if (numeric instanceof Byte) {
+            flags.append("i08");
+          } else if (numeric instanceof BigDecimal) {
+            flags.append("b^d");
+          } else if (numeric instanceof BigInteger) {
+            flags.append("b^i");
+          } else {
+            flags.append("???");
+          }
+        }
+      } else {
+        flags.append("----");
+      }
+    }
+    if (info.hasDocValues()) {
+      flags.append("D");
+      flags.append(dvToString(info.getDocValuesType()));
+    } else {
+      flags.append("----");
+    }    
     return flags.toString();
+  }
+  
+  private static String dvToString(DocValues.Type type) {
+    String fl;
+    if (type == null) {
+      return "???";
+    }
+    switch (type) {
+    case BYTES_FIXED_DEREF:
+      fl = "bfd";
+      break;
+    case BYTES_FIXED_SORTED:
+      fl = "bfs";
+      break;
+    case BYTES_FIXED_STRAIGHT:
+      fl = "bft";
+      break;
+    case BYTES_VAR_DEREF:
+      fl = "bvd";
+      break;
+    case BYTES_VAR_SORTED:
+      fl = "bvs";
+      break;
+    case BYTES_VAR_STRAIGHT:
+      fl = "bvt";
+      break;
+    case FIXED_INTS_8:
+      fl = "i08";
+      break;
+    case FIXED_INTS_16:
+      fl = "i16";
+      break;
+    case FIXED_INTS_32:
+      fl = "i32";
+      break;
+    case FIXED_INTS_64:
+      fl = "i64";
+      break;
+    case VAR_INTS:
+      fl = "vin";
+      break;
+    case FLOAT_32:
+      fl = "f32";
+      break;
+    case FLOAT_64:
+      fl = "f64";
+      break;
+    default:
+      fl = "???";
+    }
+    return fl;
   }
   
   public static Resolution getResolution(String key) {
@@ -253,31 +409,19 @@ public class Util {
   public static long calcTotalFileSize(String path, Directory fsdir) throws Exception {
     long totalFileSize = 0L;
     String[] files = null;
-    if (fsdir instanceof FSDirectory) {
-      files = ((FSDirectory)fsdir).listAll();
-    } else if (fsdir instanceof MMapDirectory) {
-      files = ((MMapDirectory)fsdir).listAll();
-    }
+    files = fsdir.listAll();
     if (files == null) return totalFileSize;
     for (int i = 0; i < files.length; i++) {
-      String filename;
-      if (path.endsWith(File.separator)) {
-        filename = path;
-      } else {
-        filename = path + File.separator;
-      }
-  
-      File file = new File(filename + files[i]);
-      totalFileSize += file.length();
+      totalFileSize += fsdir.fileLength(files[i]);
     }
     return totalFileSize;
   }
 
   public static String normalizeUnit(long len) {
     if (len == 1) {
-      return " byte";
+      return "  B";
     } else if (len < 1024) {
-      return " bytes";
+      return "  B";
     } else if (len < 51200000) {
       return " kB";
     } else {

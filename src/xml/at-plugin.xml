@@ -24,7 +24,7 @@
       </panel>
 			<table name="tokenAtts" weighty="1" weightx="1" halign="fill" valign="fill">
 			 <header>
-			   <column text="Class" width="170"/>
+			   <column text="Type" width="170"/>
          <column text="Implementation" width="130"/>
          <column text="Value"/>
 			 </header>

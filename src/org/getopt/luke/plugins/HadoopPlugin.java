@@ -11,6 +11,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiReader;
 import org.getopt.luke.IntPair;
@@ -138,7 +139,7 @@ public class HadoopPlugin extends LukePlugin {
           FsDirectory fsdir = 
             new FsDirectory(fs, stats[i].getPath(), false, conf,
                     new DataReporter(stats[i].getPath()), bufferSize);
-          IndexReader reader = IndexReader.open(fsdir, true);
+          IndexReader reader = DirectoryReader.open(fsdir);
           readers.add(reader);
         }
         r = new MultiReader((IndexReader[])readers.toArray(new IndexReader[readers.size()]));
@@ -148,7 +149,7 @@ public class HadoopPlugin extends LukePlugin {
         app.setString(status, "text", "Opening single index ...");
         FsDirectory fsdir = 
           new FsDirectory(fs, path, false, conf, new DataReporter(path), bufferSize);
-        r = IndexReader.open(fsdir, true);
+        r = DirectoryReader.open(fsdir);
         lastMsg = "OK - single index.";
       }
       myIr = r;
