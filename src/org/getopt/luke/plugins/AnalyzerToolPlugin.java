@@ -9,6 +9,7 @@ import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.FlagsAttribute;
+import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
@@ -165,7 +166,7 @@ public class AnalyzerToolPlugin extends LukePlugin {
         val = Integer.toHexString(((FlagsAttribute)att).getFlags());
       } else if (attClass.equals("OffsetAttribute")) {
         OffsetAttribute off = (OffsetAttribute)att;
-        val = off.startOffset() + "," + off.endOffset();
+        val = off.startOffset() + "-" + off.endOffset();
       } else if (attClass.equals("PayloadAttribute")) {
         BytesRef payload = ((PayloadAttribute)att).getPayload();
         if (payload != null) {
@@ -177,6 +178,8 @@ public class AnalyzerToolPlugin extends LukePlugin {
         val = ((PositionIncrementAttribute)att).getPositionIncrement() + "";
       } else if (attClass.equals("TypeAttribute")) {
         val = ((TypeAttribute)att).type();
+      } else if (attClass.equals("KeywordAttribute")) {
+        val = Boolean.toString(((KeywordAttribute)att).isKeyword());
       } else {
         val = att.toString();
       }

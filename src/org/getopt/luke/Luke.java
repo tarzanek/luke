@@ -207,8 +207,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         System.err.println("No analyzers???");
         analyzers = defaultAnalyzers;
       } else {
-        HashSet<Class> uniq = new HashSet<Class>(Arrays.asList(an));
-        analyzers = (Class[])uniq.toArray(new Class[uniq.size()]);
+        analyzers = an;
       }
       Object cbType = find("cbType");
       populateAnalyzers(cbType);
