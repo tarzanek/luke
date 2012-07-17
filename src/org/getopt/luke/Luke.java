@@ -74,9 +74,13 @@ import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.search.spans.Spans;
 import org.apache.lucene.store.*;
+import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.Version;
+import org.apache.lucene.util.automaton.Automaton;
+import org.apache.lucene.util.automaton.State;
+import org.apache.lucene.util.automaton.Transition;
 import org.apache.lucene.queryparser.xml.CoreParser;
 import org.apache.lucene.queryparser.xml.CorePlusExtensionsParser;
 import org.getopt.luke.DocReconstructor.Reconstructed;
@@ -1076,6 +1080,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setBoolean(find("bReload"), "enabled", true);
       setBoolean(find("bClose"), "enabled", true);
       setBoolean(find("bCommit"), "enabled", true);
+      Object sTable = find("sTable");
+      removeAll(sTable);
+      Object docTable = find("docTable");
+      removeAll(docTable);
       Object cbType = find("cbType");
       populateAnalyzers(cbType);
       Object pOver = find("pOver");
@@ -1102,6 +1110,17 @@ public class Luke extends Thinlet implements ClipboardOwner {
       Object fileSize = find("iFileSize");
       long totalFileSize = Util.calcTotalFileSize(pName, dir);
       setString(fileSize, "text", Util.normalizeSize(totalFileSize) + Util.normalizeUnit(totalFileSize));
+      Object iFormat = find(pOver, "iFormat");
+      Object iCaps = find(pOver, "iCaps");
+      String formatText = "N/A";
+      String formatCaps = "N/A";
+      if (dir != null) {
+        IndexGate.FormatDetails formatDetails = IndexGate.getIndexFormat(dir);
+        formatText = formatDetails.genericName;
+        formatCaps = formatDetails.capabilities;
+      }
+      setString(iFormat, "text", formatText);
+      setString(iCaps, "text", formatCaps);
       if (ir == null) {
         return;
       }      
@@ -1173,17 +1192,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
         verText = Long.toHexString(((DirectoryReader)ir).getVersion());
       }
       setString(iVer, "text", verText);
-      Object iFormat = find(pOver, "iFormat");
-      Object iCaps = find(pOver, "iCaps");
-      String formatText = "N/A";
-      String formatCaps = "N/A";
-      if (dir != null) {
-        IndexGate.FormatDetails formatDetails = IndexGate.getIndexFormat(dir);
-        formatText = formatDetails.genericName;
-        formatCaps = formatDetails.capabilities;
-      }
-      setString(iFormat, "text", formatText);
-      setString(iCaps, "text", formatCaps);
       Object iTiiDiv = find(pOver, "iTiiDiv");
       String divText = "N/A";
       if (ir instanceof DirectoryReader) {
@@ -1247,25 +1255,33 @@ public class Luke extends Thinlet implements ClipboardOwner {
       Object cell = create("cell");
       setString(cell, "text", s);
       add(row, cell);
-      cell = create("cell");
-      FieldTermCount ftc = termCounts.get(s);
-      if (ftc != null) {
-        long cnt = ftc.termCount;
-        setString(cell, "text", intCountFormat.format(cnt));
-        setChoice(cell, "alignment", "right");
-        add(row, cell);
-        float pcent = (float)(cnt * 100) / (float)numTerms;
+      if (termCounts != null) {
         cell = create("cell");
-        setString(cell, "text", percentFormat.format(pcent) + " %");
-        setChoice(cell, "alignment", "right");
-        add(row, cell);
+        FieldTermCount ftc = termCounts.get(s);
+        if (ftc != null) {
+          long cnt = ftc.termCount;
+          setString(cell, "text", intCountFormat.format(cnt));
+          setChoice(cell, "alignment", "right");
+          add(row, cell);
+          float pcent = (float)(cnt * 100) / (float)numTerms;
+          cell = create("cell");
+          setString(cell, "text", percentFormat.format(pcent) + " %");
+          setChoice(cell, "alignment", "right");
+          add(row, cell);
+        } else {
+          setString(cell, "text", "0");
+          setChoice(cell, "alignment", "right");
+          add(row, cell);
+          cell = create("cell");
+          setString(cell, "text", "0.00 %");
+          setChoice(cell, "alignment", "right");
+          add(row, cell);
+        }
       } else {
-        setString(cell, "text", "0");
-        setChoice(cell, "alignment", "right");
+        cell = create("cell");
+        setString(cell, "text", "N/A");
         add(row, cell);
         cell = create("cell");
-        setString(cell, "text", "0.00 %");
-        setChoice(cell, "alignment", "right");
         add(row, cell);
       }
       cell = create("cell");
@@ -1498,6 +1514,22 @@ public class Luke extends Thinlet implements ClipboardOwner {
     map.put("segmentInfoFormat", codec.segmentInfoFormat().getClass().getName());
     map.put("storedFieldsFormat", codec.storedFieldsFormat().getClass().getName());
     map.put("termVectorsFormat", codec.termVectorsFormat().getClass().getName());
+    try {
+      List<String> files = new ArrayList<String>(si.files());
+      Collections.sort(files);
+      map.put("---files---", files.toString());
+      if (si.info.getUseCompoundFile()) {
+        Directory d = new CompoundFileDirectory(dir, IndexFileNames.segmentFileName(si.info.name, "", IndexFileNames.COMPOUND_FILE_EXTENSION), IOContext.READ, false);
+        files.clear();
+        files.addAll(Arrays.asList(d.listAll()));
+        d.close();
+        Collections.sort(files);
+        map.put("-CFS-files-", files.toString());
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      map.put("---files---", "Exception: " + e.toString());
+    }
     for (Entry<String,String> e : map.entrySet()) {
       Object r = create("row");
       add(diagsTable, r);
@@ -1521,12 +1553,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
         flds.add(fi.name);
       }
       Collections.sort(flds);
-      map.put("Lfields", flds.toString());
+      map.put("L---fields---", flds.toString());
       for (String fn : flds) {
         FieldInfo fi = fis.fieldInfo(fn);
         map.put("A" + fi.name, fi.attributes().toString());
       }
-      map.put("F----------", "IdfpoPVNtxxDtxx");
+      map.put("F---flags----", "IdfpoPVNtxxDtxx");
       for (String fn : flds) {
         FieldInfo fi = fis.fieldInfo(fn);
         map.put("F" + fi.name, Util.fieldFlags(null, fi));
@@ -4106,7 +4138,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
   }
   
   private void _explainStructure(Object parent, Query q) {
-    String clazz = q.getClass().getSimpleName();
+    String clazz = q.getClass().getName();
+    if (clazz.startsWith("org.apache.lucene.")) {
+      clazz = "lucene." + q.getClass().getSimpleName();
+    } else if (clazz.startsWith("org.apache.solr.")) {
+      clazz = "solr." + q.getClass().getSimpleName();
+    }
     float boost = q.getBoost();
     Object n = create("node");
     add(parent, n);
@@ -4116,12 +4153,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     setFont(n, getFont().deriveFont(Font.BOLD));
     setString(n, "text", msg);
-    if (clazz.equals("TermQuery")) {
+    if (clazz.equals("lucene.TermQuery")) {
       Object n1 = create("node");
       Term t = ((TermQuery)q).getTerm();
       setString(n1, "text", "Term: field='" + t.field() + "' text='" + t.text() + "'");
       add(n, n1);
-    } else if (clazz.equals("BooleanQuery")) {
+    } else if (clazz.equals("lucene.BooleanQuery")) {
       BooleanQuery bq = (BooleanQuery)q;
       BooleanClause[] clauses = bq.getClauses();
       int max = bq.getMaxClauseCount();
@@ -4153,12 +4190,21 @@ public class Luke extends Thinlet implements ClipboardOwner {
         add(n, n1);
         _explainStructure(n1, clauses[i].getQuery());
       }
-    } else if (clazz.equals("PrefixQuery")) {
+    } else if (clazz.equals("lucene.PrefixQuery")) {
       Object n1 = create("node");
-      Term t = ((PrefixQuery)q).getPrefix();
+      PrefixQuery pq = (PrefixQuery)q;
+      Term t = pq.getPrefix();
       setString(n1, "text", "Prefix: field='" + t.field() + "' text='" + t.text() + "'");
       add(n, n1);
-    } else if (clazz.equals("PhraseQuery")) {
+      try {
+        addTermsEnum(n, PrefixQuery.class, pq.getField(), pq);
+      } catch (Exception e) {
+        e.printStackTrace();
+        n1 = create("node");
+        setString(n1, "text", "TermEnum: Exception " + e.getMessage());
+        add(n, n1);
+      }
+    } else if (clazz.equals("lucene.PhraseQuery")) {
       PhraseQuery pq = (PhraseQuery)q;
       setString(n, "text", getString(n, "text") + ", slop=" + pq.getSlop());
       int[] pos = pq.getPositions();
@@ -4178,7 +4224,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
                 "' text='" + terms[i].text() + "'");
         add(n, n1);
       }
-    } else if (clazz.equals("MultiPhraseQuery")) {
+    } else if (clazz.equals("lucene.MultiPhraseQuery")) {
       MultiPhraseQuery pq = (MultiPhraseQuery)q;
       setString(n, "text", getString(n, "text") + ", slop=" + pq.getSlop());
       int[] pos = pq.getPositions();
@@ -4195,55 +4241,27 @@ public class Luke extends Thinlet implements ClipboardOwner {
       System.err.println("MultiPhraseQuery is missing the public getTermArrays() :-(");
       setString(n1, "text", "toString: " + pq.toString());
       add(n, n1);
-    } else if (clazz.equals("FuzzyQuery")) {
+    } else if (clazz.equals("lucene.FuzzyQuery")) {
       FuzzyQuery fq = (FuzzyQuery)q;
       Object n1 = create("node");
       setString(n1, "text", "field=" + fq.getField() + ", prefixLen=" + fq.getPrefixLength() +
               ", maxEdits=" + df.format(fq.getMaxEdits()));
       add(n, n1);
-      // do some tricks with reflection...
       try {
-        Method m = FuzzyQuery.class.getDeclaredMethod("getTermsEnum", new Class[]{IndexReader.class});
-        m.setAccessible(true);
-        TermsEnum fte = (TermsEnum)m.invoke(fq, new Object[]{ir});
-        n1 = create("node");
-        String clz = fte.getClass().getName();
-        setString(n1, "text", clz);
-        add(n, n1);
-        while (fte.next() != null) {
-          n1 = create("node");
-          setString(n1, "text", "Term: '" + fte.term().utf8ToString() + "', docFreq=" + fte.docFreq());
-          add(n, n1);
-        }
+        addTermsEnum(n, FuzzyQuery.class, fq.getField(), fq);
       } catch (Exception e) {
+        e.printStackTrace();
         n1 = create("node");
-        setString(n1, "text", "FilteredTermEnum: Exception " + e.getMessage());
+        setString(n1, "text", "TermEnum: Exception " + e.getMessage());
         add(n, n1);
       }
-    } else if (clazz.equals("WildcardQuery")) {
+    } else if (clazz.equals("lucene.WildcardQuery")) {
       WildcardQuery wq = (WildcardQuery)q;
       Term t = wq.getTerm();
       setString(n, "text", getString(n, "text") + ", term=" + t);
-      // do some tricks with reflection...
-      try {
-        Method m = WildcardQuery.class.getDeclaredMethod("getTermsEnum", new Class[]{IndexReader.class});
-        m.setAccessible(true);
-        TermsEnum fte = (TermsEnum)m.invoke(wq, new Object[]{ir});
-        Object n1 = create("node");
-        String clz = fte.getClass().getName();
-        setString(n1, "text", clz);
-        add(n, n1);
-        while (fte.next() != null) {
-          n1 = create("node");
-          setString(n1, "text", "Term: '" + fte.term().utf8ToString() + "', docFreq=" + fte.docFreq());
-          add(n, n1);
-        }
-      } catch (Exception e) {
-        Object n1 = create("node");
-        setString(n1, "text", "FilteredTermEnum: Exception " + e.getMessage());
-        add(n, n1);
-      }
-    } else if (clazz.equals("TermRangeQuery")) {
+      Automaton a = WildcardQuery.toAutomaton(t);
+      addAutomaton(n, a);
+    } else if (clazz.equals("lucene.TermRangeQuery")) {
       TermRangeQuery rq = (TermRangeQuery)q;
       setString(n, "text", getString(n, "text") + ", inclLower=" + rq.includesLower() + ", inclUpper=" + rq.includesUpper());
       Object n1 = create("node");
@@ -4252,6 +4270,52 @@ public class Luke extends Thinlet implements ClipboardOwner {
       n1 = create("node");
       setString(n1, "text", "upperTerm=" + rq.getField() + ":" + rq.getUpperTerm() + "'");
       add(n, n1);
+      try {
+        addTermsEnum(n, TermRangeQuery.class, rq.getField(), rq);
+      } catch (Exception e) {
+        e.printStackTrace();
+        n1 = create("node");
+        setString(n1, "text", "TermEnum: Exception " + e.getMessage());
+        add(n, n1);
+      }
+    } else if (q instanceof AutomatonQuery) {
+      AutomatonQuery aq = (AutomatonQuery)q;
+      setString(n, "text", getString(n, "text") + ", " + aq.toString());
+      // get automaton
+      try {
+        java.lang.reflect.Field aField = AutomatonQuery.class.getDeclaredField("automaton");
+        aField.setAccessible(true);
+        Automaton a = (Automaton)aField.get(aq);
+        addAutomaton(n, a);
+      } catch (Exception e) {
+        e.printStackTrace();
+        Object n1 = create("node");
+        setString(n1, "text", "Automaton: Exception " + e.getMessage());
+        add(n, n1);        
+      }
+    } else if (q instanceof MultiTermQuery) {
+      MultiTermQuery mq = (MultiTermQuery)q;
+      Set<Term> terms = new HashSet<Term>();
+      mq.extractTerms(terms);
+      setString(n, "text", getString(n, "text") + ", terms: " + terms);
+      try {
+        addTermsEnum(n, TermRangeQuery.class, mq.getField(), mq);
+      } catch (Exception e) {
+        e.printStackTrace();
+        Object n1 = create("node");
+        setString(n1, "text", "TermEnum: Exception " + e.getMessage());
+        add(n, n1);
+      }
+    } else if (q instanceof ConstantScoreQuery) {
+      ConstantScoreQuery cq = (ConstantScoreQuery)q;
+      setString(n, "text", getString(n, "text") + ", " + cq.toString());
+      Object n1 = create("node");
+      add(n, n1);
+      if (cq.getFilter() != null) {
+        setString(n1, "text", "Filter: " + cq.getFilter().toString());
+      } else if (cq.getQuery() != null) {
+        _explainStructure(n, cq.getQuery());
+      }
     } else if (q instanceof FilteredQuery) {
       FilteredQuery fq = (FilteredQuery)q;
       Object n1 = create("node");
@@ -4367,10 +4431,100 @@ public class Luke extends Thinlet implements ClipboardOwner {
     } else {
       Object n1 = create("node");
       String defField = getDefaultField(find("srchOptTabs"));
+      Set<Term> terms = new HashSet<Term>();
+      q.extractTerms(terms);
       setString(n1, "text", q.getClass().getName() + ": " + q.toString(defField));
       add(n, n1);
+      if (!terms.isEmpty()) {
+        n1 = create("node");
+        setString(n1, "text", "terms: " + terms);
+        add(n, n1);
+      }
     }
   }
+  
+  private void addAutomaton(Object parent, Automaton a) {
+    Object n = create("node");
+    setString(n, "text", "Automaton: " + a != null ? a.toDot() : "null");
+    add(parent, n);
+    State[] states = a.getNumberedStates();
+    for (State s : states) {
+      Object n1 = create("node");
+      add(n, n1);
+      StringBuilder msg = new StringBuilder();
+      msg.append(String.valueOf(s.getNumber()));
+      if (a.getInitialState() == s) {
+        msg.append(" INITIAL");
+      }
+      msg.append(s.isAccept() ? " [accept]" : " [reject]");
+      msg.append(", " + s.numTransitions + " transitions");
+      setString(n1, "text", msg.toString());
+      for (Transition t : s.getTransitions()) {
+        Object n2 = create("node");
+        add(n1, n2);
+        setString(n2, "text", t.toString());
+      }
+    }
+  }
+  
+  private void addTermsEnum(Object parent, Class<? extends Query> clz, String field, Query instance) throws Exception {
+    Method m = clz.getDeclaredMethod("getTermsEnum", Terms.class, AttributeSource.class);
+    m.setAccessible(true);
+    Terms terms = ar.terms(field);
+    TermsEnum fte = (TermsEnum)m.invoke(instance, terms, new AttributeSource());
+    Object n1 = create("node");
+    String clazz = fte.getClass().getName();
+    setString(n1, "text", clazz);
+    add(parent, n1);
+    while (fte.next() != null) {
+      Object n2 = create("node");
+      setString(n2, "text", "'" + fte.term().utf8ToString() + "', docFreq=" + fte.docFreq() + ", totalTermFreq=" + fte.totalTermFreq());
+      add(n1, n2);
+    }
+    
+  }
+  
+  public void clipQExplain(Object qExplain) {
+    Object tree  = find(qExplain, "qTree");
+    StringBuilder sb = new StringBuilder();
+    treeToString(tree, sb);
+    StringSelection sel = new StringSelection(sb.toString());
+    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, this);
+  }
+  
+  private void treeToString(Object tree, StringBuilder sb) {
+    if (tree == null) {
+      return;
+    }
+    Object[] items = getItems(tree);
+    if (items == null || items.length == 0) {
+      return;
+    }
+    for (int i = 0; i < items.length; i++) {
+      if (i > 0) {
+        sb.append('\n');
+      }
+      treeNodeToString(items[i], sb, 0);
+    }
+  }
+  
+  private void treeNodeToString(Object node, StringBuilder sb, int level) {
+    for (int i = 0; i < level; i++) {
+      sb.append(' ');
+    }
+    sb.append(getString(node, "text"));
+    Object[] items = getItems(node);
+    if (items != null && items.length > 0) {
+      sb.append('\n');
+      for (int i = 0; i < items.length; i++) {
+        if (i > 0) {
+          sb.append('\n');
+        }
+        treeNodeToString(items[i], sb, level + 2);
+      }
+    }
+  }
+  
   /**
    * Update the parsed and rewritten query views.
    *
@@ -4398,6 +4552,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setString(qFieldRewritten, "text", q.toString());
       putProperty(qField, "qRewritten", q);
     } catch (Throwable t) {
+      t.printStackTrace();
       setString(qFieldParsed, "text", t.getMessage());
       setString(qFieldRewritten, "text", t.getMessage());
     }
@@ -4672,6 +4827,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
     } else {
       t.run();
     }
+  }
+  
+  public void clipExplain(Object explain) {
+    Object eTree = find(explain, "eTree");
+    StringBuilder sb = new StringBuilder();
+    treeToString(eTree, sb);
+    StringSelection sel = new StringSelection(sb.toString());
+    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, this);    
   }
 
   private DecimalFormat df = new DecimalFormat("0.0000");

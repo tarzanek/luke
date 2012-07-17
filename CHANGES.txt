@@ -11,14 +11,20 @@ This is a major upgrade of Luke to Lucene 4.0-ALPHA.
  +-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  NOTE !!! -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-+
 
 Large parts of Luke had to be re-written or heavily modified. As a consequence
-I'm pretty sure there will be many new bugs or missing features. Please report these,
-preferably with Apache-style patches to fix them - thank you!
+I'm pretty sure there will be many new bugs and some missing features. Please report
+these, preferably with Apache-style patches to fix them - thank you!
 
 Other changes in this version:
 
 * Add term offsets when available to "Show Positions" dialog.
-* Modify the list of shown field flags to better reflect the available field information.
-* Add detailed segment information in the Files section.
+* Modify the list of field flags to better reflect the available field information.
+  FieldType is not always reliable, and some type informaton is not preserved in the index
+  (e.g. whether an indexed field was tokenized).
+* Add detailed segment information in the Files section. This includes Codec and
+  FieldInfo-level details not available elsewhere.
+* Add support for explaining automaton queries' structure.
+* Bring back format details for old indexes (available when opening without IndexReader).
+* Add clipboard copy function in more places.
 
 * Issue 36: XMLExporter generating invalid XML, when special characters are present
   in a TermVector field (Craig.Stires)
@@ -27,7 +33,6 @@ Other changes in this version:
 * Issue 21: luke tarball needs to extract to a "luke" directory (bevan.koopman,
   Photodeus)
 * Issue 27: Cannot add or edit documents using StandardAnalyzer (dean.thrasher)
-* Update to a newer version of Lucene / Solr API.
 
 ---------------------------------------------------------------------------
   Changes in v. 1.0.1 (released on 2010.04.01):

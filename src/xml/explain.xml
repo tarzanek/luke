@@ -3,5 +3,8 @@
         bottom="8" right="8" gap="15" resizable="true" close="remove(explain)">
 	<label icon="/img/info.gif" text="Explanation of the document hit:"/>
 	<tree name="eTree" halign="fill" valign="fill" weightx="1" weighty="1" line="false" angle="true" width="400" height="150"/>
-	<button type="default" text=" OK " halign="center" action="remove(explain)"/>
+	<panel halign="right" gap="8">
+	    <button text="Copy" halign="center" action="clipExplain(explain)"/>
+	    <button type="default" text=" OK " action="remove(explain)"/>
+	</panel>
 </dialog>
