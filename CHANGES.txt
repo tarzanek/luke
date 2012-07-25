@@ -1,3 +1,9 @@
+Changes in unreleased version:
+
+* Issue 22: term vectors could not be accessed if a field was not stored. Fixed
+  also several other wrong assumptions about field flags.
+
+---------------------------------------------------------------------------
 Changes in v. 4.0-ALPHA (released on 2012.07.17):
 
 This is a major upgrade of Luke to Lucene 4.0-ALPHA.

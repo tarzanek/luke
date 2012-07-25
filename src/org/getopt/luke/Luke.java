@@ -2894,7 +2894,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     setString(find("docNum1"), "text", String.valueOf(docid));
     for (int i = 0; i < idxFields.length; i++) {
       IndexableField[] fields = doc.getFields(idxFields[i]);
-      if (fields == null) {
+      if (fields.length == 0) {
         addFieldRow(table, idxFields[i], null, docid, null);
         continue;
       }
@@ -2916,10 +2916,21 @@ public class Luke extends Thinlet implements ClipboardOwner {
     add(row, cell);
     cell = create("cell");
     Field f = (Field)ixf;
-    setString(cell, "text", Util.fieldFlags(f, infos.fieldInfo(f.name())));
-    if (ixf == null) {
+    String flags = Util.fieldFlags(f, infos.fieldInfo(fName));
+    boolean hasVectors = false;
+    try {
+      hasVectors = ar.getTermVector(docid, fName) != null;
+    } catch (Exception e) {
+      // ignore
+    }
+    // consider skipping this field altogether?
+    if (ixf == null && !hasVectors) {
       setBoolean(cell, "enabled", false);
     }
+    if (hasVectors) {
+      flags = flags.substring(0, 7) + "V" + flags.substring(8);
+    }
+    setString(cell, "text", flags);
     setFont(cell, "font", courier);
     setChoice(cell, "alignment", "center");
     add(row, cell);
@@ -2991,12 +3002,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
           String fName = (String) getProperty(row, "fName");
           Terms tfv = ar.getTermVector(DocId.intValue(), fName);
           if (tfv == null) {
-            showStatus("Term Vector not available.");
+            showStatus("Term Vector not available in field " + fName + " for this doc.");
             return;
           }
           List<IntPair> tvs = TermVectorMapper.map(tfv, null, true, false);
           if (tvs == null || tvs.isEmpty()) {
-            showStatus("Term Vector not available.");
+            showStatus("Term Vector not available (empty).");
             return;
           }
           Object dialog = addComponent(null, "/xml/vector.xml", null, null);

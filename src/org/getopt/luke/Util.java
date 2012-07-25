@@ -237,14 +237,21 @@ public class Util {
   }
 
 
-  // IdfpoPSVBNtxx#txxDtxx  - when field is present
-  // IdfpoPVNtxxDtxx        - when only field info is present
+  // IdfpoPSVBNtxx#txxDtxx
   public static String fieldFlags(Field fld, FieldInfo info) {
     FieldType t = null;
     BytesRef binary = null;
     Number numeric = null;
     if (fld == null) {
       t = new FieldType();
+      t.setIndexed(false);
+      t.setStored(false);
+      t.setStoreTermVectors(false);
+      t.setOmitNorms(true);
+      t.setStoreTermVectorOffsets(false);
+      t.setStoreTermVectorPositions(false);
+      t.setTokenized(false);
+      t.setNumericType(null);
     } else {
       t = fld.fieldType();
       binary = fld.binaryValue();
@@ -273,58 +280,52 @@ public class Util {
     }
     if (info.hasPayloads()) flags.append("P");
     else flags.append("-");
-    if (fld != null) {
-      if (t.stored()) flags.append("S");
-      else flags.append("-");
-    }
-    if (info.hasVectors()) flags.append("V");
+    if (t.stored()) flags.append("S");
     else flags.append("-");
-    if (fld != null) {
-      if (binary != null) flags.append("B");
-      else flags.append("-");
-    }
+    if (t.storeTermVectors()) flags.append("V");
+    else flags.append("-");
+    if (binary != null) flags.append("B");
+    else flags.append("-");
     if (info.hasNorms()) {
       flags.append("N");
       flags.append(dvToString(info.getNormType()));
     }
     else flags.append("----");
-    if (fld != null) {
-      if (numeric != null) {
-        flags.append("#");
-        NumericType nt = t.numericType();
-        if (nt != null) {
-          flags.append(nt.toString().charAt(0));
-          int prec = t.numericPrecisionStep();
-          String p = Integer.toHexString(prec);
-          if (p.length() == 1) {
-            p = "0" + p;
-          }
-          flags.append(p);
-        } else {
-          // try faking it
-          if (numeric instanceof Integer) {
-            flags.append("i32");
-          } else if (numeric instanceof Long) {
-            flags.append("i64");
-          } else if (numeric instanceof Float) {
-            flags.append("f32");
-          } else if (numeric instanceof Double) {
-            flags.append("f64");
-          } else if (numeric instanceof Short) {
-            flags.append("i16");
-          } else if (numeric instanceof Byte) {
-            flags.append("i08");
-          } else if (numeric instanceof BigDecimal) {
-            flags.append("b^d");
-          } else if (numeric instanceof BigInteger) {
-            flags.append("b^i");
-          } else {
-            flags.append("???");
-          }
+    if (numeric != null) {
+      flags.append("#");
+      NumericType nt = t.numericType();
+      if (nt != null) {
+        flags.append(nt.toString().charAt(0));
+        int prec = t.numericPrecisionStep();
+        String p = Integer.toHexString(prec);
+        if (p.length() == 1) {
+          p = "0" + p;
         }
+        flags.append(p);
       } else {
-        flags.append("----");
+        // try faking it
+        if (numeric instanceof Integer) {
+          flags.append("i32");
+        } else if (numeric instanceof Long) {
+          flags.append("i64");
+        } else if (numeric instanceof Float) {
+          flags.append("f32");
+        } else if (numeric instanceof Double) {
+          flags.append("f64");
+        } else if (numeric instanceof Short) {
+          flags.append("i16");
+        } else if (numeric instanceof Byte) {
+          flags.append("i08");
+        } else if (numeric instanceof BigDecimal) {
+          flags.append("b^d");
+        } else if (numeric instanceof BigInteger) {
+          flags.append("b^i");
+        } else {
+          flags.append("???");
+        }
       }
+    } else {
+      flags.append("----");
     }
     if (info.hasDocValues()) {
       flags.append("D");
