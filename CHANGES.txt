@@ -1,5 +1,6 @@
 Changes in unreleased version:
 
+* Update to 4.0.0_BETA.
 * Issue 22: term vectors could not be accessed if a field was not stored. Fixed
   also several other wrong assumptions about field flags.
 

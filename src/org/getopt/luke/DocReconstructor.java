@@ -151,7 +151,7 @@ public class DocReconstructor extends Observable {
       }
       te = terms.iterator(te);
       while (te.next() != null) {
-        DocsAndPositionsEnum newDpe = te.docsAndPositions(live, dpe, false);
+        DocsAndPositionsEnum newDpe = te.docsAndPositions(live, dpe, 0);
         if (newDpe == null) { // no position info for this field
           break;
         }

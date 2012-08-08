@@ -232,7 +232,8 @@ public class XMLExporter extends Observable {
       // collect
       positions.setLength(0);
       offsets.setLength(0);
-      DocsAndPositionsEnum newDpe = te.docsAndPositions(liveDocs, dpe, true);
+      DocsAndPositionsEnum newDpe = te.docsAndPositions(liveDocs, dpe,
+              DocsAndPositionsEnum.FLAG_OFFSETS);
       if (newDpe == null) {
         continue;
       }

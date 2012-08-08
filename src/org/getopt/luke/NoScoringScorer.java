@@ -31,4 +31,10 @@ public class NoScoringScorer extends Scorer {
     return 0;
   }
 
+  @Override
+  public float freq() throws IOException {
+    // TODO Auto-generated method stub
+    return 1.0f;
+  }
+
 }

@@ -22,7 +22,7 @@ public class TermVectorMapper {
     DocsAndPositionsEnum dpe = null;
     List<IntPair> res = new ArrayList<IntPair>();
     while (te.next() != null) {
-      DocsAndPositionsEnum newDpe = te.docsAndPositions(null, dpe, true);
+      DocsAndPositionsEnum newDpe = te.docsAndPositions(null, dpe, DocsAndPositionsEnum.FLAG_OFFSETS);
       if (newDpe == null) { // no positions and no offsets - just add terms if allowed
         if (!acceptTermsOnly) {
           return null;

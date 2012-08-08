@@ -109,7 +109,7 @@ public class VocabAnalysisPlugin extends LukePlugin {
           float ageTotals[] = new float[numAgeGroups];
           TermsEnum te = MultiFields.getTerms(ir, field).iterator(null);
           while (te.next() != null) {
-            DocsEnum td = te.docs(null, null, false);
+            DocsEnum td = te.docs(null, null, 0);
             td.nextDoc();
             float firstDocId = td.docID();
             int ageBracket = (int) ((firstDocId / numDocs) * numAgeGroups);
