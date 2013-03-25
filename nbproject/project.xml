@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://www.netbeans.org/ns/project/1">
+    <type>org.netbeans.modules.ant.freeform</type>
+    <configuration>
+        <general-data xmlns="http://www.netbeans.org/ns/freeform-project/1">
+            <!-- Do not use Project Properties customizer when editing this file manually. -->
+            <name>Luke</name>
+            <properties/>
+            <folders>
+                <source-folder>
+                    <label>src</label>
+                    <type>java</type>
+                    <location>src</location>
+                </source-folder>
+            </folders>
+            <ide-actions>
+                <action name="build">
+                    <target>compile</target>
+                </action>
+                <action name="clean">
+                    <target>clean</target>
+                </action>
+                <action name="javadoc">
+                    <target>javadoc</target>
+                </action>
+                <action name="rebuild">
+                    <target>clean</target>
+                    <target>compile</target>
+                </action>
+                <action name="run">
+                    <target>jarallfile</target>
+                </action>
+            </ide-actions>
+            <view>
+                <items>
+                    <source-folder style="packages">
+                        <label>src</label>
+                        <location>src</location>
+                    </source-folder>
+                    <source-file>
+                        <location>build.xml</location>
+                    </source-file>
+                </items>
+                <context-menu>
+                    <ide-action name="build"/>
+                    <ide-action name="rebuild"/>
+                    <ide-action name="clean"/>
+                    <ide-action name="javadoc"/>
+                    <ide-action name="run"/>
+                </context-menu>
+            </view>
+            <subprojects/>
+        </general-data>
+        <java-data xmlns="http://www.netbeans.org/ns/freeform-project-java/3">
+            <compilation-unit>
+                <package-root>src</package-root>
+                <classpath mode="compile">lib/lucene-analyzers-common-4.2.0.jar;lib/lucene-core-4.2.0.jar;lib/lucene-misc-4.2.0.jar;lib/lucene-queries-4.2.0.jar;lib/lucene-queryparser-4.2.0.jar;lib/solr/solr-core-4.2.0.jar;lib/solr/solr-solrj-4.2.0.jar;lib/js.jar;lib/hadoop/commons-cli-1.2.jar;lib/hadoop/commons-codec-1.3.jar;lib/hadoop/commons-httpclient-3.0.1.jar;lib/hadoop/commons-logging-1.0.4.jar;lib/hadoop/commons-logging-api-1.0.4.jar;lib/hadoop/commons-net-1.4.1.jar;lib/hadoop/ehcache-1.6.0.jar;lib/hadoop/hadoop-0.20.2-core.jar;lib/hadoop/jets3t-0.6.1.jar;lib/hadoop/kfs-0.2.2.jar;lib/hadoop/log4j-1.2.15.jar;lib/hadoop/oro-2.0.8.jar;lib/hadoop/slf4j-api-1.4.3.jar;lib/hadoop/slf4j-log4j12-1.4.3.jar;lib/hadoop/xmlenc-0.52.jar</classpath>
+                <source-level>1.6</source-level>
+            </compilation-unit>
+        </java-data>
+    </configuration>
+</project>

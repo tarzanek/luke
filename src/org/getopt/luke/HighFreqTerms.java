@@ -22,7 +22,6 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.index.FieldsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.store.FSDirectory;
@@ -139,12 +138,11 @@ public class HighFreqTerms {
         LOG.info("Index with no fields - probably empty or corrupted");
         return EMPTY_STATS;
       }
-      tiq = new TermStatsQueue(numTerms);
-      FieldsEnum fieldsEnum = fields.iterator();
+      tiq = new TermStatsQueue(numTerms);      
       while (true) {
-        String field = fieldsEnum.next();
+        String field = fields.iterator().next();
         if (field != null) {
-          Terms terms = fieldsEnum.terms();
+          Terms terms = fields.terms(field);
           te = terms.iterator(te);
           fillQueue(te, tiq, field);
         } else {

@@ -110,7 +110,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
 
   private static final long serialVersionUID = -470469999079073156L;
   
-  public static Version LV = Version.LUCENE_40;
+  public static Version LV = Version.LUCENE_42;
   
   private Directory dir = null;
   String pName = null;
@@ -824,8 +824,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
       return;
     }
     try {
-      IndexWriter iw = createIndexWriter();
-      iw.commit(userData);
+      IndexWriter iw = createIndexWriter();      
+      iw.setCommitData(userData);
+      iw.commit();
       iw.close();
       refreshAfterWrite();
     } catch (Exception e) {
@@ -1194,9 +1195,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
       Object iTiiDiv = find(pOver, "iTiiDiv");
       String divText = "N/A";
       if (ir instanceof DirectoryReader) {
-        List<? extends AtomicReader> readers = ((DirectoryReader)ir).getSequentialSubReaders();
-        if (readers.size() > 0 && readers.get(0) instanceof SegmentReader) {
-          divText = String.valueOf(((SegmentReader)readers.get(0)).getTermInfosIndexDivisor());
+        List<AtomicReaderContext> readers = ((DirectoryReader)ir).leaves();
+        if (readers.size() > 0 && readers.get(0).reader() instanceof SegmentReader){
+          divText = String.valueOf(((SegmentReader)(readers.get(0)).reader()).getTermInfosIndexDivisor());
         }
       }
       setString(iTiiDiv, "text", divText);
@@ -2936,16 +2937,16 @@ public class Luke extends Thinlet implements ClipboardOwner {
     add(row, cell);
     cell = create("cell");
     FieldInfo info = infos.fieldInfo(fName);
-    if (f != null) {
+    if (f != null) {      
       try {
         if (ar != null && info.hasNorms()) {
-          DocValues norms = ar.normValues(fName);
+          NumericDocValues norms = ar.getNormValues(fName);
           String val = Util.normsToString(norms, fName, docid, sim);
           setString(cell, "text", val);
         } else {
           setString(cell, "text", "---");
           setBoolean(cell, "enabled", false);
-        }
+        }      
       } catch (IOException ioe) {
         ioe.printStackTrace();
         setString(cell, "text", "!?!");
@@ -3138,9 +3139,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
     setString(fld, "text", f.name());
     putProperty(dialog, "similarity", s);
     if (ar != null) {
-     try {
-       DocValues norms = ar.normValues(f.name());
-       byte curBVal = (byte)norms.getSource().getInt(docNum.intValue());
+     try {         
+       NumericDocValues nnorms = ar.getNormValues(f.name());       
+       byte curBVal=0;
+       if (nnorms!=null) {curBVal=(byte)nnorms.get(docNum.intValue());}       
        float curFVal = Util.decodeNormValue(curBVal, f.name(), s);
        setString(curNorm, "text", String.valueOf(curFVal));
        setString(newNorm, "text", String.valueOf(curFVal));
@@ -3646,7 +3648,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          DocsEnum td = ar.termDocsEnum(ar.getLiveDocs(), t.field(), new BytesRef(t.text()), 0);
+          //DocsEnum td = ar.termDocsEnum(ar.getLiveDocs(), t.field(), new BytesRef(t.text()), 0);
+          DocsEnum td = ar.termDocsEnum(t);
           if (td == null) {
             showStatus("No such term: " + t);
             return;
@@ -3746,7 +3749,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
           if (withOffsets) {
             flags |= DocsAndPositionsEnum.FLAG_OFFSETS;
           }
-          DocsAndPositionsEnum td = ar.termPositionsEnum(ar.getLiveDocs(), t.field(), t.bytes(), flags);
+          //DocsAndPositionsEnum td = ar.termPositionsEnum(ar.getLiveDocs(), t.field(), t.bytes(), flags);
+          DocsAndPositionsEnum td = ar.termPositionsEnum(t);
           if (td == null) {
             showStatus("No position information available for this term.");
             return;
@@ -3782,8 +3786,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
               }
               cell = create("cell");
               add(r, cell);
-              if (td.hasPayload()) {
-                BytesRef payload = td.getPayload();
+              BytesRef payload = td.getPayload();
+                if (payload!=null) {
                 putProperty(r, "payload", (BytesRef)payload.clone());
               }
               add(pTable, r);
@@ -5222,7 +5226,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.0_BETA (2012-08-22)", luke, 850, 650);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.2 (2013-03-21)", luke, 850, 650);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

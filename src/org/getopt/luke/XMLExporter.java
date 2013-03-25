@@ -7,6 +7,8 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.*;
+import org.apache.lucene.index.FieldInfo.DocValuesType;
+import static org.apache.lucene.index.FieldInfo.DocValuesType.SORTED;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Bits;
@@ -180,19 +182,12 @@ public class XMLExporter extends Observable {
       if (fields == null || fields.length == 0) {
         continue;
       }
-      bw.write("<field name='" + Util.xmlEscape(fields[0].name()));
-      DocValues dv = atomicReader.normValues(fields[0].name());
-      if (dv != null) {
-        // export raw value - we don't know what similarity was used
-        String type = dv.getType().toString();
-        if (type.contains("INT")) {
-          bw.write("' norm='" + dv.getSource().getInt(docNum));
-        } else if (type.startsWith("FLOAT")) {
-          bw.write("' norm='" + dv.getSource().getFloat(docNum));          
-        } else if (type.startsWith("BYTES")) {
-          dv.getSource().getBytes(docNum, bytes);
-          bw.write("' norm='" + Util.bytesToHex(bytes, false));
-        }
+      String fName=fields[0].name();
+      bw.write("<field name='" + Util.xmlEscape(fName));                  
+      NumericDocValues nv = atomicReader.getNormValues(fields[0].name());
+        // export raw value - we don't know what similarity was used                
+      if (nv!=null) {
+        bw.write("' norm='" + nv.get(docNum));      
       } 
       bw.write("' flags='" + Util.fieldFlags((Field)fields[0], infos.fieldInfo(fields[0].name())) + "'>\n");
       for (IndexableField ixf : fields) {

@@ -9,7 +9,6 @@ import java.util.Map;
 
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Fields;
-import org.apache.lucene.index.FieldsEnum;
 import org.apache.lucene.index.IndexGate;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiFields;
@@ -57,14 +56,12 @@ public class IndexInfo {
   private void countTerms() throws Exception {
     termCounts = new HashMap<String,FieldTermCount>();
     numTerms = 0;
-    Fields fields = MultiFields.getFields(reader);
-    FieldsEnum fe = fields.iterator();
-    String fld = null;
+    Fields fields = MultiFields.getFields(reader);    
     TermsEnum te = null;
-    while ((fld = fe.next()) != null) {
+    for (String fld : fields) {
       FieldTermCount ftc = new FieldTermCount();
       ftc.fieldname = fld;
-      Terms terms = fe.terms();
+      Terms terms = fields.terms(fld);
       if (terms != null) { // count terms
         te = terms.iterator(te);
         while (te.next() != null) {
