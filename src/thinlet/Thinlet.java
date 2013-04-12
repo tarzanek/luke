@@ -2929,9 +2929,9 @@ public class Thinlet extends Container implements Runnable, Serializable {
                 try { // mouse wheel is supported since 1.4 thus it use
                       // reflection
                     if (wheelrotation == null) {
-                        wheelrotation = e.getClass().getMethod("getWheelRotation", null);
+                        wheelrotation = e.getClass().getMethod("getWheelRotation", (Class<?>[]) null);
                     }
-                    int rotation = ((Integer) wheelrotation.invoke(e, null)).intValue();
+                    int rotation = ((Integer) wheelrotation.invoke(e, (Object[]) null)).intValue();
 
                     if (port.x + port.width < bounds.width) { // has vertical
                                                               // scrollbar
@@ -2970,7 +2970,7 @@ public class Thinlet extends Container implements Runnable, Serializable {
                             transferFocus();
                         } else {
                             try {
-                                getClass().getMethod("transferFocusBackward", null).invoke(this, null);
+                                getClass().getMethod("transferFocusBackward", (Class<?>[]) null).invoke(this, (Object[]) null);
                             } catch (Exception exc) { /* never */
                             }
                         }

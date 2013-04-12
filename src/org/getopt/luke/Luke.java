@@ -5226,7 +5226,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.2 (2013-03-21)", luke, 850, 650);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.2.1 (2013-04-12)", luke, 850, 650);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;
