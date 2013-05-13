@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
+import org.apache.lucene.index.Term;
 
 /**
  * <b>NOTE: this is a temporary copy of contrib/misc from Lucene - 
@@ -193,7 +194,8 @@ public class HighFreqTerms {
     long totalTF = 0;
     try {
       Bits liveDocs = MultiFields.getLiveDocs(reader);
-      totalTF = MultiFields.totalTermFreq(reader, field, termtext);
+      //totalTF = MultiFields.totalTermFreq(reader, field, termtext);      
+      totalTF = reader.totalTermFreq(new Term(field, br));
       return totalTF;
     } catch (Exception e) {
       return 0;

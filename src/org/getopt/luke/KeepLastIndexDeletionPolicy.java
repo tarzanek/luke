@@ -5,7 +5,7 @@ import java.util.List;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexDeletionPolicy;
 
-public class KeepLastIndexDeletionPolicy implements IndexDeletionPolicy {
+public class KeepLastIndexDeletionPolicy extends IndexDeletionPolicy {
 
   /**
    * Deletes all commits except the most recent one.
