@@ -2821,9 +2821,9 @@ public class Thinlet extends Container implements Runnable, Serializable {
      * @return true as focus-transverable component, overwrites the default
      *         false value
      */
-    public boolean isFocusTraversable() {
-        return true;
-    }
+//    public boolean isFocusTraversable() {
+//        return true;
+//    }
 
     /**
      * Dispatches mouse, key, focus, and component events occurring on the

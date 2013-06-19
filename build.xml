@@ -1,7 +1,7 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="4.3.0"/>
+	<property name="build.ver" value="4.3.1"/>
 	<property name="dist.dir" value="dist"/>
 	<property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
 	<property name="jarallfile" value="${build.dir}/lukeall-${build.ver}.jar"/>
@@ -22,11 +22,13 @@
 	<target name="compile" depends="init">
 		<javac classpath="${classpath}"
 			sourcepath=""
-			source="1.5"
-			target="1.5"
+			source="1.6"
+			target="1.6"
 			srcdir="src"
 			debug="on"
+			includeantruntime="false"
 			destdir="${build.dir}">
+			 <compilerarg value="-Xlint:deprecation"/> <!-- ,unchecked -->
 			<classpath>
       			<fileset dir="lib">
         			<include name="**/*.jar"/>
@@ -62,7 +64,7 @@
 				excludes="org/getopt/luke/plugins,**/*.js,**/Thumbs.db">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="lucene-core-4.3.0.jar;js.jar;lucene-misc-4.3.0.jar"/>
+				<attribute name="Classpath" value="lucene-core-4.3.1.jar;js.jar;lucene-misc-4.3.1.jar"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">
@@ -74,7 +76,7 @@
 		        excludes="org/mozilla/,org/getopt/luke/plugins,**/*.js">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="lucene-core-4.3.0.jar;lucene-misc-4.3.0.jar"/>
+				<attribute name="Classpath" value="lucene-core-4.3.1.jar;lucene-misc-4.3.1.jar"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">

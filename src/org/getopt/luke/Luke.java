@@ -24,10 +24,6 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.ClipboardOwner;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
-import java.beans.BeanInfo;
-import java.beans.IntrospectionException;
-import java.beans.Introspector;
-import java.beans.PropertyDescriptor;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -72,7 +68,6 @@ import org.apache.lucene.search.spans.SpanNotQuery;
 import org.apache.lucene.search.spans.SpanOrQuery;
 import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
-import org.apache.lucene.search.spans.Spans;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
@@ -944,7 +939,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       if (ramdir) {
         showStatus("Loading index into RAMDirectory ...");
         Directory dir1 = new RAMDirectory();
-        IndexWriterConfig cfg = new IndexWriterConfig(Version.LUCENE_40, new WhitespaceAnalyzer(Version.LUCENE_40));
+        IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer(LV));
         IndexWriter iw1 = new IndexWriter(dir1, cfg);
         iw1.addIndexes((Directory[])dirs.toArray(new Directory[dirs.size()]));
         iw1.close();
@@ -2600,7 +2595,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
               Object stored = find(editfield, "stored");
               Object restored = find(editfield, "restored");
               if (ar != null) {
-                setBoolean(cbONorms, "selected", !ar.hasNorms(key));
+		FieldInfos fis=ar.getFieldInfos();
+		FieldInfo fi = fis.fieldInfo(key);
+                setBoolean(cbONorms, "selected", !fi.hasNorms());
               }
               Field f = null;
               if (fields != null && fields.length > i) {
@@ -3963,11 +3960,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
       if (arg.length() == 0) {
         if (zeroArgV != null) {
-          res = (Analyzer)zeroArgV.newInstance(Version.LUCENE_CURRENT);
+          res = (Analyzer)zeroArgV.newInstance(LV);
         } else if (zeroArg != null) {
           res = (Analyzer)zeroArg.newInstance();
         } else if (oneArgV != null) {
-          res = (Analyzer)oneArgV.newInstance(new Object[]{Version.LUCENE_CURRENT, arg});
+          res = (Analyzer)oneArgV.newInstance(new Object[]{LV, arg});
         } else if (oneArg != null) {
           res = (Analyzer)oneArg.newInstance(new Object[]{arg});
         } else {
@@ -3975,11 +3972,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
         }
       } else {
         if (oneArgV != null) {
-          res = (Analyzer)oneArgV.newInstance(new Object[]{Version.LUCENE_CURRENT, arg});
+          res = (Analyzer)oneArgV.newInstance(new Object[]{LV, arg});
         } else if (oneArg != null) {
           res = (Analyzer)oneArg.newInstance(new Object[]{arg});
         } else if (zeroArgV != null) {
-          res = (Analyzer)zeroArgV.newInstance(new Object[]{Version.LUCENE_CURRENT});
+          res = (Analyzer)zeroArgV.newInstance(new Object[]{LV});
         } else if (zeroArg != null) {
           res = (Analyzer)zeroArg.newInstance(new Object[0]);
         } else {
@@ -4020,7 +4017,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       return null;
     }
     String defField = getDefaultField(srchOpts);
-    QueryParser qp = new QueryParser(Version.LUCENE_CURRENT, defField, analyzer);
+    QueryParser qp = new QueryParser(LV, defField, analyzer);
     Object ckXmlParser = find(srchOpts, "ckXmlParser");
     Object ckWild = find(srchOpts, "ckWild");
     Object ckPosIncr = find(srchOpts, "ckPosIncr");
@@ -5226,7 +5223,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.3.0 (2013-05-13)", luke, 850, 650);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.3.1 (2013-06-19)", luke, 850, 650);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

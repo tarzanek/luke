@@ -18,6 +18,7 @@ import org.apache.lucene.util.Attribute;
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
+import org.getopt.luke.Luke;
 import org.getopt.luke.LukePlugin;
 import org.getopt.luke.Util;
 
@@ -78,7 +79,7 @@ public class AnalyzerToolPlugin extends LukePlugin {
       app.setString(choice, "text", v.toString());
       app.putProperty(choice, "version", v);
       app.add(aVersion, choice);
-      if (v.equals(Version.LUCENE_CURRENT)) {
+      if (v.equals(Luke.LV)) {
         app.setInteger(aVersion, "selected", i);
       }
     }
