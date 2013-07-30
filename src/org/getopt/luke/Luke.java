@@ -105,7 +105,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
 
   private static final long serialVersionUID = -470469999079073156L;
   
-  public static Version LV = Version.LUCENE_43;
+  public static Version LV = Version.LUCENE_44;
   
   private Directory dir = null;
   String pName = null;
@@ -795,9 +795,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
       cfg.setIndexDeletionPolicy(policy);
       MergePolicy mp = cfg.getMergePolicy();
       if (mp instanceof LogMergePolicy) {
-        ((LogMergePolicy)mp).setUseCompoundFile(IndexGate.preferCompoundFormat(dir));
+        ((LogMergePolicy)mp).setNoCFSRatio(IndexGate.preferCompoundFormat(dir)?1.0:0.0);
       } else if (mp instanceof TieredMergePolicy) {
-        ((TieredMergePolicy)cfg.getMergePolicy()).setUseCompoundFile(IndexGate.preferCompoundFormat(dir));
+        ((TieredMergePolicy)cfg.getMergePolicy()).setNoCFSRatio(IndexGate.preferCompoundFormat(dir)?1.0:0.0);
       }
       IndexWriter iw = new IndexWriter(dir, cfg);
       return iw;
@@ -2409,12 +2409,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
           cfg.setTermIndexInterval(tii);
           MergePolicy p = cfg.getMergePolicy();
           if (p instanceof LogMergePolicy) {
-            ((LogMergePolicy)p).setUseCompoundFile(useCompound);
+            ((LogMergePolicy)p).setNoCFSRatio(useCompound?1.0:0.0);
             if (useCompound) {
               ((LogMergePolicy)p).setNoCFSRatio(1.0);
             }
           } else if (p instanceof TieredMergePolicy) {
-            ((TieredMergePolicy)p).setUseCompoundFile(useCompound);            
+            ((TieredMergePolicy)p).setNoCFSRatio(useCompound?1.0:0.0);            
             if (useCompound) {
               ((TieredMergePolicy)p).setNoCFSRatio(1.0);
             }
@@ -3181,10 +3181,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
     setString(sim, "text", s.getClass().getName());
     try {
       float newFVal = Float.parseFloat(getString(newNorm, "text"));
-      byte newBVal = Util.encodeNormValue(newFVal, f.name(), s);
-      float encFVal = Util.decodeNormValue(newBVal, f.name(), s);
+      long newLVal = Util.encodeNormValue(newFVal, f.name(), s);
+      float encFVal = Util.decodeNormValue(newLVal, f.name(), s);
       setString(encNorm, "text", String.valueOf(encFVal) +
-          " (0x" + Util.byteToHex(newBVal) + ")");
+          " (0x" + Util.longToHex(newLVal) + ")");
       putProperty(dialog, "newNorm", new Float(newFVal));
       doLayout(dialog);
     } catch (Exception e) {
@@ -5223,7 +5223,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.3.1 (2013-06-19)", luke, 850, 650);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.4.0 (2013-07-30)", luke, 850, 650);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

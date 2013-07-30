@@ -121,6 +121,29 @@ public class Util {
   public static String byteToHex(byte b) {
     return bytesToHex(new byte[]{b}, 0, 1, false);
   }
+  
+  public static String longToHex(long b) {
+    return longToHex(new long[]{b}, 0, 1, false);
+  }
+  
+  public static String longToHex(long longs[], int offset, int length, boolean wrap) {
+    StringBuffer sb = new StringBuffer();
+    boolean newLine = false;
+    for (int i = offset; i < offset + length; ++i) {
+      if (i > offset && !newLine) {
+        sb.append(" ");
+      }
+      sb.append(Long.toHexString(0x0100 + (longs[i] & 0x00FF))
+                       .substring(1));
+      if (i > 0 && (i + 1) % 16 == 0 && wrap) {
+        sb.append("\n");
+        newLine = true;
+      } else {
+        newLine = false;
+      }
+    }
+    return sb.toString();
+  }
 
   public static String escape(String[] values, String sep) {
     if (values == null) return null;
@@ -194,7 +217,7 @@ public class Util {
     return "???unknown type";
   }
   
-  public static float decodeNormValue(byte v, String fieldName, TFIDFSimilarity sim) throws Exception {
+  public static float decodeNormValue(long v, String fieldName, TFIDFSimilarity sim) throws Exception {
     try {
       return sim.decodeNormValue(v);
     } catch (Exception e) {
@@ -202,7 +225,7 @@ public class Util {
     }
   }
   
-  public static byte encodeNormValue(float v, String fieldName, TFIDFSimilarity sim) throws Exception {
+  public static long encodeNormValue(float v, String fieldName, TFIDFSimilarity sim) throws Exception {
     try {
       return sim.encodeNormValue(v);
     } catch (Exception e) {
