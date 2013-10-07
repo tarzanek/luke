@@ -186,7 +186,7 @@ public class Util {
   public static Collection<String> fieldNames(IndexReader r, boolean indexedOnly) throws IOException {
     AtomicReader reader;
     if (r instanceof CompositeReader) {
-      reader = new SlowCompositeReaderWrapper((CompositeReader)r);
+      reader = SlowCompositeReaderWrapper.wrap((CompositeReader)r);
     } else {
       reader = (AtomicReader)r;
     }

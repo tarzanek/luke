@@ -31,7 +31,7 @@ public class XMLExporter extends Observable {
           Map<String, Decoder> decoders) throws IOException {
     this.indexReader = indexReader;
     if (indexReader instanceof CompositeReader) {
-      this.atomicReader = new SlowCompositeReaderWrapper((CompositeReader)indexReader);
+      this.atomicReader = SlowCompositeReaderWrapper.wrap((CompositeReader)indexReader);
     } else if (indexReader instanceof AtomicReader) {
       this.atomicReader =  (AtomicReader)indexReader;
     }

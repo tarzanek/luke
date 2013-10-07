@@ -105,7 +105,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
 
   private static final long serialVersionUID = -470469999079073156L;
   
-  public static Version LV = Version.LUCENE_44;
+  public static Version LV = Version.LUCENE_45;
   
   private Directory dir = null;
   String pName = null;
@@ -1133,7 +1133,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
       showFiles(dir, null);
       if (ir instanceof CompositeReader) {
-        ar = new SlowCompositeReaderWrapper((CompositeReader)ir);
+        ar = SlowCompositeReaderWrapper.wrap((CompositeReader)ir);
       } else if (ir instanceof AtomicReader) {
         ar = (AtomicReader)ir;
       }
@@ -2045,7 +2045,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         Object fixRes = find(dialog, "fixRes");
         PanelPrintWriter ppw = (PanelPrintWriter)getProperty(dialog, "ppw");
         try {
-          ci.fixIndex(status, c);
+          ci.fixIndex(status);
           setString(fixRes, "text", "DONE. Review the output above.");
         } catch (Exception e) {
           ppw.println("\nERROR during Fix Index:");
@@ -5223,7 +5223,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.4.0 (2013-07-30)", luke, 850, 650);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.5.0 (2013-10-07)", luke, 850, 650);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;
