@@ -1,7 +1,11 @@
 luke
 ====
 
-fork of http://luke.googlecode.com/svn/ to support 4.1, 4.2, 4.3
+fork of http://luke.googlecode.com/svn/ to support 4.1, 4.2, 4.3, 4.X ...
 (and maybe all newer)
 fixes are usually quick and dirty, so need review
 I just fix what I use (e.g. no hadoop updates, ... )
+
+I am using Netbeans 7.4 (latest) + latest JDK7 .45 (Suns/Oracles)
+from nb I can run compile & then I run target "dist" on top of build.xml 
+to get the binaries built
