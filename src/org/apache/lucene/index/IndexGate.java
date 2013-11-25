@@ -240,7 +240,7 @@ public class IndexGate {
     infos.read(dir);
     int compound = 0, nonCompound = 0;
     for (int i = 0; i < infos.size(); i++) {
-      if (((SegmentInfoPerCommit)infos.info(i)).info.getUseCompoundFile()) {
+      if (((SegmentCommitInfo)infos.info(i)).info.getUseCompoundFile()) {
         compound++;
       } else {
         nonCompound++;

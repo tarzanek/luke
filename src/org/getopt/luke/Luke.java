@@ -105,7 +105,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
 
   private static final long serialVersionUID = -470469999079073156L;
   
-  public static Version LV = Version.LUCENE_45;
+  public static Version LV = Version.LUCENE_46;
   
   private Directory dir = null;
   String pName = null;
@@ -148,7 +148,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   /** Navy blue reverse theme. */
   public static final int THEME_NAVY        = 4;
   
-  /** Theme color contants. */
+  /** Theme color constants. */
   public int[][] themes = {
           {0xece9d0, 0x000000, 0xf5f4f0, 0x919b9a, 0xb0b0b0, 0xeeeeee, 0xb9b9b9, 0xff8080, 0xc5c5dd}, // default
           {0xe6e6e6, 0x000000, 0xffffff, 0x909090, 0xb0b0b0, 0xededed, 0xb9b9b9, 0x89899a, 0xc5c5dd}, // gray
@@ -1401,7 +1401,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       errorMsg("Error reading segment infos for '" + segName + ": " + e.toString());
       return;
     }
-    for (SegmentInfoPerCommit si : infos.asList()) {
+    for (SegmentCommitInfo si : infos.asList()) {
       Object r = create("row");
       add(segTable, r);
       Object cell = create("cell");
@@ -1447,34 +1447,35 @@ public class Luke extends Thinlet implements ClipboardOwner {
     if (row == null) {
       return;
     }
-    SegmentInfoPerCommit si = (SegmentInfoPerCommit)getProperty(row, "si");
+    SegmentCommitInfo si = (SegmentCommitInfo)getProperty(row, "si");
     if (si == null) {
       showStatus("Missing SegmentInfoPerCommit???");
       return;
     }
-    Map<String,String> map = si.info.attributes();
-    if (map != null) {
-      for (Entry<String,String> e : map.entrySet()) {
-        Object r = create("row");
-        add(diagsTable, r);
-        Object cell = create("cell");
-        setString(cell, "text", "A");
-        add(r, cell);
-        cell = create("cell");
-        setString(cell, "text", e.getKey());
-        add(r, cell);
-        cell = create("cell");
-        setString(cell, "text", e.getValue());
-        add(r, cell);
-      }
-    }
+    //deprecated call below
+//    map = si.info.attributes();
+//    if (map != null) {
+//      for (Entry<String,String> e : map.entrySet()) {
+//        Object r = create("row");
+//        add(diagsTable, r);
+//        Object cell = create("cell");
+//        setString(cell, "text", "A");
+//        add(r, cell);
+//        cell = create("cell");
+//        setString(cell, "text", e.getKey());
+//        add(r, cell);
+//        cell = create("cell");
+//        setString(cell, "text", e.getValue());
+//        add(r, cell);
+//      }
+//    };
     // separator
 //    Object r1 = create("row");
 //    add(diagsTable, r1);
 //    Object c1 = create("cell");
 //    setBoolean(c1, "enabled", false);
 //    add(r1, c1);
-    map = si.info.getDiagnostics();
+    Map<String,String> map = si.info.getDiagnostics();
     if (map != null) {
       for (Entry<String,String> e : map.entrySet()) {
         Object r = create("row");
@@ -5223,7 +5224,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.5.1 (2013-10-25)", luke, 850, 650);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.6.0 (2013-11-25)", luke, 850, 650);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;

@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 /** Reads a Lucene index stored in DFS. This is a modified version of a class
  * with the same purpose found in org.apache.nutch.indexer. */
-public class FsDirectory extends Directory {
+public class FsDirectory extends BaseDirectory {
   private static final Logger LOG = LoggerFactory.getLogger(FsDirectory.class);
 
   private FileSystem fs;
