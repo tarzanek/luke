@@ -5,7 +5,6 @@ import java.lang.reflect.Constructor;
 import java.util.Iterator;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.FlagsAttribute;
@@ -113,6 +112,7 @@ public class AnalyzerToolPlugin extends LukePlugin {
       TokenStream ts = analyzer.tokenStream("text", new StringReader(app
               .getString(inputText, "text")));
       app.removeAll(resultsList);
+      ts.reset();
 
       while (ts.incrementToken()) {
         Object row = app.create("item");
@@ -120,6 +120,7 @@ public class AnalyzerToolPlugin extends LukePlugin {
         app.add(resultsList, row);
         app.putProperty(row, "state", ts.cloneAttributes());
       }
+      ts.close();
     } catch (Throwable t) {
       app.showStatus("Error analyzing:" + t.getMessage());
     }
