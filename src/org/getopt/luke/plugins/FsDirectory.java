@@ -174,7 +174,7 @@ public class FsDirectory extends BaseDirectory {
     return new Lock() {
       public boolean obtain() {
         return true;
-      }
+      }      
       public void release() {
       }
       public boolean isLocked() {
@@ -183,6 +183,9 @@ public class FsDirectory extends BaseDirectory {
       public String toString() {
         return "Lock@" + new Path(directory, name);
       }
+        @Override
+        public void close() throws IOException {            
+        }
     };
   }
 

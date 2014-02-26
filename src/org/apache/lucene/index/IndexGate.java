@@ -196,6 +196,7 @@ public class IndexGate {
   public static FormatDetails getIndexFormat(final Directory dir) throws Exception {
     SegmentInfos.FindSegmentsFile fsf = new SegmentInfos.FindSegmentsFile(dir) {
 
+      @Override
       protected Object doBody(String segmentsFile) throws CorruptIndexException,
           IOException {
         FormatDetails res = new FormatDetails();
