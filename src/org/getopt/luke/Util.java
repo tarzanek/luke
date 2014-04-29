@@ -8,22 +8,20 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
-
-import org.apache.lucene.document.Field;
 import org.apache.lucene.document.DateTools.Resolution;
+import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.FieldType.NumericType;
 import org.apache.lucene.index.AtomicReader;
-import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.CompositeReader;
+import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfo.DocValuesType;
-import org.apache.lucene.index.SlowCompositeReaderWrapper;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.NumericDocValues;
-import org.apache.lucene.index.SortedDocValues;
+import org.apache.lucene.index.SlowCompositeReaderWrapper;
 import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
@@ -213,7 +211,7 @@ public class Util {
         e.printStackTrace();
     }    
     }
-    if (norms!=NumericDocValues.EMPTY) { return String.valueOf(norms.get(docid)); }
+    if (norms!=DocValues.EMPTY_NUMERIC) { return String.valueOf(norms.get(docid)); }
     return "???unknown type";
   }
   

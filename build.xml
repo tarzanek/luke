@@ -1,7 +1,7 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="4.7.1"/>
+	<property name="build.ver" value="4.8.0"/>
 	<property name="dist.dir" value="dist"/>
 	<property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
 	<property name="jarallfile" value="${build.dir}/lukeall-${build.ver}.jar"/>
@@ -22,8 +22,8 @@
 	<target name="compile" depends="init">
 		<javac classpath="${classpath}"
 			sourcepath=""
-			source="1.6"
-			target="1.6"
+			source="1.7"
+			target="1.7"
 			srcdir="src"
 			debug="on"
 			includeantruntime="false"

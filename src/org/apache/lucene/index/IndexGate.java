@@ -277,9 +277,18 @@ public class IndexGate {
     Set<String> known = new HashSet<String>();
     for (IndexCommit ic : commits) {
       known.addAll(ic.getFileNames());
+    }    
+
+    boolean prevExists;
+    try {
+          dir.openInput(IndexFileNames.SEGMENTS_GEN, IOContext.DEFAULT).close();
+          prevExists = true;
+    } catch (IOException ioe) {
+          prevExists = false;
     }
-    if (dir.fileExists(IndexFileNames.SEGMENTS_GEN)) {
-      known.add(IndexFileNames.SEGMENTS_GEN);
+
+    if (prevExists) {
+          known.add(IndexFileNames.SEGMENTS_GEN);
     }
     List<String> names = new ArrayList<String>(known);
     Collections.sort(names);

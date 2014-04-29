@@ -120,6 +120,8 @@ public class FsDirectory extends BaseDirectory {
     return result;
   }
 
+  @Override
+  @Deprecated
   public boolean fileExists(String name) throws IOException {
     return fs.exists(new Path(directory, name));
   }
