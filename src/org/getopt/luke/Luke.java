@@ -105,7 +105,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
 
   private static final long serialVersionUID = -470469999079073156L;
   
-  public static Version LV = Version.LUCENE_48;
+  public static Version LV = Version.LUCENE_4_9;
   
   private Directory dir = null;
   String pName = null;
@@ -2849,7 +2849,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         sb.append(s);
       }
       try {
-        similar = (BooleanQuery)mlt.like(new StringReader(sb.toString()), "field");
+        similar = (BooleanQuery)mlt.like("field", new StringReader(sb.toString()));
       } catch (Exception e) {
         e.printStackTrace();
         errorMsg("FAILED: " + e.getMessage());

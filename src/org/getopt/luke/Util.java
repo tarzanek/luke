@@ -211,7 +211,7 @@ public class Util {
         e.printStackTrace();
     }    
     }
-    if (norms!=DocValues.EMPTY_NUMERIC) { return String.valueOf(norms.get(docid)); }
+    if (norms!=DocValues.emptyNumeric()) { return String.valueOf(norms.get(docid)); }
     return "???unknown type";
   }
   

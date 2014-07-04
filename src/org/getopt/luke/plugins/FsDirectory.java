@@ -290,13 +290,13 @@ public class FsDirectory extends BaseDirectory {
     }
   }
 
-  private class DfsIndexOutput extends BufferedIndexOutput {
+  private class DfsIndexOutput extends OutputStreamIndexOutput {
     private FSDataOutputStream out;
     private RandomAccessFile local;
     private File localFile;
 
     public DfsIndexOutput(Path path, int ioFileBufferSize) throws IOException {
-      
+      super(new FileOutputStream(new File(path.toUri())), ioFileBufferSize);
       // create a temporary local file and set it to delete on exit
       String randStr = Integer.toString(new Random().nextInt(Integer.MAX_VALUE));
       localFile = File.createTempFile("index_" + randStr, ".tmp");
@@ -306,11 +306,8 @@ public class FsDirectory extends BaseDirectory {
       out = fs.create(path);
     }
 
-    public void flushBuffer(byte[] b, int offset, int size) throws IOException {
-      local.write(b, offset, size);
-    }
-
-    public void close() throws IOException {
+    @Override
+    public void close() throws IOException {            
       super.close();
       
       // transfer to dfs from local
@@ -324,15 +321,9 @@ public class FsDirectory extends BaseDirectory {
       local.close();
     }
 
-    public void seek(long pos) throws IOException {
-      super.seek(pos);
+    public void seek(long pos) throws IOException {      
       local.seek(pos);
-    }
-
-    public long length() throws IOException {
-      return local.length();
-    }
-
+    }        
   }
 
   @Override
