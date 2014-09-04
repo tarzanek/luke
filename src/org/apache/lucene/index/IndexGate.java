@@ -211,14 +211,14 @@ public class IndexGate {
             int actualVersion = SegmentInfos.VERSION_40;
             try {
               actualVersion = CodecUtil.checkHeaderNoMagic(in, "segments", SegmentInfos.VERSION_40, Integer.MAX_VALUE);
-              if (actualVersion > SegmentInfos.VERSION_46) {
+              if (actualVersion > SegmentInfos.VERSION_49) {
                 res.capabilities += " (WARNING: newer version of Lucene than this tool)";
               }
             } catch (Exception e) {
               e.printStackTrace();
               res.capabilities += " (error reading: " + e.getMessage() + ")";
             }
-            res.genericName = "Lucene 4." + actualVersion;
+            res.genericName = "Lucene 4.x, segment ver.:" + actualVersion;
             res.version = "4." + actualVersion;
           } else {
             res.genericName = "Lucene 3.x or prior";
@@ -253,7 +253,7 @@ public class IndexGate {
   public static void deletePendingFiles(Directory dir, IndexDeletionPolicy policy) throws Exception {
     SegmentInfos infos = new SegmentInfos();
     infos.read(dir);
-    IndexWriterConfig cfg = new IndexWriterConfig(Luke.LV, new WhitespaceAnalyzer(Luke.LV));
+    IndexWriterConfig cfg = new IndexWriterConfig(Luke.LV, new WhitespaceAnalyzer());
     IndexWriter iw = new IndexWriter(dir, cfg);
     IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, null, iw, true);
     deleter.close();

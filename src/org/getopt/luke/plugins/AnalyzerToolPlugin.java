@@ -2,6 +2,8 @@ package org.getopt.luke.plugins;
 
 import java.io.StringReader;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Iterator;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -71,9 +73,10 @@ public class AnalyzerToolPlugin extends LukePlugin {
     app.setString(combobox, "text", firstClass);
     Object aVersion = app.find(myUi, "aVersion");
     app.removeAll(aVersion);
-    Version[] values = Version.values();
-    for (int i = 0; i < values.length; i++) {
-      Version v = values[i];
+    int i=0;
+    for (Field field : Version.class.getDeclaredFields()) {
+    if (Modifier.isStatic(field.getModifiers()) && field.getType() == Version.class) {
+      Version v = (Version)field.get(Version.class);
       Object choice = app.create("choice");
       app.setString(choice, "text", v.toString());
       app.putProperty(choice, "version", v);
@@ -81,6 +84,8 @@ public class AnalyzerToolPlugin extends LukePlugin {
       if (v.equals(Luke.LV)) {
         app.setInteger(aVersion, "selected", i);
       }
+    }
+    i++;
     }
     return true;
   }

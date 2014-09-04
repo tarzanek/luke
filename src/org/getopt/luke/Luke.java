@@ -74,7 +74,6 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.util.automaton.Automaton;
-import org.apache.lucene.util.automaton.State;
 import org.apache.lucene.util.automaton.Transition;
 import org.apache.lucene.queryparser.xml.CoreParser;
 import org.apache.lucene.queryparser.xml.CorePlusExtensionsParser;
@@ -105,7 +104,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
 
   private static final long serialVersionUID = -470469999079073156L;
   
-  public static Version LV = Version.LUCENE_4_9;
+  public static Version LV = Version.LATEST;
   
   private Directory dir = null;
   String pName = null;
@@ -124,7 +123,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private Object statmsg = null;
   private Object slowstatus = null;
   private Object slowmsg = null;
-  private Analyzer stdAnalyzer = new StandardAnalyzer(LV);
+  private Analyzer stdAnalyzer = new StandardAnalyzer();
   //private QueryParser qp = null;
   private boolean readOnly = false;
   private boolean ram = false;
@@ -785,7 +784,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   private IndexWriter createIndexWriter() {
     try {
-      IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer(LV));
+      IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer());
       IndexDeletionPolicy policy;
       if (keepCommits) {
         policy = new KeepAllIndexDeletionPolicy();
@@ -939,7 +938,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       if (ramdir) {
         showStatus("Loading index into RAMDirectory ...");
         Directory dir1 = new RAMDirectory();
-        IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer(LV));
+        IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer());
         IndexWriter iw1 = new IndexWriter(dir1, cfg);
         iw1.addIndexes((Directory[])dirs.toArray(new Directory[dirs.size()]));
         iw1.close();
@@ -1421,7 +1420,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setChoice(cell, "alignment", "right");
       cell = create("cell");
       add(r, cell);
-      setString(cell, "text", si.info.getVersion());
+      setString(cell, "text", si.info.getVersion().toString());
       cell = create("cell");
       add(r, cell);
       setString(cell, "text", si.info.getCodec().getName());
@@ -2399,7 +2398,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           } else {
             policy = new KeepLastIndexDeletionPolicy();
           }
-          IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer(LV));
+          IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer());
           if (!useLast) {
             IndexCommit ic = ((DirectoryReader)ir).getIndexCommit();
             if (ic != null) {
@@ -4018,7 +4017,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       return null;
     }
     String defField = getDefaultField(srchOpts);
-    QueryParser qp = new QueryParser(LV, defField, analyzer);
+    QueryParser qp = new QueryParser(defField, analyzer);
     Object ckXmlParser = find(srchOpts, "ckXmlParser");
     Object ckWild = find(srchOpts, "ckWild");
     Object ckPosIncr = find(srchOpts, "ckPosIncr");
@@ -4462,25 +4461,28 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private void addAutomaton(Object parent, Automaton a) {
     Object n = create("node");
     setString(n, "text", "Automaton: " + a != null ? a.toDot() : "null");
-    add(parent, n);
-    State[] states = a.getNumberedStates();
-    for (State s : states) {
+    add(parent, n);    
+    int numStates = a.getNumStates();
+    for(int s=0;s<numStates;s++) {
       Object n1 = create("node");
       add(n, n1);
       StringBuilder msg = new StringBuilder();
-      msg.append(String.valueOf(s.getNumber()));
-      if (a.getInitialState() == s) {
+      msg.append(String.valueOf(s));
+      if (0 == s) {
         msg.append(" INITIAL");
       }
-      msg.append(s.isAccept() ? " [accept]" : " [reject]");
-      msg.append(", " + s.numTransitions + " transitions");
-      setString(n1, "text", msg.toString());
-      for (Transition t : s.getTransitions()) {
-        Object n2 = create("node");
-        add(n1, n2);
-        setString(n2, "text", t.toString());
-      }
-    }
+      msg.append(a.isAccept(s) ? " [accept]" : " [reject]");
+      msg.append(", "); msg.append(a.getNumTransitions(s));msg.append(" transitions");
+      setString(n1, "text", msg.toString());      
+      Transition t = new Transition();
+      int count = a.initTransition(s, t);
+      for (int i=0;i<count;i++) {
+       a.getNextTransition(t);
+       Object n2 = create("node");
+       add(n1, n2);
+       setString(n2, "text", t.toString());
+      }  
+    } 
   }
   
   private void addTermsEnum(Object parent, Class<? extends Query> clz, String field, Query instance) throws Exception {
@@ -5224,7 +5226,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
    */
   public static Luke startLuke(String[] args) {
     Luke luke = new Luke();
-    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.8.1 (2014-05-21)", luke, 850, 650);
+    FrameLauncher f = new FrameLauncher("Luke - Lucene Index Toolbox, v 4.10.0 (2014-09-04)", luke, 850, 650);
     f.setIconImage(Toolkit.getDefaultToolkit().createImage(Luke.class.getResource("/img/luke.gif")));
     if (args.length > 0) {
       boolean force = false, ro = false, ramdir = false;
