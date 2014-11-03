@@ -1,14 +1,15 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="4.10.1"/>
+	<property name="build.ver" value="4.10.2"/>
+        <property name="lucene.version" value="${build.ver}"/>
 	<property name="dist.dir" value="dist"/>
 	<property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
 	<property name="jarallfile" value="${build.dir}/lukeall-${build.ver}.jar"/>
 	<property name="jarminfile" value="${build.dir}/lukemin-${build.ver}.jar"/>
 	<property name="srczip" value="${dist.dir}/luke-src-${build.ver}.zip"/>
 	<property name="srctgz" value="${dist.dir}/luke-src-${build.ver}.tgz"/>
-	<target name="init">
+	<target name="init" depends="-check-lucene, download-lucene">
 		<tstamp/>
 		<mkdir dir="${build.dir}"/>
 		<mkdir dir="${dist.dir}"/>
@@ -17,8 +18,90 @@
 	<target name="clean">
 		<delete dir="${build.dir}"/>
 		<delete dir="${dist.dir}"/>
-	</target>	
-	
+	</target>
+        
+<property name="lucene-core.jar" value="lucene-core-${lucene.version}.jar"/>
+<property name="lucene-analyzers-common.jar" value="lucene-analyzers-common-${lucene.version}.jar"/>
+<property name="lucene-misc.jar" value="lucene-misc-${lucene.version}.jar"/>
+<property name="lucene-queries.jar" value="lucene-queries-${lucene.version}.jar"/>
+<property name="lucene-queryparser.jar" value="lucene-queryparser-${lucene.version}.jar"/>
+<property name="solr-core.jar" value="solr-core-${lucene.version}.jar"/>
+<property name="solr-solrj.jar" value="solr-solrj-${lucene.version}.jar"/>
+<property name="libdir" value="lib"/>
+<property name="solrlibdir" value="${libdir}/solr"/>
+<property name="file.reference.lucene-core.jar" value="${libdir}/${lucene-core.jar}"/>
+<property name="file.reference.lucene-analyzers-common.jar" value="${libdir}/${lucene-analyzers-common.jar}"/>
+<property name="file.reference.lucene-misc.jar" value="${libdir}/${lucene-misc.jar}"/>
+<property name="file.reference.lucene-queries.jar" value="${libdir}/${lucene-queries.jar}"/>
+<property name="file.reference.lucene-queryparser.jar" value="${libdir}/${lucene-queryparser.jar}"/>
+<property name="file.reference.solr-core.jar" value="${solrlibdir}/${solr-core.jar}"/>
+<property name="file.reference.solr-solrj.jar" value="${solrlibdir}/${solr-solrj.jar}"/>
+
+    <property name="mvn.repository" value="http://repo1.maven.org/maven2/"/>
+
+    <path id="plainlib.search.path">        
+        <pathelement path="${libdir}"/>
+        <pathelement path="../${libdir}"/>
+        <pathelement path="${solrlibdir}"/>
+        <pathelement path="../${solrlibdir}"/>
+    </path>    
+    
+    <target name="-check-lucene" description="Check that lucene jar files are present">
+        <available file="${lucene-core.jar}" type="file" property="lucene-core.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available> 
+        <available file="${lucene-analyzers-common.jar}" type="file" property="lucene-analyzers-common.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available> 
+        <available file="${lucene-misc.jar}" type="file" property="lucene-misc.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available>                 
+        <available file="${lucene-queries.jar}" type="file" property="lucene-queries.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available>         
+        <available file="${lucene-queryparser.jar}" type="file" property="lucene-queryparser.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available>         
+        <available file="${solr-core.jar}" type="file" property="solr-core.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available> 
+        <available file="${solr-solrj.jar}" type="file" property="solr-solrj.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available> 
+        <condition property="lucene_not_downloaded">
+            <not>
+            <and>
+                <isset property="lucene-core.jar.present"/>
+                <isset property="lucene-analyzers-common.jar.present"/>
+                <isset property="lucene-misc.jar.present"/>
+                <isset property="lucene-queries.jar.present"/>
+                <isset property="lucene-queryparser.jar.present"/>                
+                <isset property="solr-core.jar.present"/>
+                <isset property="solr-solrj.jar.present"/>
+             </and>
+             </not>
+        </condition>         
+    </target>
+    
+    <target name="download-lucene" depends="-check-lucene" if="lucene_not_downloaded">
+        <delete file="${libdir}/lucene-*.jar"/>
+        <delete file="${solrlibdir}/solr-*.jar"/>
+        <get src="${mvn.repository}/org/apache/lucene/lucene-core/${lucene.version}/${lucene-core.jar}"
+        dest="${file.reference.lucene-core.jar}" verbose="true" usetimestamp="true"/>
+        <get src="${mvn.repository}/org/apache/lucene/lucene-analyzers-common/${lucene.version}/${lucene-analyzers-common.jar}"
+        dest="${file.reference.lucene-analyzers-common.jar}" verbose="true" usetimestamp="true"/>
+        <get src="${mvn.repository}/org/apache/lucene/lucene-misc/${lucene.version}/${lucene-misc.jar}"
+        dest="${file.reference.lucene-misc.jar}" verbose="true" usetimestamp="true"/>
+        <get src="${mvn.repository}/org/apache/lucene/lucene-queries/${lucene.version}/${lucene-queries.jar}"
+        dest="${file.reference.lucene-queries.jar}" verbose="true" usetimestamp="true"/>
+        <get src="${mvn.repository}/org/apache/lucene/lucene-queryparser/${lucene.version}/${lucene-queryparser.jar}"
+        dest="${file.reference.lucene-queryparser.jar}" verbose="true" usetimestamp="true"/>        
+        <get src="${mvn.repository}/org/apache/solr/solr-core/${lucene.version}/${solr-core.jar}"
+        dest="${file.reference.solr-core.jar}" verbose="true" usetimestamp="true"/>
+        <get src="${mvn.repository}/org/apache/solr/solr-solrj/${lucene.version}/${solr-solrj.jar}"
+        dest="${file.reference.solr-solrj.jar}" verbose="true" usetimestamp="true"/>
+    </target>        
+                	
 	<target name="compile" depends="init">
 		<javac classpath="${classpath}"
 			sourcepath=""
@@ -64,7 +147,7 @@
 				excludes="org/getopt/luke/plugins,**/*.js,**/Thumbs.db">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="lucene-core-${build.ver}.jar;js.jar;lucene-misc-${build.ver}.jar"/>
+				<attribute name="Classpath" value="${lucene-core.jar};js.jar;${lucene-misc.jar}"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">
@@ -76,7 +159,7 @@
 		        excludes="org/mozilla/,org/getopt/luke/plugins,**/*.js">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="lucene-core-${build.ver}.jar;lucene-misc-${build.ver}.jar"/>
+				<attribute name="Classpath" value="${lucene-core.jar};${lucene-misc.jar}"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">
