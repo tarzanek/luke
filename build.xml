@@ -84,8 +84,16 @@
     </target>
     
     <target name="download-lucene" depends="-check-lucene" if="lucene_not_downloaded">
-        <delete file="${libdir}/lucene-*.jar"/>
-        <delete file="${solrlibdir}/solr-*.jar"/>
+        <delete>
+         <fileset dir="${libdir}">
+          <include name="lucene-*.jar"/>          
+         </fileset>
+        </delete>
+        <delete>
+         <fileset dir="${solrlibdir}">
+          <include name="solr-*.jar"/>          
+         </fileset>
+        </delete>                
         <get src="${mvn.repository}/org/apache/lucene/lucene-core/${lucene.version}/${lucene-core.jar}"
         dest="${file.reference.lucene-core.jar}" verbose="true" usetimestamp="true"/>
         <get src="${mvn.repository}/org/apache/lucene/lucene-analyzers-common/${lucene.version}/${lucene-analyzers-common.jar}"
