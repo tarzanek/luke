@@ -1,6 +1,10 @@
 luke
 ====
 
+NOTE: since 4.10.2 dependency jars get downloaded upon FIRST build
+(so repo doesn't ship them anymore, but they get fetched 
+from maven repos using ant)
+
 fork of http://luke.googlecode.com/svn/ to support 4.1, 4.2, 4.3, 4.X ...
 (and maybe all newer)
 fixes are usually quick and dirty, so need review
