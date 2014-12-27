@@ -870,7 +870,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       if (IndexWriter.isLocked(d)) {
         if (!ro) {
           if (force) {
-            IndexWriter.unlock(d);
+            d.makeLock(IndexWriter.WRITE_LOCK_NAME).close();              
           } else {
             errorMsg("Index is locked. Try 'Force unlock' when opening.");
             d.close();
@@ -899,7 +899,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           if (IndexWriter.isLocked(d1)) {
             if (!ro) {
               if (force) {
-                IndexWriter.unlock(d1);
+                d1.makeLock(IndexWriter.WRITE_LOCK_NAME).close();  
               } else {
                 errorMsg("Index is locked. Try 'Force unlock' when opening.");
                 d1.close();

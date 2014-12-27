@@ -1,7 +1,7 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="4.10.2"/>
+	<property name="build.ver" value="4.10.3"/>
         <property name="lucene.version" value="${build.ver}"/>
 	<property name="dist.dir" value="dist"/>
 	<property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
