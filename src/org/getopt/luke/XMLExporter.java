@@ -7,8 +7,6 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.*;
-import org.apache.lucene.index.FieldInfo.DocValuesType;
-import static org.apache.lucene.index.FieldInfo.DocValuesType.SORTED;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Bits;
@@ -16,9 +14,9 @@ import org.apache.lucene.util.BytesRef;
 import org.getopt.luke.decoders.Decoder;
 
 public class XMLExporter extends Observable {
-  private AtomicReader atomicReader = null;
+  private LeafReader atomicReader = null;
   private IndexReader indexReader;
-  private String indexPath;
+  private final String indexPath;
   private boolean abort = false;
   private boolean running = false;
   private boolean decode = false;
@@ -32,8 +30,8 @@ public class XMLExporter extends Observable {
     this.indexReader = indexReader;
     if (indexReader instanceof CompositeReader) {
       this.atomicReader = SlowCompositeReaderWrapper.wrap((CompositeReader)indexReader);
-    } else if (indexReader instanceof AtomicReader) {
-      this.atomicReader =  (AtomicReader)indexReader;
+    } else if (indexReader instanceof LeafReader) {
+      this.atomicReader =  (LeafReader)indexReader;
     }
     if (this.atomicReader != null) {
       infos = atomicReader.getFieldInfos();
@@ -115,8 +113,8 @@ public class XMLExporter extends Observable {
         ranges = new Ranges();
         ranges.set(0, atomicReader.maxDoc());
       }
-      if (ranges.cardinality() > 0) {
-        while ( (i = ranges.nextSetBit(++i)) != -1) {
+      if (ranges.data.cardinality() > 0) {
+        while ( (i = ranges.data.nextSetBit(++i)) != -1) {
           if (i >= atomicReader.maxDoc()) {
             break;
           }
@@ -350,7 +348,7 @@ public class XMLExporter extends Observable {
       System.err.println("\t\tExample: 0-5,15,32-100,101,103,105-500");
       System.exit(-1);
     }
-    Directory dir = FSDirectory.open(new File(args[0]));
+    Directory dir = FSDirectory.open(new File(args[0]).toPath());
     if (!DirectoryReader.indexExists(dir)) {
       throw new Exception("There is no valid Lucene index here: '" + args[0] + "'");
     }

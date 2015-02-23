@@ -12,12 +12,12 @@ import org.apache.lucene.document.DateTools.Resolution;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.FieldType.NumericType;
-import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.CompositeReader;
 import org.apache.lucene.index.DocValues;
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.FieldInfo.DocValuesType;
-import org.apache.lucene.index.FieldInfo.IndexOptions;
+import org.apache.lucene.index.DocValuesType;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.NumericDocValues;
@@ -182,16 +182,16 @@ public class Util {
   }
   
   public static Collection<String> fieldNames(IndexReader r, boolean indexedOnly) throws IOException {
-    AtomicReader reader;
+    LeafReader reader;
     if (r instanceof CompositeReader) {
       reader = SlowCompositeReaderWrapper.wrap((CompositeReader)r);
     } else {
-      reader = (AtomicReader)r;
+      reader = (LeafReader)r;
     }
     Set<String> res = new HashSet<String>();
     FieldInfos infos = reader.getFieldInfos();
     for (FieldInfo info : infos) {
-      if (indexedOnly && info.isIndexed()) {
+      if (indexedOnly && info.getIndexOptions() != IndexOptions.NONE) {
         res.add(info.name);
         continue;
       }
@@ -238,8 +238,7 @@ public class Util {
     BytesRef binary = null;
     Number numeric = null;
     if (fld == null) {
-      t = new FieldType();
-      t.setIndexed(false);
+      t = new FieldType();      
       t.setStored(false);
       t.setStoreTermVectors(false);
       t.setOmitNorms(true);
@@ -253,12 +252,12 @@ public class Util {
       numeric = fld.numericValue();
     }
     StringBuffer flags = new StringBuffer();
-    if (info.isIndexed()) flags.append("I");
+    if (info.getIndexOptions() != IndexOptions.NONE) flags.append("I");
     else flags.append("-");
     IndexOptions opts = info.getIndexOptions();
-    if (info.isIndexed() && opts != null) {
+    if (info.getIndexOptions() != IndexOptions.NONE && opts != null) {
       switch (opts) {
-      case DOCS_ONLY:
+      case DOCS:
         flags.append("d---");
         break;
       case DOCS_AND_FREQS:
@@ -283,7 +282,7 @@ public class Util {
     else flags.append("-");
     if (info.hasNorms()) {
       flags.append("N");
-      flags.append(dvToString(info.getNormType()));
+      flags.append(dvToString(DocValuesType.NUMERIC));
     }
     else flags.append("----");
     if (numeric != null) {
@@ -322,7 +321,7 @@ public class Util {
     } else {
       flags.append("----");
     }
-    if (info.hasDocValues()) {
+    if (info.getDocValuesType() != DocValuesType.NONE) {
       flags.append("D");
       flags.append(dvToString(info.getDocValuesType()));
     } else {

@@ -6,8 +6,7 @@ package org.getopt.luke;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.Scorer;
 
 class AllHitsCollector extends AccessibleHitCollector {
@@ -54,12 +53,7 @@ class AllHitsCollector extends AccessibleHitCollector {
   }
 
   @Override
-  public boolean acceptsDocsOutOfOrder() {
-    return outOfOrder;
-  }
-
-  @Override
-  public void setNextReader(AtomicReaderContext context) throws IOException {
+  public void doSetNextReader(LeafReaderContext context) throws IOException {
     this.docBase = context.docBase;
   }
 

@@ -2,19 +2,22 @@ package org.getopt.luke;
 
 import java.io.IOException;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.LeafCollector;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
 
 public class AccessibleTopHitCollector extends AccessibleHitCollector {
   private TopScoreDocCollector tdc;
+  private LeafCollector leafCollector = null;
+  private LeafReaderContext leafContext = null;
   private TopDocs topDocs = null;
   private int size;
   
-  public AccessibleTopHitCollector(int size, boolean outOfOrder, boolean shouldScore) {
-    tdc = TopScoreDocCollector.create(size, outOfOrder);
+  //TODO remove outOfOrder
+  public AccessibleTopHitCollector(int size, boolean outOfOrder, boolean shouldScore) {      
+    tdc = TopScoreDocCollector.create(size);    
     this.shouldScore = shouldScore;
     this.outOfOrder = outOfOrder;
     this.size = size;
@@ -42,33 +45,31 @@ public class AccessibleTopHitCollector extends AccessibleHitCollector {
   }
 
   @Override
-  public boolean acceptsDocsOutOfOrder() {
-    return tdc.acceptsDocsOutOfOrder();
+  public void collect(int doc) throws IOException {      
+    leafCollector.collect(doc);
   }
 
   @Override
-  public void collect(int doc) throws IOException {
-    tdc.collect(doc);
-  }
-
-  @Override
-  public void setNextReader(AtomicReaderContext context) throws IOException {
+  public void doSetNextReader(LeafReaderContext context) throws IOException {
     this.docBase = context.docBase;
-    tdc.setNextReader(context);
+    leafContext = context;
+    leafCollector = tdc.getLeafCollector(context);
+    
+//TODO_L5    tdc.setNextReader(context);
   }
 
   @Override
-  public void setScorer(Scorer scorer) throws IOException {
+  public void setScorer(Scorer scorer) throws IOException {      
     if (shouldScore) {
-      tdc.setScorer(scorer);
+//TODO_L5      tdc.scorer=scorer;
     } else {
-      tdc.setScorer(NoScoringScorer.INSTANCE);
+//TODO_L5      tdc.scorer=NoScoringScorer.INSTANCE;
     }
   }
 
   @Override
   public void reset() {
-    tdc = TopScoreDocCollector.create(size, outOfOrder);
+    tdc = TopScoreDocCollector.create(size);
     topDocs = null;
   }
 

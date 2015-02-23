@@ -19,8 +19,6 @@ package org.getopt.luke.plugins;
 
 
 import java.io.*;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
 import java.util.Random;
 
@@ -33,7 +31,6 @@ import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.lucene.store.*;
 import org.apache.hadoop.fs.*;
-import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,10 +55,11 @@ public class FsDirectory extends BaseDirectory {
 
   private IOReporter reporter;
   Cache cache;
-  
+      
   public FsDirectory(FileSystem fs, Path directory, boolean create, Configuration conf,
           IOReporter reporter, int bufSize)
     throws IOException {
+    super(NoLockFactory.INSTANCE);
     this.fs = fs;
     this.directory = directory;
     this.reporter = reporter;
@@ -120,12 +118,6 @@ public class FsDirectory extends BaseDirectory {
     return result;
   }
 
-  @Override
-  @Deprecated
-  public boolean fileExists(String name) throws IOException {
-    return fs.exists(new Path(directory, name));
-  }
-
   public long fileModified(String name) throws IOException {
     return fs.getFileStatus(new Path(directory, name)).getModificationTime();
   }
@@ -134,15 +126,18 @@ public class FsDirectory extends BaseDirectory {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public long fileLength(String name) throws IOException {
     return fs.getFileStatus(new Path(directory, name)).getLen();
   }
 
+  @Override
   public void deleteFile(String name) throws IOException {
     if (!fs.delete(new Path(directory, name), false))
       throw new IOException("Cannot delete " + name);
   }
 
+  @Override
   public void renameFile(String from, String to) throws IOException {
     // DFS is currently broken when target already exists,
     // so we explicitly delete the target first.
@@ -153,6 +148,7 @@ public class FsDirectory extends BaseDirectory {
     fs.rename(new Path(directory, from), target);
   }
 
+  @Override
   public IndexOutput createOutput(String name, IOContext ctx) throws IOException {
     Path file = new Path(directory, name);
     if (fs.exists(file) && !fs.delete(file, false))      // delete existing, if any
@@ -162,6 +158,7 @@ public class FsDirectory extends BaseDirectory {
   }
 
 
+  @Override
   public IndexInput openInput(String name, IOContext ctx) throws IOException {
     int bufSize = this.ioFileBufferSize;
     if (name.endsWith(".nrm")) { // need to read all data
@@ -172,29 +169,12 @@ public class FsDirectory extends BaseDirectory {
     return new DfsIndexInput(new Path(directory, name), bufSize, reporter);
   }
 
-  public Lock makeLock(final String name) {
-    return new Lock() {
-      public boolean obtain() {
-        return true;
-      }      
-      public void release() {
-      }
-      public boolean isLocked() {
-        throw new UnsupportedOperationException();
-      }
-      public String toString() {
-        return "Lock@" + new Path(directory, name);
-      }
-        @Override
-        public void close() throws IOException {            
-        }
-    };
-  }
-
+  @Override
   public synchronized void close() throws IOException {
     fs.close();
   }
 
+  @Override
   public String toString() {
     return this.getClass().getName() + "@" + directory;
   }
@@ -213,9 +193,9 @@ public class FsDirectory extends BaseDirectory {
     private final Descriptor descriptor;
     private final long length;
     private boolean isClone;
-    private IOReporter reporter;
-    private String name;
-    private String keyPrefix;
+    private final IOReporter reporter;
+    private final String name;
+    private final String keyPrefix;
 
     public DfsIndexInput(Path path, int ioFileBufferSize, IOReporter reporter) throws IOException {
       super(path.getName(), ioFileBufferSize);
@@ -226,6 +206,7 @@ public class FsDirectory extends BaseDirectory {
       keyPrefix = path.toString() + ":";
     }
 
+    @Override
     protected void readInternal(byte[] b, int offset, int len)
       throws IOException {
       synchronized (descriptor) {
@@ -266,20 +247,33 @@ public class FsDirectory extends BaseDirectory {
       }
     }
 
+    @Override
     public void close() throws IOException {
       if (!isClone) {
         descriptor.in.close();
       }
     }
 
+    @Override
     protected void seekInternal(long position) {} // handled in readInternal()
 
+    @Override
     public long length() {
       return length;
     }
 
+    @Override
     protected void finalize() throws IOException {
-      close();                                      // close the file
+        try {
+            close();                                      // close the file
+        } finally {
+            try {
+                super.finalize();
+            } catch (Throwable ex) {
+                java.util.logging.Logger.getLogger(FsDirectory.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+                throw new IOException(ex);
+            }
+        }
     }
 
     @Override
@@ -296,7 +290,7 @@ public class FsDirectory extends BaseDirectory {
     private File localFile;
 
     public DfsIndexOutput(Path path, int ioFileBufferSize) throws IOException {
-      super(new FileOutputStream(new File(path.toUri())), ioFileBufferSize);
+      super(path.getName(),new FileOutputStream(new File(path.toUri())), ioFileBufferSize);
       // create a temporary local file and set it to delete on exit
       String randStr = Integer.toString(new Random().nextInt(Integer.MAX_VALUE));
       localFile = File.createTempFile("index_" + randStr, ".tmp");
@@ -313,7 +307,7 @@ public class FsDirectory extends BaseDirectory {
       // transfer to dfs from local
       byte[] buffer = new byte[4096];
       local.seek(0);
-      int read = -1;
+      int read;
       while ((read = local.read(buffer)) != -1) {
         out.write(buffer, 0, read);
       }

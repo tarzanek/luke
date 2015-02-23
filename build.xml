@@ -1,7 +1,7 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="4.10.3"/>
+	<property name="build.ver" value="5.0.0"/>
         <property name="lucene.version" value="${build.ver}"/>
 	<property name="dist.dir" value="dist"/>
 	<property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
@@ -14,13 +14,14 @@
 		<mkdir dir="${build.dir}"/>
 		<mkdir dir="${dist.dir}"/>
 	</target>
-
+<!-- TODO !!!!!!!!!!!!! L5  merge service manifests into lukeall.jar !!!! -->
 	<target name="clean">
 		<delete dir="${build.dir}"/>
 		<delete dir="${dist.dir}"/>
 	</target>
         
 <property name="lucene-core.jar" value="lucene-core-${lucene.version}.jar"/>
+<property name="lucene-backward-codecs.jar" value="lucene-backward-codecs-${lucene.version}.jar"/>
 <property name="lucene-analyzers-common.jar" value="lucene-analyzers-common-${lucene.version}.jar"/>
 <property name="lucene-misc.jar" value="lucene-misc-${lucene.version}.jar"/>
 <property name="lucene-queries.jar" value="lucene-queries-${lucene.version}.jar"/>
@@ -30,6 +31,7 @@
 <property name="libdir" value="lib"/>
 <property name="solrlibdir" value="${libdir}/solr"/>
 <property name="file.reference.lucene-core.jar" value="${libdir}/${lucene-core.jar}"/>
+<property name="file.reference.lucene-backward-codecs.jar" value="${libdir}/${lucene-backward-codecs.jar}"/>
 <property name="file.reference.lucene-analyzers-common.jar" value="${libdir}/${lucene-analyzers-common.jar}"/>
 <property name="file.reference.lucene-misc.jar" value="${libdir}/${lucene-misc.jar}"/>
 <property name="file.reference.lucene-queries.jar" value="${libdir}/${lucene-queries.jar}"/>
@@ -50,6 +52,9 @@
         <available file="${lucene-core.jar}" type="file" property="lucene-core.jar.present">
             <filepath refid="plainlib.search.path"/>
         </available> 
+        <available file="${lucene-backward-codecs.jar}" type="file" property="lucene-backward-codecs.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available>         
         <available file="${lucene-analyzers-common.jar}" type="file" property="lucene-analyzers-common.jar.present">
             <filepath refid="plainlib.search.path"/>
         </available> 
@@ -72,6 +77,7 @@
             <not>
             <and>
                 <isset property="lucene-core.jar.present"/>
+                <isset property="lucene-backward-codecs.jar.present"/>
                 <isset property="lucene-analyzers-common.jar.present"/>
                 <isset property="lucene-misc.jar.present"/>
                 <isset property="lucene-queries.jar.present"/>
@@ -96,6 +102,8 @@
         </delete>                
         <get src="${mvn.repository}/org/apache/lucene/lucene-core/${lucene.version}/${lucene-core.jar}"
         dest="${file.reference.lucene-core.jar}" verbose="true" usetimestamp="true"/>
+        <get src="${mvn.repository}/org/apache/lucene/lucene-backward-codecs/${lucene.version}/${lucene-backward-codecs.jar}"
+        dest="${file.reference.lucene-backward-codecs.jar}" verbose="true" usetimestamp="true"/>        
         <get src="${mvn.repository}/org/apache/lucene/lucene-analyzers-common/${lucene.version}/${lucene-analyzers-common.jar}"
         dest="${file.reference.lucene-analyzers-common.jar}" verbose="true" usetimestamp="true"/>
         <get src="${mvn.repository}/org/apache/lucene/lucene-misc/${lucene.version}/${lucene-misc.jar}"
@@ -155,7 +163,7 @@
 				excludes="org/getopt/luke/plugins,**/*.js,**/Thumbs.db">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="${lucene-core.jar};js.jar;${lucene-misc.jar}"/>
+				<attribute name="Classpath" value="${lucene-core.jar};js.jar;${lucene-misc.jar};${lucene-backward-codecs.jar}"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">
@@ -167,7 +175,7 @@
 		        excludes="org/mozilla/,org/getopt/luke/plugins,**/*.js">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="${lucene-core.jar};${lucene-misc.jar}"/>
+				<attribute name="Classpath" value="${lucene-core.jar};${lucene-misc.jar};${lucene-backward-codecs.jar}"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">

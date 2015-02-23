@@ -2,25 +2,25 @@ package org.getopt.luke;
 
 import java.io.IOException;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
 
 public class CountLimitedHitCollector extends LimitedHitCollector {
-  private int maxSize;
+  private final int maxSize;
   private int count;
   private int lastDoc;
   private TopScoreDocCollector tdc;
   private TopDocs topDocs = null;
   
+  //TODO remove outOfOrder
   public CountLimitedHitCollector(int maxSize, boolean outOfOrder, boolean shouldScore) {
     this.maxSize = maxSize;
     this.outOfOrder = outOfOrder;
     this.shouldScore = shouldScore;
     count = 0;
-    tdc = TopScoreDocCollector.create(maxSize, outOfOrder);
+    tdc = TopScoreDocCollector.create(maxSize);
   }
 
   @Override
@@ -45,7 +45,7 @@ public class CountLimitedHitCollector extends LimitedHitCollector {
     }
     lastDoc = docBase + doc;
     
-    tdc.collect(doc);
+//TODO_L5    tdc.collect(doc);
   }
 
   /* (non-Javadoc)
@@ -79,22 +79,17 @@ public class CountLimitedHitCollector extends LimitedHitCollector {
   }
 
   @Override
-  public boolean acceptsDocsOutOfOrder() {
-    return tdc.acceptsDocsOutOfOrder();
-  }
-
-  @Override
-  public void setNextReader(AtomicReaderContext context) throws IOException {
+  public void doSetNextReader(LeafReaderContext context) throws IOException {
     this.docBase = context.docBase;
-    tdc.setNextReader(context);
+//TODO_L5    tdc.SetNextReader(context);
   }
 
   @Override
   public void setScorer(Scorer scorer) throws IOException {
     if (shouldScore) {
-      tdc.setScorer(scorer);
+      //TODO_L5 tdc.setScorer(scorer);
     } else {
-      tdc.setScorer(NoScoringScorer.INSTANCE);
+      //TODO_L5 tdc.setScorer(NoScoringScorer.INSTANCE);
     }
   }
 
@@ -103,6 +98,6 @@ public class CountLimitedHitCollector extends LimitedHitCollector {
     count = 0;
     lastDoc = 0;
     topDocs = null;
-    tdc = TopScoreDocCollector.create(maxSize, outOfOrder);
+    tdc = TopScoreDocCollector.create(maxSize);
   }
 }

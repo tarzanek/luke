@@ -11,6 +11,6 @@ for (var i = 0; i < app.analyzers.length; i++) {
 }
 if (ir != null) {
  print("Number of documents: " + ir.numDocs());
- print("Field names: " + ir.fieldNames);
+ print("Field names: " + app.idxInfo.getFieldNames());
 }
 app.actionAbout();

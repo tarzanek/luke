@@ -49,7 +49,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.*;
 import org.apache.lucene.index.CheckIndex.Status.SegmentInfoStatus;
-import org.apache.lucene.index.FieldInfo.IndexOptions;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.TermsEnum.SeekStatus;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.misc.SweetSpotSimilarity;
@@ -109,7 +109,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private Directory dir = null;
   String pName = null;
   private IndexReader ir = null;
-  private AtomicReader ar = null;
+  private LeafReader ar = null;
   private IndexSearcher is = null;
   private boolean slowAccess = false;
   private List<String> fn = null;
@@ -399,6 +399,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
   public List<LukePlugin> getPlugins() {
     return Collections.unmodifiableList(plugins);
   }
+  
+  /**
+   * Return the current IndexInfo
+   * @return
+   */
+  public IndexInfo getIdxInfo() {
+    return idxInfo;
+  }  
   
   /**
    * Get an already instantiated plugin, or null if such plugin was
@@ -784,7 +792,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   private IndexWriter createIndexWriter() {
     try {
-      IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer());
+      IndexWriterConfig cfg = new IndexWriterConfig(new WhitespaceAnalyzer());
       IndexDeletionPolicy policy;
       if (keepCommits) {
         policy = new KeepAllIndexDeletionPolicy();
@@ -882,7 +890,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       boolean existsSingle = false;
       // IR.indexExists doesn't report the cause of error
       try {
-        new SegmentInfos().read(d);
+        SegmentInfos infos=SegmentInfos.readLatestCommit(d);
         existsSingle = true;
       } catch (Throwable e) {
         e.printStackTrace();
@@ -910,7 +918,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           }
           existsSingle = false;
           try {
-            new SegmentInfos().read(d1);
+            SegmentInfos infos=SegmentInfos.readLatestCommit(d1);
             existsSingle = true;
           } catch (Throwable e) {
             lastException = e;
@@ -938,7 +946,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       if (ramdir) {
         showStatus("Loading index into RAMDirectory ...");
         Directory dir1 = new RAMDirectory();
-        IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer());
+        IndexWriterConfig cfg = new IndexWriterConfig(new WhitespaceAnalyzer());
         IndexWriter iw1 = new IndexWriter(dir1, cfg);
         iw1.addIndexes((Directory[])dirs.toArray(new Directory[dirs.size()]));
         iw1.close();
@@ -955,12 +963,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
       ArrayList<DirectoryReader> readers = new ArrayList<DirectoryReader>();
       for (Directory dd : dirs) {
-        DirectoryReader reader;
-        if (tiiDivisor > 1) {
-          reader = DirectoryReader.open(dd, tiiDivisor);
-        } else {
-          reader = DirectoryReader.open(dd);
-        }
+        DirectoryReader reader;        
+        reader = DirectoryReader.open(dd);
         readers.add(reader);
       }
       if (readers.size() == 1) {
@@ -999,7 +1003,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     Directory res = null;
     if (dirImpl == null || dirImpl.equals(Directory.class.getName()) || dirImpl.equals(FSDirectory.class.getName())) {
-      return FSDirectory.open(f);
+      return FSDirectory.open(f.toPath());
     }
     try {
       Class implClass = Class.forName(dirImpl);
@@ -1016,7 +1020,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     if (res != null) return res;
     // fall-back to FSDirectory.
-    if (res == null) return FSDirectory.open(f);
+    if (res == null) return FSDirectory.open(f.toPath());
     return null;
   }
   
@@ -1133,8 +1137,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showFiles(dir, null);
       if (ir instanceof CompositeReader) {
         ar = SlowCompositeReaderWrapper.wrap((CompositeReader)ir);
-      } else if (ir instanceof AtomicReader) {
-        ar = (AtomicReader)ir;
+      } else if (ir instanceof LeafReader) {
+        ar = (LeafReader)ir;
       }
       if (ar != null) {
         infos = ar.getFieldInfos();
@@ -1189,9 +1193,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
       Object iTiiDiv = find(pOver, "iTiiDiv");
       String divText = "N/A";
       if (ir instanceof DirectoryReader) {
-        List<AtomicReaderContext> readers = ((DirectoryReader)ir).leaves();
+        List<LeafReaderContext> readers = ((DirectoryReader)ir).leaves();
         if (readers.size() > 0 && readers.get(0).reader() instanceof SegmentReader){
-          divText = String.valueOf(((SegmentReader)(readers.get(0)).reader()).getTermInfosIndexDivisor());
+          divText = "N/A";
         }
       }
       setString(iTiiDiv, "text", divText);
@@ -1394,7 +1398,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     String segName = commit.getSegmentsFileName();
     SegmentInfos infos = new SegmentInfos();
     try {
-      infos.read(dir, segName);
+      infos=SegmentInfos.readCommit(dir, segName);
     } catch (Exception e) {
       e.printStackTrace();
       errorMsg("Error reading segment infos for '" + segName + ": " + e.toString());
@@ -1513,11 +1517,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       List<String> files = new ArrayList<String>(si.files());
       Collections.sort(files);
       map.put("---files---", files.toString());
-      if (si.info.getUseCompoundFile()) {
-        Directory d = new CompoundFileDirectory(dir, IndexFileNames.segmentFileName(si.info.name, "", IndexFileNames.COMPOUND_FILE_EXTENSION), IOContext.READ, false);
+      if (si.info.getUseCompoundFile()) {                               
+        String cfsFiles[] = si.info.getCodec().compoundFormat().files(si.info);
         files.clear();
-        files.addAll(Arrays.asList(d.listAll()));
-        d.close();
+        files.addAll(Arrays.asList(cfsFiles));
         Collections.sort(files);
         map.put("-CFS-files-", files.toString());
       }
@@ -1540,7 +1543,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     // fieldInfos
     try {
-      SegmentReader sr = new SegmentReader(si, 1, IOContext.READ);
+      SegmentReader sr = new SegmentReader(si, IOContext.READ);
       FieldInfos fis = sr.getFieldInfos();
       map = new LinkedHashMap<String,String>();
       List<String> flds = new ArrayList<String>(fis.size());
@@ -1970,12 +1973,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
         Object fixPanel = find(dialog, "fixPanel");
         PanelPrintWriter ppw = new PanelPrintWriter(Luke.this, panel);
         Object ckRes = find(dialog, "ckRes");
-        CheckIndex.Status status = null;
-        CheckIndex ci = new CheckIndex(dir);
-        ci.setInfoStream(ppw);
-        putProperty(dialog, "checkIndex", ci);
-        putProperty(dialog, "ppw", ppw);
+        CheckIndex.Status status = null;        
         try {
+          CheckIndex ci = new CheckIndex(dir);
+          ci.setInfoStream(ppw);
+          putProperty(dialog, "checkIndex", ci);
+          putProperty(dialog, "ppw", ppw);
           status = ci.checkIndex();
         } catch (Exception e) {
           ppw.println("ERROR: caught exception, giving up.\n\n");
@@ -2045,7 +2048,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         Object fixRes = find(dialog, "fixRes");
         PanelPrintWriter ppw = (PanelPrintWriter)getProperty(dialog, "ppw");
         try {
-          ci.fixIndex(status);
+          ci.exorciseIndex(status);
           setString(fixRes, "text", "DONE. Review the output above.");
         } catch (Exception e) {
           ppw.println("\nERROR during Fix Index:");
@@ -2398,15 +2401,14 @@ public class Luke extends Thinlet implements ClipboardOwner {
           } else {
             policy = new KeepLastIndexDeletionPolicy();
           }
-          IndexWriterConfig cfg = new IndexWriterConfig(LV, new WhitespaceAnalyzer());
+          IndexWriterConfig cfg = new IndexWriterConfig(new WhitespaceAnalyzer());
           if (!useLast) {
             IndexCommit ic = ((DirectoryReader)ir).getIndexCommit();
             if (ic != null) {
               cfg.setIndexCommit(ic);
             }
           }
-          cfg.setIndexDeletionPolicy(policy);
-          cfg.setTermIndexInterval(tii);
+          cfg.setIndexDeletionPolicy(policy);          
           MergePolicy p = cfg.getMergePolicy();
           if (p instanceof LogMergePolicy) {
             ((LogMergePolicy)p).setNoCFSRatio(useCompound?1.0:0.0);
@@ -2616,7 +2618,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
                 setBoolean(cbStored, "selected", t.stored());
                 // Lucene 3.0 doesn't support compressed fields
                 //setBoolean(cbCmp, "selected", false);
-                setBoolean(cbIndexed, "selected", t.indexed());
+                setBoolean(cbIndexed, "selected", t.indexOptions()!=null);
                 setBoolean(cbTokenized, "selected", t.tokenized());
                 setBoolean(cbTVF, "selected", t.storeTermVectors());
                 setBoolean(cbTVFp, "selected", t.storeTermVectorPositions());
@@ -2705,14 +2707,16 @@ public class Luke extends Thinlet implements ClipboardOwner {
       // XXX omitTF needs fixing
       // f.setOmitTermFreqAndPositions(getBoolean(cbOTF, "selected"));
       if (getBoolean(cbOTF, "selected")) {
-        ft.setIndexOptions(IndexOptions.DOCS_ONLY);
+        ft.setIndexOptions(IndexOptions.DOCS);
       } else {
         ft.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
       }
-      ft.setStored(getBoolean(cbStored, "selected"));
-      ft.setIndexed(getBoolean(cbIndexed, "selected"));
+      ft.setStored(getBoolean(cbStored, "selected"));      
+      if ( getBoolean(cbIndexed, "selected") ) {
+          ft.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+      }
       ft.setTokenized(getBoolean(cbTokenized, "selected"));
-      if (ft.stored() == false && ft.indexed() == false) {
+      if (ft.stored() == false && ft.indexOptions() == null) {
         errorMsg("Field '" + name + "' is neither stored nor indexed.");
         return false;
       }
@@ -3107,7 +3111,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       return;
     }
     FieldInfo info = infos.fieldInfo(f.name());
-    if (!info.isIndexed()) {
+    if (info.getIndexOptions() == IndexOptions.NONE || info.getIndexOptions() == null) {        
       showStatus("Cannot examine norm value - this field is not indexed.");
       return;
     }

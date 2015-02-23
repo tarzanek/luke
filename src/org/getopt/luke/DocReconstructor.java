@@ -2,12 +2,9 @@ package org.getopt.luke;
 
 import java.util.*;
 
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
 import org.apache.lucene.index.*;
 import org.apache.lucene.util.Bits;
-import org.apache.lucene.util.BytesRef;
 
 /**
  * This class attempts to reconstruct all fields from a document
@@ -23,7 +20,7 @@ import org.apache.lucene.util.BytesRef;
 public class DocReconstructor extends Observable {
   private ProgressNotification progress = new ProgressNotification();
   private String[] fieldNames = null;
-  private AtomicReader reader = null;
+  private LeafReader reader = null;
   private int numTerms;
   private Bits live;
   
@@ -51,8 +48,8 @@ public class DocReconstructor extends Observable {
     }
     if (reader instanceof CompositeReader) {
       this.reader = SlowCompositeReaderWrapper.wrap((CompositeReader)reader);
-    } else if (reader instanceof AtomicReader) {
-      this.reader = (AtomicReader)reader;
+    } else if (reader instanceof LeafReader) {
+      this.reader = (LeafReader)reader;
     } else {
       throw new Exception("Unsupported IndexReader class " + reader.getClass().getName());
     }

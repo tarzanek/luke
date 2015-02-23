@@ -64,7 +64,7 @@ public class HighFreqTerms {
     }     
 
     if (args.length > 0) {
-      dir = FSDirectory.open(new File(args[0]));
+      dir = FSDirectory.open(new File(args[0]).toPath());
     }
    
     for (int i = 1; i < args.length; i++) {

@@ -17,8 +17,6 @@ import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.util.Version;
-import org.getopt.luke.Luke;
 import org.getopt.luke.KeepAllIndexDeletionPolicy;
 
 /**
@@ -84,9 +82,9 @@ public class IndexGate {
   public static final int FORMAT_PRE_4 = -12;
 
   static {
-    knownExtensions.put(IndexFileNames.COMPOUND_FILE_EXTENSION, "compound file with various index data");
-    knownExtensions.put(IndexFileNames.COMPOUND_FILE_ENTRIES_EXTENSION, "compound file entries list");
-    knownExtensions.put(IndexFileNames.GEN_EXTENSION, "generation number - global file");
+    knownExtensions.put(IndexFileNames.CODEC_FILE_PATTERN.pattern(), "regexp pattern that all codec files must match to");
+    knownExtensions.put(IndexFileNames.OLD_SEGMENTS_GEN, "old generation number - global file");
+    knownExtensions.put(IndexFileNames.PENDING_SEGMENTS, "pending segments file");    
     knownExtensions.put(IndexFileNames.SEGMENTS, "per-commit list of segments and user data");
   }
   
@@ -177,7 +175,7 @@ public class IndexGate {
       res.capabilities = "flexible, unreleased 4.0 pre-alpha";
       res.genericName = "Lucene 4.0-dev";
       res.version = "4.0-dev";
-      break;
+      break;    
     default:
       if (format < FORMAT_PRE_4) {
         res.capabilities = "flexible, unreleased 4.0 pre-alpha";
@@ -206,20 +204,20 @@ public class IndexGate {
         try {
           int indexFormat = in.readInt();
           if (indexFormat == CodecUtil.CODEC_MAGIC) {
-            res.genericName = "Lucene 4.x";
+            res.genericName = "Lucene 4.x or 5.x";
             res.capabilities = "flexible, codec-specific";
             int actualVersion = SegmentInfos.VERSION_40;
             try {
               actualVersion = CodecUtil.checkHeaderNoMagic(in, "segments", SegmentInfos.VERSION_40, Integer.MAX_VALUE);
-              if (actualVersion > SegmentInfos.VERSION_49) {
+              if (actualVersion > SegmentInfos.VERSION_50) {
                 res.capabilities += " (WARNING: newer version of Lucene than this tool)";
               }
             } catch (Exception e) {
               e.printStackTrace();
               res.capabilities += " (error reading: " + e.getMessage() + ")";
             }
-            res.genericName = "Lucene 4.x, segment ver.:" + actualVersion;
-            res.version = "4." + actualVersion;
+            res.genericName = "Lucene 4.x or 5.x, segment ver.:" + actualVersion;
+            res.version = String.valueOf(actualVersion);
           } else {
             res.genericName = "Lucene 3.x or prior";
             detectOldFormats(res, indexFormat);
@@ -238,7 +236,7 @@ public class IndexGate {
   
   public static boolean preferCompoundFormat(Directory dir) throws Exception {
     SegmentInfos infos = new SegmentInfos();
-    infos.read(dir);
+    infos=SegmentInfos.readLatestCommit(dir);
     int compound = 0, nonCompound = 0;
     for (int i = 0; i < infos.size(); i++) {
       if (((SegmentCommitInfo)infos.info(i)).info.getUseCompoundFile()) {
@@ -252,8 +250,8 @@ public class IndexGate {
   
   public static void deletePendingFiles(Directory dir, IndexDeletionPolicy policy) throws Exception {
     SegmentInfos infos = new SegmentInfos();
-    infos.read(dir);
-    IndexWriterConfig cfg = new IndexWriterConfig(Luke.LV, new WhitespaceAnalyzer());
+    infos=SegmentInfos.readLatestCommit(dir);
+    IndexWriterConfig cfg = new IndexWriterConfig(new WhitespaceAnalyzer());
     IndexWriter iw = new IndexWriter(dir, cfg);
     IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, null, iw, true);
     deleter.close();
@@ -281,14 +279,14 @@ public class IndexGate {
 
     boolean prevExists;
     try {
-          dir.openInput(IndexFileNames.SEGMENTS_GEN, IOContext.DEFAULT).close();
+          dir.openInput(IndexFileNames.OLD_SEGMENTS_GEN, IOContext.DEFAULT).close();
           prevExists = true;
     } catch (IOException ioe) {
           prevExists = false;
     }
 
     if (prevExists) {
-          known.add(IndexFileNames.SEGMENTS_GEN);
+          known.add(IndexFileNames.OLD_SEGMENTS_GEN);
     }
     List<String> names = new ArrayList<String>(known);
     Collections.sort(names);
