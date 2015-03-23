@@ -90,6 +90,7 @@
     </target>
     
     <target name="download-lucene" depends="-check-lucene" if="lucene_not_downloaded">
+        <mkdir dir="${solrlibdir}"/>
         <delete>
          <fileset dir="${libdir}">
           <include name="lucene-*.jar"/>          
@@ -99,7 +100,7 @@
          <fileset dir="${solrlibdir}">
           <include name="solr-*.jar"/>          
          </fileset>
-        </delete>                
+        </delete>        
         <get src="${mvn.repository}/org/apache/lucene/lucene-core/${lucene.version}/${lucene-core.jar}"
         dest="${file.reference.lucene-core.jar}" verbose="true" usetimestamp="true"/>
         <get src="${mvn.repository}/org/apache/lucene/lucene-backward-codecs/${lucene.version}/${lucene-backward-codecs.jar}"
