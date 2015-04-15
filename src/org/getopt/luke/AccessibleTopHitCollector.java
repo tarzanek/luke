@@ -73,4 +73,9 @@ public class AccessibleTopHitCollector extends AccessibleHitCollector {
     topDocs = null;
   }
 
+    @Override
+    public boolean needsScores() {
+        return shouldScore;
+    }
+
 }

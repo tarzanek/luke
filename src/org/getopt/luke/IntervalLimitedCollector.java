@@ -97,4 +97,9 @@ public class IntervalLimitedCollector extends LimitedHitCollector {
     tdc = TopScoreDocCollector.create(1000);
     thc = new TimeLimitingCollector(tdc, TimeLimitingCollector.getGlobalCounter(), maxTime);
   }
+
+    @Override
+    public boolean needsScores() {
+        return shouldScore;
+    }
 }

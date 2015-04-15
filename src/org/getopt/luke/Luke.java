@@ -1420,7 +1420,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setChoice(cell, "alignment", "right");
       cell = create("cell");
       add(r, cell);
-      setString(cell, "text", String.valueOf(si.info.getDocCount()));
+      setString(cell, "text", String.valueOf(si.info.maxDoc()));
       setChoice(cell, "alignment", "right");
       cell = create("cell");
       add(r, cell);
@@ -1517,8 +1517,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
       List<String> files = new ArrayList<String>(si.files());
       Collections.sort(files);
       map.put("---files---", files.toString());
-      if (si.info.getUseCompoundFile()) {                               
-        String cfsFiles[] = si.info.getCodec().compoundFormat().files(si.info);
+      if (si.info.getUseCompoundFile()) {        
+        String cfsFiles[] = si.info.files().toArray(new String[0]);
         files.clear();
         files.addAll(Arrays.asList(cfsFiles));
         Collections.sort(files);
@@ -3650,12 +3650,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
       public void execute() {
         try {
           //DocsEnum td = ar.termDocsEnum(ar.getLiveDocs(), t.field(), new BytesRef(t.text()), 0);
-          DocsEnum td = ar.termDocsEnum(t);
+          PostingsEnum td = ar.postings(t);
           if (td == null) {
             showStatus("No such term: " + t);
             return;
           }
-          if (td.nextDoc() == DocsEnum.NO_MORE_DOCS) {
+          if (td.nextDoc() == PostingsEnum.NO_MORE_DOCS) {
             showStatus("No documents with this term: " + t + " (NO_MORE_DOCS)");
             return;
           }
@@ -3685,12 +3685,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
     SlowThread st = new SlowThread(this) {
       public void execute() {
         try {
-          DocsEnum td = (DocsEnum) getProperty(fText, "td");
+          PostingsEnum td = (PostingsEnum) getProperty(fText, "td");
           if (td == null) {
             showFirstTermDoc(fText);
             return;
           }
-          if (td.nextDoc() == DocsEnum.NO_MORE_DOCS) {
+          if (td.nextDoc() == PostingsEnum.NO_MORE_DOCS) {
             showStatus("No more docs for this term");
             return;
           }
@@ -3741,17 +3741,17 @@ public class Luke extends Thinlet implements ClipboardOwner {
               }
             }
           }
-          DocsEnum tdd = (DocsEnum)getProperty(fText, "td");
+          PostingsEnum tdd = (PostingsEnum)getProperty(fText, "td");
           if (tdd == null) {
             showStatus("Unknown document number.");
             return;
           }
-          int flags = DocsAndPositionsEnum.FLAG_PAYLOADS;
+          int flags = PostingsEnum.PAYLOADS;
           if (withOffsets) {
-            flags |= DocsAndPositionsEnum.FLAG_OFFSETS;
+            flags |= PostingsEnum.OFFSETS;
           }
           //DocsAndPositionsEnum td = ar.termPositionsEnum(ar.getLiveDocs(), t.field(), t.bytes(), flags);
-          DocsAndPositionsEnum td = ar.termPositionsEnum(t);
+          PostingsEnum td = ar.postings(t);
           if (td == null) {
             showStatus("No position information available for this term.");
             return;
@@ -4330,9 +4330,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setString(n, "text", getString(n, "text") + ", " + cq.toString());
       Object n1 = create("node");
       add(n, n1);
+      /* // LUCENE-1518 
       if (cq.getFilter() != null) {
         setString(n1, "text", "Filter: " + cq.getFilter().toString());
-      } else if (cq.getQuery() != null) {
+      } else */
+      if (cq.getQuery() != null) {
         _explainStructure(n, cq.getQuery());
       }
     } else if (q instanceof FilteredQuery) {
@@ -4909,7 +4911,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
   }
 
-  private void _showTermDoc(Object fText, final DocsEnum td) {
+  private void _showTermDoc(Object fText, final PostingsEnum td) {
     if (ir == null) {
       showStatus(MSG_NOINDEX);
       return;

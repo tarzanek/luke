@@ -21,7 +21,6 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
 import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiFields;

@@ -100,4 +100,9 @@ public class CountLimitedHitCollector extends LimitedHitCollector {
     topDocs = null;
     tdc = TopScoreDocCollector.create(maxSize);
   }
+
+    @Override
+    public boolean needsScores() {
+        return shouldScore;
+    }
 }

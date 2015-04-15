@@ -105,7 +105,7 @@ public class DocReconstructor extends Observable {
     progress.curValue = 0;
     progress.minValue = 0;
     TermsEnum te = null;
-    DocsAndPositionsEnum dpe = null;
+    PostingsEnum pe = null;
     for (int i = 0; i < fieldNames.length; i++) {
       Terms tvf = reader.getTermVector(docNum, fieldNames[i]);
       if (tvf != null) { // has vectors for this field
@@ -146,12 +146,12 @@ public class DocReconstructor extends Observable {
       }
       te = terms.iterator(te);
       while (te.next() != null) {
-        DocsAndPositionsEnum newDpe = te.docsAndPositions(live, dpe, 0);
-        if (newDpe == null) { // no position info for this field
+        PostingsEnum newPe = te.postings(live, pe, 0);
+        if (newPe == null) { // no position info for this field
           break;
         }
-        dpe = newDpe;
-        int num = dpe.advance(docNum);
+        pe = newPe;
+        int num = pe.advance(docNum);
         if (num != docNum) { // either greater than or NO_MORE_DOCS
           continue; // no data for this term in this doc
         }
@@ -162,8 +162,8 @@ public class DocReconstructor extends Observable {
           gsa = new GrowableStringArray();
           res.getReconstructedFields().put(fld, gsa);
         }
-        for (int k = 0; k < dpe.freq(); k++) {
-          int pos = dpe.nextPosition();
+        for (int k = 0; k < pe.freq(); k++) {
+          int pos = pe.nextPosition();
           gsa.append(pos, "|", term);
         }
       }

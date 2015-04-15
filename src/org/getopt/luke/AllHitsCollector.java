@@ -30,16 +30,24 @@ class AllHitsCollector extends AccessibleHitCollector {
     hits.add(new AllHit(docBase + doc, score));
   }
   
+  @Override
   public int getTotalHits() {
     return hits.size();
   }
   
+  @Override
   public int getDocId(int i) {
     return ((AllHitsCollector.AllHit)hits.get(i)).docId;
   }
 
+  @Override
   public float getScore(int i) {
     return ((AllHitsCollector.AllHit)hits.get(i)).score;
+  }
+
+  @Override
+  public boolean needsScores() {
+     return shouldScore;
   }
 
   private static class AllHit {

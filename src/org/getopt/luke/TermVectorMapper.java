@@ -2,15 +2,11 @@ package org.getopt.luke;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.index.DocsAndPositionsEnum;
-import org.apache.lucene.index.DocsEnum;
+import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.util.Bits;
 
 /**
  * Utility class to make it easier to handle term vectors.
@@ -19,11 +15,11 @@ public class TermVectorMapper {
 
   public static List<IntPair> map(Terms terms, TermsEnum reuse, boolean acceptTermsOnly, boolean convertOffsets) throws IOException {
     TermsEnum te = terms.iterator(reuse);
-    DocsAndPositionsEnum dpe = null;
+    PostingsEnum pe = null;
     List<IntPair> res = new ArrayList<IntPair>();
     while (te.next() != null) {
-      DocsAndPositionsEnum newDpe = te.docsAndPositions(null, dpe, DocsAndPositionsEnum.FLAG_OFFSETS);
-      if (newDpe == null) { // no positions and no offsets - just add terms if allowed
+      PostingsEnum newPe = te.postings(null, pe, PostingsEnum.OFFSETS);
+      if (newPe == null) { // no positions and no offsets - just add terms if allowed
         if (!acceptTermsOnly) {
           return null;
         }
@@ -32,31 +28,31 @@ public class TermVectorMapper {
         res.add(new IntPair(freq, te.term().utf8ToString()));
         continue;
       }
-      dpe = newDpe;
+      pe = newPe;
       // term vectors have only one document, number 0
-      if (dpe.nextDoc() == DocsEnum.NO_MORE_DOCS) { // oops
+      if (pe.nextDoc() == PostingsEnum.NO_MORE_DOCS) { // oops
         // treat this as no positions nor offsets
         int freq = (int)te.totalTermFreq();
         if (freq == -1) freq = 0;
         res.add(new IntPair(freq, te.term().utf8ToString()));
         continue;
       }
-      IntPair ip = new IntPair(dpe.freq(), te.term().utf8ToString());
-      for (int i = 0; i < dpe.freq(); i++) {
-        int pos = dpe.nextPosition();
+      IntPair ip = new IntPair(pe.freq(), te.term().utf8ToString());
+      for (int i = 0; i < pe.freq(); i++) {
+        int pos = pe.nextPosition();
         if (pos != -1) {
           if (ip.positions == null) {
-            ip.positions = new int[dpe.freq()];
+            ip.positions = new int[pe.freq()];
           }
           ip.positions[i] = pos;
         }
-        if (dpe.startOffset() != -1) {
+        if (pe.startOffset() != -1) {
           if (ip.starts == null) {
-            ip.starts = new int[dpe.freq()];
-            ip.ends = new int[dpe.freq()];
+            ip.starts = new int[pe.freq()];
+            ip.ends = new int[pe.freq()];
           }
-          ip.starts[i] = dpe.startOffset();
-          ip.ends[i] = dpe.endOffset();
+          ip.starts[i] = pe.startOffset();
+          ip.ends[i] = pe.endOffset();
         }
       }
       if (convertOffsets && ip.positions == null) {
