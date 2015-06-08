@@ -103,7 +103,7 @@ public class ZipfAnalysisPlugin extends LukePlugin {
       public void execute() {
         try {
           int numBuckets = 100;
-          TermsEnum te = MultiFields.getTerms(ir, field).iterator(null);
+          TermsEnum te = MultiFields.getTerms(ir, field).iterator();
           ArrayList<TermCount> terms = new ArrayList<TermCount>();
 
           // most terms occur very infrequently - just keep group totals for the DFs

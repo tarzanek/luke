@@ -57,13 +57,13 @@ public class IndexInfo {
     termCounts = new HashMap<String,FieldTermCount>();
     numTerms = 0;
     Fields fields = MultiFields.getFields(reader);    
-    TermsEnum te = null;
+    TermsEnum te;
     for (String fld : fields) {
       FieldTermCount ftc = new FieldTermCount();
       ftc.fieldname = fld;
       Terms terms = fields.terms(fld);
       if (terms != null) { // count terms
-        te = terms.iterator(te);
+        te = terms.iterator();
         while (te.next() != null) {
           ftc.termCount++;
           numTerms++;

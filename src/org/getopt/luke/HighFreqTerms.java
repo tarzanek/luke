@@ -115,8 +115,8 @@ public class HighFreqTerms {
    * @throws Exception
    */
   public static TermStats[] getHighFreqTerms(IndexReader reader, int numTerms, String[] fieldNames) throws Exception {
-    TermStatsQueue tiq = null;
-    TermsEnum te = null;
+    TermStatsQueue tiq;
+    TermsEnum te;
     
     if (fieldNames != null) {
       Fields fields = MultiFields.getFields(reader);
@@ -128,7 +128,7 @@ public class HighFreqTerms {
       for (String field : fieldNames) {
         Terms terms = fields.terms(field);
         if (terms != null) {
-          te = terms.iterator(te);
+          te = terms.iterator();
           fillQueue(te, tiq, field);
         }
       }
@@ -143,7 +143,7 @@ public class HighFreqTerms {
         String field = fields.iterator().next();
         if (field != null) {
           Terms terms = fields.terms(field);
-          te = terms.iterator(te);
+          te = terms.iterator();
           fillQueue(te, tiq, field);
         } else {
           break;

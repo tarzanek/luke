@@ -106,7 +106,7 @@ public class VocabAnalysisPlugin extends LukePlugin {
           float numDocs = ir.maxDoc();
           if (numDocs < numAgeGroups) numAgeGroups = ir.maxDoc();
           float ageTotals[] = new float[numAgeGroups];
-          TermsEnum te = MultiFields.getTerms(ir, field).iterator(null);
+          TermsEnum te = MultiFields.getTerms(ir, field).iterator();
           while (te.next() != null) {
             PostingsEnum td = te.postings(null, null);
             td.nextDoc();

@@ -217,7 +217,7 @@ public class XMLExporter extends Observable {
   
   private void writeTermVector(BufferedWriter bw, Terms tfv, Bits liveDocs) throws Exception {
     bw.write("<tv>\n");
-    TermsEnum te = tfv.iterator(null);
+    TermsEnum te = tfv.iterator();
     PostingsEnum pe = null;
     StringBuilder positions = new StringBuilder();
     StringBuilder offsets = new StringBuilder();

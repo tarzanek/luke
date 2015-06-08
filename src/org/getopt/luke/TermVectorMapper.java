@@ -13,8 +13,13 @@ import org.apache.lucene.index.TermsEnum;
  */
 public class TermVectorMapper {
 
+  @Deprecated
   public static List<IntPair> map(Terms terms, TermsEnum reuse, boolean acceptTermsOnly, boolean convertOffsets) throws IOException {
-    TermsEnum te = terms.iterator(reuse);
+      return map(terms, acceptTermsOnly, convertOffsets); //dummy convert
+  }
+    
+  public static List<IntPair> map(Terms terms, boolean acceptTermsOnly, boolean convertOffsets) throws IOException {
+    TermsEnum te = terms.iterator();
     PostingsEnum pe = null;
     List<IntPair> res = new ArrayList<IntPair>();
     while (te.next() != null) {
