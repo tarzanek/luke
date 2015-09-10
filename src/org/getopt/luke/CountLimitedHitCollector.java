@@ -3,7 +3,6 @@ package org.getopt.luke;
 import java.io.IOException;
 
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
 
@@ -13,12 +12,10 @@ public class CountLimitedHitCollector extends LimitedHitCollector {
   private int lastDoc;
   private TopScoreDocCollector tdc;
   private TopDocs topDocs = null;
-  
-  //TODO remove outOfOrder
-  public CountLimitedHitCollector(int maxSize, boolean outOfOrder, boolean shouldScore) {
+  private LeafReaderContext leafReaderContext=null;
+    
+  public CountLimitedHitCollector(int maxSize) {
     this.maxSize = maxSize;
-    this.outOfOrder = outOfOrder;
-    this.shouldScore = shouldScore;
     count = 0;
     tdc = TopScoreDocCollector.create(maxSize);
   }
@@ -44,8 +41,7 @@ public class CountLimitedHitCollector extends LimitedHitCollector {
       throw new LimitedException(TYPE_SIZE, maxSize, count, lastDoc);
     }
     lastDoc = docBase + doc;
-    
-//TODO_L5    tdc.collect(doc);
+    tdc.getLeafCollector(leafReaderContext).collect(doc);
   }
 
   /* (non-Javadoc)
@@ -79,21 +75,6 @@ public class CountLimitedHitCollector extends LimitedHitCollector {
   }
 
   @Override
-  public void doSetNextReader(LeafReaderContext context) throws IOException {
-    this.docBase = context.docBase;
-//TODO_L5    tdc.SetNextReader(context);
-  }
-
-  @Override
-  public void setScorer(Scorer scorer) throws IOException {
-    if (shouldScore) {
-      //TODO_L5 tdc.setScorer(scorer);
-    } else {
-      //TODO_L5 tdc.setScorer(NoScoringScorer.INSTANCE);
-    }
-  }
-
-  @Override
   public void reset() {
     count = 0;
     lastDoc = 0;
@@ -103,6 +84,6 @@ public class CountLimitedHitCollector extends LimitedHitCollector {
 
     @Override
     public boolean needsScores() {
-        return shouldScore;
+        return tdc.needsScores();
     }
 }

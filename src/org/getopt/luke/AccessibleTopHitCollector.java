@@ -3,23 +3,17 @@ package org.getopt.luke;
 import java.io.IOException;
 
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.search.LeafCollector;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
 
 public class AccessibleTopHitCollector extends AccessibleHitCollector {
-  private TopScoreDocCollector tdc;
-  private LeafCollector leafCollector = null;
+  private TopScoreDocCollector tdc;  
   private LeafReaderContext leafContext = null;
   private TopDocs topDocs = null;
-  private int size;
-  
-  //TODO remove outOfOrder
-  public AccessibleTopHitCollector(int size, boolean outOfOrder, boolean shouldScore) {      
-    tdc = TopScoreDocCollector.create(size);    
-    this.shouldScore = shouldScore;
-    this.outOfOrder = outOfOrder;
+  private final int size;
+    
+  public AccessibleTopHitCollector(int size) {      
+    tdc = TopScoreDocCollector.create(size);        
     this.size = size;
   }
 
@@ -46,25 +40,7 @@ public class AccessibleTopHitCollector extends AccessibleHitCollector {
 
   @Override
   public void collect(int doc) throws IOException {      
-    leafCollector.collect(doc);
-  }
-
-  @Override
-  public void doSetNextReader(LeafReaderContext context) throws IOException {
-    this.docBase = context.docBase;
-    leafContext = context;
-    leafCollector = tdc.getLeafCollector(context);
-    
-//TODO_L5    tdc.setNextReader(context);
-  }
-
-  @Override
-  public void setScorer(Scorer scorer) throws IOException {      
-    if (shouldScore) {
-//TODO_L5      tdc.scorer=scorer;
-    } else {
-//TODO_L5      tdc.scorer=NoScoringScorer.INSTANCE;
-    }
+      tdc.getLeafCollector(leafContext).collect(doc);    
   }
 
   @Override
@@ -75,7 +51,7 @@ public class AccessibleTopHitCollector extends AccessibleHitCollector {
 
     @Override
     public boolean needsScores() {
-        return shouldScore;
+        return tdc.needsScores();
     }
-
+    
 }

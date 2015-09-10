@@ -23,7 +23,7 @@ public class TermVectorMapper {
     PostingsEnum pe = null;
     List<IntPair> res = new ArrayList<IntPair>();
     while (te.next() != null) {
-      PostingsEnum newPe = te.postings(null, pe, PostingsEnum.OFFSETS);
+      PostingsEnum newPe = te.postings(pe, PostingsEnum.OFFSETS);
       if (newPe == null) { // no positions and no offsets - just add terms if allowed
         if (!acceptTermsOnly) {
           return null;

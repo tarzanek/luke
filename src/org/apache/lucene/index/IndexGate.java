@@ -14,9 +14,13 @@ import java.util.Set;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.CodecUtil;
+import static org.apache.lucene.index.IndexWriter.WRITE_LOCK_NAME;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.Lock;
+import org.apache.lucene.store.LockValidatingDirectoryWrapper;
+import org.apache.lucene.store.SleepingLockWrapper;
 import org.getopt.luke.KeepAllIndexDeletionPolicy;
 
 /**
@@ -253,7 +257,19 @@ public class IndexGate {
     infos=SegmentInfos.readLatestCommit(dir);
     IndexWriterConfig cfg = new IndexWriterConfig(new WhitespaceAnalyzer());
     IndexWriter iw = new IndexWriter(dir, cfg);
-    IndexFileDeleter deleter = new IndexFileDeleter(dir, policy, infos, null, iw, true);
+    long timeout = cfg.getWriteLockTimeout();
+    final Directory lockDir;
+    if (timeout == 0) {
+      // user doesn't want sleep/retries
+      lockDir = dir;
+    } else {
+      lockDir = new SleepingLockWrapper(dir, timeout);
+    }
+    Lock writeLock = lockDir.obtainLock(WRITE_LOCK_NAME);
+
+    Directory lDirectory = new LockValidatingDirectoryWrapper(dir, writeLock);    
+    String[] lfiles = lDirectory.listAll();
+    IndexFileDeleter deleter = new IndexFileDeleter(lfiles, dir, lDirectory, policy, infos, null, iw, true, false);
     deleter.close();
     iw.close();
   }

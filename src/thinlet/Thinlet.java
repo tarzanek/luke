@@ -2962,11 +2962,11 @@ public class Thinlet extends Container implements Runnable, Serializable {
                 KeyEvent ke = (KeyEvent) e;
                 int keychar = ke.getKeyChar();
                 boolean control = (keychar <= 0x1f) || ((keychar >= 0x7f) && (keychar <= 0x9f)) || (keychar >= 0xffff)
-                        || ke.isControlDown();
+                        || ke.isControlDown() || ke.isMetaDown();
                 int keycode = control ? ke.getKeyCode() : 0;
                 if ((control == (id == KeyEvent.KEY_PRESSED))
                         && processKeyPress((popupowner != null) ? popupowner : focusowner, ke.isShiftDown(), ke
-                                .isControlDown(), ke.getModifiers(), control ? 0 : keychar, keycode)) {
+                                .isControlDown() || ke.isMetaDown(),  ke.getModifiers(), control ? 0 : keychar, keycode)) {
                     ke.consume();
                 } else if ((keycode == KeyEvent.VK_TAB)
                         || ((keycode == KeyEvent.VK_F6) && (ke.isAltDown() || ke.isControlDown()))) {

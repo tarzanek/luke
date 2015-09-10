@@ -3,7 +3,6 @@ package org.getopt.luke;
 import java.io.IOException;
 
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TimeLimitingCollector;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
@@ -15,12 +14,10 @@ public class IntervalLimitedCollector extends LimitedHitCollector {
   private TopScoreDocCollector tdc;
   private TopDocs topDocs = null;
   private TimeLimitingCollector thc;
-  
-  //TODO remove - outOfOrder
-  public IntervalLimitedCollector(int maxTime, boolean outOfOrder, boolean shouldScore) {
+  private LeafReaderContext leafReaderContext;
+    
+  public IntervalLimitedCollector(int maxTime) {
     this.maxTime = maxTime;
-    this.outOfOrder = outOfOrder;
-    this.shouldScore = shouldScore;
     tdc = TopScoreDocCollector.create(1000);
     thc = new TimeLimitingCollector(tdc, TimeLimitingCollector.getGlobalCounter(), maxTime);
   }
@@ -68,26 +65,10 @@ public class IntervalLimitedCollector extends LimitedHitCollector {
   @Override
   public void collect(int docNum) throws IOException {
     try {
-//TODO_L5      thc.collect(docNum);
+       thc.getLeafCollector(leafReaderContext).collect(docNum);
     } catch (TimeExceededException tee) {
       // re-throw
       throw new LimitedException(TYPE_TIME, maxTime, tee.getTimeElapsed(), tee.getLastDocCollected());
-    }
-  }
-
-  @Override
-  public void doSetNextReader(LeafReaderContext context) throws IOException {
-    this.docBase = context.docBase;
-//TODO_L5    thc.setNextReader(context);
-  }
-
-  @Override
-  public void setScorer(Scorer scorer) throws IOException {
-    this.scorer = scorer;
-    if (shouldScore) {
-//TODO_L5      thc.setScorer(scorer);
-    } else {
-//TODO_L5      thc.setScorer(NoScoringScorer.INSTANCE);
     }
   }
 
@@ -100,6 +81,6 @@ public class IntervalLimitedCollector extends LimitedHitCollector {
 
     @Override
     public boolean needsScores() {
-        return shouldScore;
+        return thc.needsScores();
     }
 }

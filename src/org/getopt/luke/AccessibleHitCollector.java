@@ -6,8 +6,7 @@ import org.apache.lucene.search.Scorer;
 public abstract class AccessibleHitCollector extends SimpleCollector {
   protected Scorer scorer;
   protected boolean shouldScore;
-  protected int docBase;
-  protected boolean outOfOrder;
+  protected int docBase;  
 
   public abstract int getTotalHits();
   

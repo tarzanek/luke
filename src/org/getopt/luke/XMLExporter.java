@@ -215,6 +215,7 @@ public class XMLExporter extends Observable {
     bw.write("</doc>\n");
   }
   
+  //TODO remove liveDocs
   private void writeTermVector(BufferedWriter bw, Terms tfv, Bits liveDocs) throws Exception {
     bw.write("<tv>\n");
     TermsEnum te = tfv.iterator();
@@ -225,7 +226,7 @@ public class XMLExporter extends Observable {
       // collect
       positions.setLength(0);
       offsets.setLength(0);
-      PostingsEnum newDpe = te.postings(liveDocs, pe,
+      PostingsEnum newDpe = te.postings(pe,
               PostingsEnum.OFFSETS);
       if (newDpe == null) {
         continue;

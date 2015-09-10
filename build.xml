@@ -1,10 +1,11 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="5.2.1"/>
+	<property name="build.ver" value="5.3.0"/>
         <property name="lucene.version" value="${build.ver}"/>
 	<property name="dist.dir" value="dist"/>
-	<property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
+	<property name="merge.dir" value="${build.dir}/merge"/>
+        <property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
 	<property name="jarallfile" value="${build.dir}/lukeall-${build.ver}.jar"/>
 	<property name="jarminfile" value="${build.dir}/lukemin-${build.ver}.jar"/>
 	<property name="srczip" value="${dist.dir}/luke-src-${build.ver}.zip"/>
@@ -14,7 +15,7 @@
 		<mkdir dir="${build.dir}"/>
 		<mkdir dir="${dist.dir}"/>
 	</target>
-<!-- TODO !!!!!!!!!!!!! L5  merge service manifests into lukeall.jar !!!! -->
+
 	<target name="clean">
 		<delete dir="${build.dir}"/>
 		<delete dir="${dist.dir}"/>
@@ -198,6 +199,31 @@
 		<manifest file="${build.dir}/META-INF/MANIFEST.MF" mode="update">
 			<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
 		</manifest>
+                <unjar dest="${merge.dir}">
+			<fileset dir="lib" includes="lucene-backward-codecs-*.jar"/>
+			<patternset>
+				<include name="META-INF/**"/>
+			</patternset>
+		</unjar>
+                <concat destfile="${merge.dir}/org.apache.lucene.codecs.Codec">                    
+                    <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.Codec"/>
+                    <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.Codec"/>
+                </concat>
+                <concat destfile="${merge.dir}/org.apache.lucene.codecs.DocValuesFormat">                    
+                    <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.DocValuesFormat"/>
+                    <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.DocValuesFormat"/>                    
+                </concat>
+                <concat destfile="${merge.dir}/org.apache.lucene.codecs.PostingsFormat">                    
+                    <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.PostingsFormat"/>
+                    <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.PostingsFormat"/>
+                </concat>
+                <copy todir="${build.dir}/META-INF/services/">
+			<fileset dir="${merge.dir}/">
+				<include name="org.apache.lucene.codecs.Codec"/>
+				<include name="org.apache.lucene.codecs.DocValuesFormat"/>
+				<include name="org.apache.lucene.codecs.PostingsFormat"/>				
+			</fileset>
+		</copy>
 		<jar basedir="${build.dir}"
 			jarfile="${jarallfile}"
 			manifest="${build.dir}/META-INF/MANIFEST.MF"

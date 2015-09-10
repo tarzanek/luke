@@ -57,8 +57,6 @@ import org.apache.lucene.queries.mlt.MoreLikeThis;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.BooleanClause.Occur;
-import org.apache.lucene.search.payloads.PayloadNearQuery;
-import org.apache.lucene.search.payloads.PayloadTermQuery;
 import org.apache.lucene.search.similarities.DefaultSimilarity;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.similarities.TFIDFSimilarity;
@@ -270,7 +268,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
     }
     int lastAnalyzerIdx = 0;
     String lastAnalyzer = Prefs.getProperty(Prefs.P_ANALYZER);
-    if (lastAnalyzer != null) lastAnalyzerIdx = getIndex(combo, lastAnalyzer);
+    if (lastAnalyzer != null) {
+    	setString(combo, "text", lastAnalyzer);
+    	lastAnalyzerIdx=Arrays.asList(aNames).indexOf(lastAnalyzer);
+    } 
     if (lastAnalyzerIdx < 0) lastAnalyzerIdx = 0;
     setInteger(combo, "selected", lastAnalyzerIdx);
   }
@@ -875,18 +876,18 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Throwable lastException = null;
     try {
       Directory d = openDirectory(dirImpl, pName, false);
-      if (IndexWriter.isLocked(d)) {
         if (!ro) {
-          if (force) {
-            d.makeLock(IndexWriter.WRITE_LOCK_NAME).close();              
-          } else {
-            errorMsg("Index is locked. Try 'Force unlock' when opening.");
-            d.close();
-            d = null;
-            return;
-          }
+            if (force) {
+                try {
+                    d.obtainLock(IndexWriter.WRITE_LOCK_NAME).close();
+                } catch (LockObtainFailedException failed) {
+                    errorMsg("Index is locked. Try 'Force unlock' when opening."+failed.getMessage());
+                    d.close();
+                    d = null;
+                    return;
+                }
+            }
         }
-      }
       boolean existsSingle = false;
       // IR.indexExists doesn't report the cause of error
       try {
@@ -904,18 +905,18 @@ public class Luke extends Thinlet implements ClipboardOwner {
             continue;
           }
           Directory d1 = openDirectory(dirImpl, f.toString(), false);
-          if (IndexWriter.isLocked(d1)) {
             if (!ro) {
-              if (force) {
-                d1.makeLock(IndexWriter.WRITE_LOCK_NAME).close();  
-              } else {
-                errorMsg("Index is locked. Try 'Force unlock' when opening.");
-                d1.close();
-                d1 = null;
-                return;
-              }
-            }
-          }
+                if (force) {
+                    try {
+                        d1.obtainLock(IndexWriter.WRITE_LOCK_NAME).close();
+                    } catch (LockObtainFailedException failed) {
+                        errorMsg("Index is locked. Try 'Force unlock' when opening: "+failed.getMessage());
+                        d1.close();
+                        d1 = null;
+                        return;
+                    }
+                }
+            }          
           existsSingle = false;
           try {
             SegmentInfos infos=SegmentInfos.readLatestCommit(d1);
@@ -3912,7 +3913,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
           is = new IndexSearcher(ir);
           Object sTable = find("sTable");
           removeAll(sTable);
-          AllHitsCollector ahc = new AllHitsCollector(orderRes, scoreRes);
+          AllHitsCollector ahc = new AllHitsCollector();
           _search(q, is, ahc, sTable, repeat);
         } catch (Exception e) {
           e.printStackTrace();
@@ -4117,17 +4118,17 @@ public class Luke extends Thinlet implements ClipboardOwner {
     boolean orderRes = getBoolean(ckOrderRes, "selected");
     Collector hc = null;
     if (getBoolean(ckNormRes, "selected")) {
-      return new AccessibleTopHitCollector(1000, orderRes, scoreRes);
+      return new AccessibleTopHitCollector(1000);
     } else if (getBoolean(ckAllRes, "selected")) {
-      return new AllHitsCollector(orderRes, scoreRes);
+      return new AllHitsCollector();
     } else if (getBoolean(ckLimRes, "selected")) {
       // figure out the type
       if (getBoolean(ckLimCount, "selected")) {
         int lim = Integer.parseInt(getString(limCount, "text"));
-        return new CountLimitedHitCollector(lim, orderRes, scoreRes);
+        return new CountLimitedHitCollector(lim);
       } else if (getBoolean(ckLimTime, "selected")) {
         int lim = Integer.parseInt(getString(limTime, "text"));
-        return new IntervalLimitedCollector(lim, orderRes, scoreRes);
+        return new IntervalLimitedCollector(lim);
       } else {
         throw new Exception("Unknown LimitedHitCollector type");
       }
@@ -4190,11 +4191,10 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setString(n1, "text", "Term: field='" + t.field() + "' text='" + t.text() + "'");
       add(n, n1);
     } else if (clazz.equals("lucene.BooleanQuery")) {
-      BooleanQuery bq = (BooleanQuery)q;
-      BooleanClause[] clauses = bq.getClauses();
+      BooleanQuery bq = (BooleanQuery)q;            
       int max = bq.getMaxClauseCount();
       Object n1 = create("node");
-      String descr = "clauses=" + clauses.length +
+      String descr = "clauses=" + bq.clauses().size() +
       ", maxClauses=" + max;
       if (bq.isCoordDisabled()) {
         descr += ", coord=false";
@@ -4204,10 +4204,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
       setString(n1, "text", descr);
       add(n, n1);
-      for (int i = 0; i < clauses.length; i++) {
+      int i=0;
+      for (BooleanClause clause : bq) {
         n1 = create("node");
         String occur;
-        Occur occ = clauses[i].getOccur();
+        Occur occ = clause.getOccur();
         if (occ.equals(Occur.MUST)) {
           occur = "MUST";
         } else if (occ.equals(Occur.MUST_NOT)) {
@@ -4217,9 +4218,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
         } else {
           occur = occ.toString();
         }
-        setString(n1, "text", "Clause " + i + ": " + occur);
+        setString(n1, "text", "Clause " + i++ + ": " + occur);
         add(n, n1);
-        _explainStructure(n1, clauses[i].getQuery());
+        _explainStructure(n1, clause.getQuery());
       }
     } else if (clazz.equals("lucene.PrefixQuery")) {
       Object n1 = create("node");
@@ -4353,13 +4354,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       } else */
       if (cq.getQuery() != null) {
         _explainStructure(n, cq.getQuery());
-      }
-    } else if (q instanceof FilteredQuery) {
-      FilteredQuery fq = (FilteredQuery)q;
-      Object n1 = create("node");
-      setString(n1, "text", "Filter: " + fq.getFilter().toString());
-      add(n, n1);
-      _explainStructure(n, fq.getQuery());
+      }    
     } else if (q instanceof SpanQuery) {
       SpanQuery sq = (SpanQuery)q;
       Class sqlass = sq.getClass();
@@ -4376,17 +4371,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         _explainStructure(n, sfq.getMatch());
       } else if (q instanceof SpanNearQuery) { // catch also known subclasses
         SpanNearQuery snq = (SpanNearQuery)sq;
-        setString(n, "text", getString(n, "text") + ", slop=" + snq.getSlop());
-        if (snq instanceof PayloadNearQuery) {
-          try {
-            java.lang.reflect.Field function = PayloadNearQuery.class.getDeclaredField("function");
-            function.setAccessible(true);
-            Object func = function.get(snq);
-            setString(n, "text", getString(n, "text") + ", func=" + func.getClass().getSimpleName());
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
-        }
+        setString(n, "text", getString(n, "text") + ", slop=" + snq.getSlop());                
         for (SpanQuery sq1 : snq.getClauses()) {
           _explainStructure(n, sq1);
         }
@@ -4402,17 +4387,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         _explainStructure(n1, snq.getExclude());
       } else if (q instanceof SpanTermQuery) {
         SpanTermQuery stq = (SpanTermQuery)sq;
-        setString(n, "text", getString(n, "text") + ", term=" + stq.getTerm());        
-        if (stq instanceof PayloadTermQuery) {
-          try {
-            java.lang.reflect.Field function = PayloadTermQuery.class.getDeclaredField("function");
-            function.setAccessible(true);
-            Object func = function.get(stq);
-            setString(n, "text", getString(n, "text") + ", func=" + func.getClass().getSimpleName());
-          } catch (Exception e) {
-            e.printStackTrace();
-          }
-        }
+        setString(n, "text", getString(n, "text") + ", term=" + stq.getTerm());                
       } else {
         String defField = getDefaultField(find("srchOptTabs"));
         setString(n, "text", "class=" + q.getClass().getName() + ", " + getString(n, "text") + ", toString=" + q.toString(defField));
@@ -4663,7 +4638,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private void _search(final Query q, final IndexSearcher is,
           AccessibleHitCollector hc, final Object sTable, final int repeat) throws Exception {
     if (hc == null) {
-      hc = new AccessibleTopHitCollector(1000, true, true);
+      hc = new AccessibleTopHitCollector(1000);
     }
     final AccessibleHitCollector collector = hc;
     le = null;
