@@ -3,3 +3,4 @@ dist/*
 nbproject/private/*
 lib/lucene-*
 lib/solr/solr-*
+lib/elasticsearch-*

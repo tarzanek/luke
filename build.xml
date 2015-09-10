@@ -1,8 +1,9 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="5.3.0"/>
+	<property name="build.ver" value="5.3.0"/>        
         <property name="lucene.version" value="${build.ver}"/>
+        <property name="elasticsearch.version" value="1.7.1"/>
 	<property name="dist.dir" value="dist"/>
 	<property name="merge.dir" value="${build.dir}/merge"/>
         <property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
@@ -10,7 +11,7 @@
 	<property name="jarminfile" value="${build.dir}/lukemin-${build.ver}.jar"/>
 	<property name="srczip" value="${dist.dir}/luke-src-${build.ver}.zip"/>
 	<property name="srctgz" value="${dist.dir}/luke-src-${build.ver}.tgz"/>
-	<target name="init" depends="-check-lucene, download-lucene">
+	<target name="init" depends="-check-lucene, download-lucene, -check-elasticsearch, download-elasticsearch">
 		<tstamp/>
 		<mkdir dir="${build.dir}"/>
 		<mkdir dir="${dist.dir}"/>
@@ -25,20 +26,27 @@
 <property name="lucene-backward-codecs.jar" value="lucene-backward-codecs-${lucene.version}.jar"/>
 <property name="lucene-analyzers-common.jar" value="lucene-analyzers-common-${lucene.version}.jar"/>
 <property name="lucene-misc.jar" value="lucene-misc-${lucene.version}.jar"/>
+<!-- suggest is needed just for elasticsearch indexes if we'd merge their postings fully, 
+but org.elasticsearch.search.suggest.completion.Completion090PostingsFormat cannot be added due to 
+dependency on old lucene (4.x)  so below will be usefull once elasticsearch is on lucene 5.x -->
+<property name="lucene-suggest.jar" value="lucene-suggest-${lucene.version}.jar"/>
 <property name="lucene-queries.jar" value="lucene-queries-${lucene.version}.jar"/>
 <property name="lucene-queryparser.jar" value="lucene-queryparser-${lucene.version}.jar"/>
 <property name="solr-core.jar" value="solr-core-${lucene.version}.jar"/>
 <property name="solr-solrj.jar" value="solr-solrj-${lucene.version}.jar"/>
+<property name="elasticsearch.jar" value="elasticsearch-${elasticsearch.version}.jar"/>
 <property name="libdir" value="lib"/>
 <property name="solrlibdir" value="${libdir}/solr"/>
 <property name="file.reference.lucene-core.jar" value="${libdir}/${lucene-core.jar}"/>
 <property name="file.reference.lucene-backward-codecs.jar" value="${libdir}/${lucene-backward-codecs.jar}"/>
 <property name="file.reference.lucene-analyzers-common.jar" value="${libdir}/${lucene-analyzers-common.jar}"/>
 <property name="file.reference.lucene-misc.jar" value="${libdir}/${lucene-misc.jar}"/>
+<property name="file.reference.lucene-suggest.jar" value="${libdir}/${lucene-suggest.jar}"/>
 <property name="file.reference.lucene-queries.jar" value="${libdir}/${lucene-queries.jar}"/>
 <property name="file.reference.lucene-queryparser.jar" value="${libdir}/${lucene-queryparser.jar}"/>
 <property name="file.reference.solr-core.jar" value="${solrlibdir}/${solr-core.jar}"/>
 <property name="file.reference.solr-solrj.jar" value="${solrlibdir}/${solr-solrj.jar}"/>
+<property name="file.reference.elasticsearch.jar" value="${libdir}/${elasticsearch.jar}"/>
 
     <property name="mvn.repository" value="http://repo1.maven.org/maven2/"/>
 
@@ -61,7 +69,10 @@
         </available> 
         <available file="${lucene-misc.jar}" type="file" property="lucene-misc.jar.present">
             <filepath refid="plainlib.search.path"/>
-        </available>                 
+        </available>
+        <available file="${lucene-suggest.jar}" type="file" property="lucene-suggest.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available>
         <available file="${lucene-queries.jar}" type="file" property="lucene-queries.jar.present">
             <filepath refid="plainlib.search.path"/>
         </available>         
@@ -81,6 +92,7 @@
                 <isset property="lucene-backward-codecs.jar.present"/>
                 <isset property="lucene-analyzers-common.jar.present"/>
                 <isset property="lucene-misc.jar.present"/>
+                <isset property="lucene-suggest.jar.present"/>                
                 <isset property="lucene-queries.jar.present"/>
                 <isset property="lucene-queryparser.jar.present"/>                
                 <isset property="solr-core.jar.present"/>
@@ -89,6 +101,27 @@
              </not>
         </condition>         
     </target>
+    
+    <target name="-check-elasticsearch" description="Check that elasticsearch jar file is present">
+        <available file="${elasticsearch.jar}" type="file" property="elasticsearch.jar.present">
+            <filepath refid="plainlib.search.path"/>
+        </available> 
+        <condition property="elasticsearch_not_downloaded">
+            <not>            
+                <isset property="elasticsearch.jar.present"/>                
+             </not>
+        </condition>         
+    </target>
+    
+    <target name="download-elasticsearch" depends="-check-elasticsearch" if="elasticsearch_not_downloaded">        
+        <delete>
+         <fileset dir="${libdir}">
+          <include name="elasticsearch-*.jar"/>
+         </fileset>
+        </delete>        
+        <get src="${mvn.repository}/org/elasticsearch/elasticsearch/${elasticsearch.version}/${elasticsearch.jar}"
+        dest="${file.reference.elasticsearch.jar}" verbose="true" usetimestamp="true"/>        
+    </target>        
     
     <target name="download-lucene" depends="-check-lucene" if="lucene_not_downloaded">
         <mkdir dir="${solrlibdir}"/>
@@ -110,6 +143,8 @@
         dest="${file.reference.lucene-analyzers-common.jar}" verbose="true" usetimestamp="true"/>
         <get src="${mvn.repository}/org/apache/lucene/lucene-misc/${lucene.version}/${lucene-misc.jar}"
         dest="${file.reference.lucene-misc.jar}" verbose="true" usetimestamp="true"/>
+        <get src="${mvn.repository}/org/apache/lucene/lucene-suggest/${lucene.version}/${lucene-suggest.jar}"
+        dest="${file.reference.lucene-suggest.jar}" verbose="true" usetimestamp="true"/>
         <get src="${mvn.repository}/org/apache/lucene/lucene-queries/${lucene.version}/${lucene-queries.jar}"
         dest="${file.reference.lucene-queries.jar}" verbose="true" usetimestamp="true"/>
         <get src="${mvn.repository}/org/apache/lucene/lucene-queryparser/${lucene.version}/${lucene-queryparser.jar}"
@@ -165,7 +200,7 @@
 				excludes="org/getopt/luke/plugins,**/*.js,**/Thumbs.db">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="${lucene-core.jar};js.jar;${lucene-misc.jar};${lucene-backward-codecs.jar}"/>
+				<attribute name="Classpath" value="${lucene-core.jar};js.jar;${lucene-misc.jar};${lucene-suggest.jar};${lucene-backward-codecs.jar};${elasticsearch.jar}"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">
@@ -177,7 +212,7 @@
 		        excludes="org/mozilla/,org/getopt/luke/plugins,**/*.js">
 			<manifest>
 				<attribute name="Main-Class" value="org.getopt.luke.Luke"/>
-				<attribute name="Classpath" value="${lucene-core.jar};${lucene-misc.jar};${lucene-backward-codecs.jar}"/>
+				<attribute name="Classpath" value="${lucene-core.jar};${lucene-misc.jar};${lucene-suggest.jar};${lucene-backward-codecs.jar};${elasticsearch.jar}"/>
 			</manifest>
 		</jar>
 		<unjar dest="${build.dir}">
@@ -190,6 +225,22 @@
 		<unjar dest="${build.dir}">
 			<fileset dir="lib" includes="solr/*.jar"/>
 		</unjar>
+                <!-- including elasticsearch -->
+		<unjar dest="${build.dir}">
+			<fileset dir="lib" includes="elasticsearch-*.jar"/>
+                        <patternset>
+				<include name="org/elasticsearch/index/codec/postingsformat/**"/>                                                                
+                                <include name="org/elasticsearch/common/*"/>                                
+                                <include name="org/elasticsearch/common/collect/**"/>
+                                <include name="org/elasticsearch/common/io/**"/>
+                                <include name="org/elasticsearch/common/logging/**"/>
+                                <include name="org/elasticsearch/common/settings/**"/>
+                                <include name="org/elasticsearch/common/unit/**"/>
+                                <include name="org/elasticsearch/common/util/**"/>
+                                <include name="org/elasticsearch/*"/> 
+                                <!--<include name="org/elasticsearch/search/suggest/completion/**"/> -->
+			</patternset>
+                </unjar>
 		<unjar dest="${build.dir}">
 			<fileset dir="lib" includes="lucene-core-*.jar"/>
 			<patternset>
@@ -224,6 +275,35 @@
 				<include name="org.apache.lucene.codecs.PostingsFormat"/>				
 			</fileset>
 		</copy>
+                <!-- including elasticsearch -->		
+                <unjar dest="${merge.dir}">
+			<fileset dir="lib" includes="elasticsearch-*.jar"/>
+			<patternset>
+				<include name="META-INF/**"/>
+			</patternset>
+		</unjar>
+                <!--<concat destfile="${merge.dir}/org.apache.lucene.codecs.Codec">                    
+                    <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.Codec"/>
+                    <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.Codec"/>
+                </concat>
+                <concat destfile="${merge.dir}/org.apache.lucene.codecs.DocValuesFormat">                    
+                    <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.DocValuesFormat"/>
+                    <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.DocValuesFormat"/>                    
+                </concat> -->
+                <!-- <concat destfile="${merge.dir}/org.apache.lucene.codecs.PostingsFormat">
+                    <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.PostingsFormat"/>
+                    <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.PostingsFormat"/> -->                
+                <concat destfile="${build.dir}/META-INF/services/org.apache.lucene.codecs.PostingsFormat" append="true">org.elasticsearch.index.codec.postingsformat.Elasticsearch090PostingsFormat
+org.elasticsearch.index.codec.postingsformat.BloomFilterPostingsFormat 
+                </concat>
+                <!-- org.elasticsearch.search.suggest.completion.Completion090PostingsFormat -->
+                <!-- <copy todir="${build.dir}/META-INF/services/">
+			<fileset dir="${merge.dir}/">
+				<include name="org.apache.lucene.codecs.Codec"/>
+				<include name="org.apache.lucene.codecs.DocValuesFormat"/>
+				<include name="org.apache.lucene.codecs.PostingsFormat"/>				
+			</fileset>
+		</copy> -->                
 		<jar basedir="${build.dir}"
 			jarfile="${jarallfile}"
 			manifest="${build.dir}/META-INF/MANIFEST.MF"
