@@ -129,7 +129,7 @@ public class XMLExporter extends Observable {
           if (live != null && !live.get(i)) continue; // skip deleted docs
           doc = atomicReader.document(i);
           // write out fields
-          writeDoc(bw, i, doc, decode, live);
+          writeDoc(bw, i, doc, decode);
           pn.curValue = i + 1;
           cnt++;
           if (cnt > delta) {
@@ -171,8 +171,8 @@ public class XMLExporter extends Observable {
     return !pn.aborted;
   }
   
-  private void writeDoc(BufferedWriter bw, int docNum, Document doc, boolean decode,
-          Bits liveDocs) throws Exception {
+  private void writeDoc(BufferedWriter bw, int docNum, Document doc, 
+          boolean decode) throws Exception {
     bw.write("<doc id='" + docNum + "'>\n");
     BytesRef bytes = new BytesRef();
     for (String fieldName : fieldNames) {
@@ -208,15 +208,15 @@ public class XMLExporter extends Observable {
       }
       Terms tfv = atomicReader.getTermVector(docNum, fieldName);
       if (tfv != null) {
-        writeTermVector(bw, tfv, liveDocs);
+        writeTermVector(bw, tfv);
       }
       bw.write("</field>\n");
     }
     bw.write("</doc>\n");
   }
   
-  //TODO remove liveDocs
-  private void writeTermVector(BufferedWriter bw, Terms tfv, Bits liveDocs) throws Exception {
+  
+  private void writeTermVector(BufferedWriter bw, Terms tfv) throws Exception {
     bw.write("<tv>\n");
     TermsEnum te = tfv.iterator();
     PostingsEnum pe = null;
@@ -244,7 +244,7 @@ public class XMLExporter extends Observable {
         }
         if (pe.startOffset() != -1) { // has offsets
           if (offsets.length() > 0) offsets.append(' ');
-          offsets.append(pe.startOffset() + "-" + pe.endOffset());
+          offsets.append(pe.startOffset()).append("-").append(pe.endOffset());
         }
       }
       bw.write("<t text='" + Util.xmlEscape(te.term().utf8ToString()) + "' freq='" + pe.freq() + "'");

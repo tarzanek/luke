@@ -1,8 +1,6 @@
 package org.apache.lucene.index;
 
 import java.io.IOException;
-import java.io.PrintStream;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -12,7 +10,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
-import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.CodecUtil;
 import static org.apache.lucene.index.IndexWriter.WRITE_LOCK_NAME;
 import org.apache.lucene.store.Directory;
@@ -21,7 +18,7 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockValidatingDirectoryWrapper;
 import org.apache.lucene.store.SleepingLockWrapper;
-import org.getopt.luke.KeepAllIndexDeletionPolicy;
+import org.apache.lucene.util.Version;
 
 /**
  * This class allows us to peek at various Lucene internals, not available
@@ -213,15 +210,18 @@ public class IndexGate {
             int actualVersion = SegmentInfos.VERSION_40;
             try {
               actualVersion = CodecUtil.checkHeaderNoMagic(in, "segments", SegmentInfos.VERSION_40, Integer.MAX_VALUE);
-              if (actualVersion > SegmentInfos.VERSION_50) {
+              if (actualVersion > SegmentInfos.VERSION_CURRENT) {
                 res.capabilities += " (WARNING: newer version of Lucene than this tool)";
               }
             } catch (Exception e) {
               e.printStackTrace();
               res.capabilities += " (error reading: " + e.getMessage() + ")";
             }
-            res.genericName = "Lucene 4.x or 5.x, segment ver.:" + actualVersion;
-            res.version = String.valueOf(actualVersion);
+            SegmentInfos infos=SegmentInfos.readLatestCommit(dir);
+            Version ver=infos.getMinSegmentLuceneVersion();
+            String sversion=ver!=null?ver.toString():"Error reading min segment version";
+            res.genericName = "Lucene ver.: " + sversion;
+            res.version = String.valueOf(actualVersion);            
           } else {
             res.genericName = "Lucene 3.x or prior";
             detectOldFormats(res, indexFormat);
