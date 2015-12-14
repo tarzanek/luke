@@ -57,7 +57,7 @@ import org.apache.lucene.queries.mlt.MoreLikeThis;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.BooleanClause.Occur;
-import org.apache.lucene.search.similarities.DefaultSimilarity;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.search.spans.SpanFirstQuery;
@@ -4078,7 +4078,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     Object simClass = find(srchOpts, "simClass");
     Object ckSimCust = find(srchOpts, "ckSimCust");
     if (getBoolean(ckSimDef, "selected")) {
-      return new DefaultSimilarity();
+      return new ClassicSimilarity();
     } else if (getBoolean(ckSimSweet, "selected")) {
       return new SweetSpotSimilarity();
     } else if (getBoolean(ckSimOther, "selected")) {
@@ -4095,12 +4095,12 @@ public class Luke extends Thinlet implements ClipboardOwner {
         showStatus("ERROR: invalid Similarity, using default");
         setBoolean(ckSimDef, "selected", true);
         setBoolean(ckSimOther, "selected", false);
-        return new DefaultSimilarity();
+        return new ClassicSimilarity();
       }
     } else if (getBoolean(ckSimCust, "selected")) {
       return similarity;
     } else {
-      return new DefaultSimilarity();
+      return new ClassicSimilarity();
     }
   }
 
@@ -4175,14 +4175,16 @@ public class Luke extends Thinlet implements ClipboardOwner {
       clazz = "lucene." + q.getClass().getSimpleName();
     } else if (clazz.startsWith("org.apache.solr.")) {
       clazz = "solr." + q.getClass().getSimpleName();
-    }
-    float boost = q.getBoost();
+    }    
     Object n = create("node");
     add(parent, n);
     String msg = clazz;
-    if (boost != 1.0f) {
-      msg += ": boost=" + df.format(boost);
-    }
+      if (q instanceof BoostQuery) {
+          float boost = ((BoostQuery) q).getBoost();
+          if (boost != 1.0f) {
+              msg += ": boost=" + df.format(boost);
+          }
+      }
     setFont(n, getFont().deriveFont(Font.BOLD));
     setString(n, "text", msg);
     if (clazz.equals("lucene.TermQuery")) {
@@ -5133,7 +5135,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     return similarity;
   }
   
-  private static TFIDFSimilarity defaultSimilarity = new DefaultSimilarity();
+  private static TFIDFSimilarity defaultSimilarity = new ClassicSimilarity();
   
   /**
    * Set the current custom similarity implementation.

@@ -3,6 +3,8 @@ package org.getopt.luke;
 import java.io.IOException;
 
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.LeafCollector;
+import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
 
@@ -30,18 +32,31 @@ public class CountLimitedHitCollector extends LimitedHitCollector {
     return TYPE_SIZE;
   }
 
-  /* (non-Javadoc)
-   * @see org.getopt.luke.AllHitsCollector#collect(int, float)
-   */
   @Override
-  public void collect(int doc) throws IOException {
-    count++;
-    if (count > maxSize) {
-      count--;
-      throw new LimitedException(TYPE_SIZE, maxSize, count, lastDoc);
-    }
-    lastDoc = docBase + doc;
-    tdc.getLeafCollector(leafReaderContext).collect(doc);
+  public LeafCollector getLeafCollector(final LeafReaderContext leafReaderContext) throws IOException {
+    this.docBase = leafReaderContext.docBase;
+    return new LeafCollector() {
+      @Override
+      public void setScorer(Scorer scorer) throws IOException {
+        if (shouldScore) {
+          tdc.getLeafCollector(leafReaderContext).setScorer(scorer);
+        } else {
+          tdc.getLeafCollector(leafReaderContext).setScorer(NoScoringScorer.INSTANCE);
+        }
+
+      }
+
+      @Override
+      public void collect(int doc) throws IOException {
+        count++;
+        if (count > maxSize) {
+          count--;
+          throw new LimitedException(TYPE_SIZE, maxSize, count, lastDoc);
+        }
+        lastDoc = docBase + doc;
+        tdc.getLeafCollector(leafReaderContext).collect(doc);
+      }
+    };
   }
 
   /* (non-Javadoc)

@@ -3,10 +3,10 @@ package org.getopt.luke;
 import java.io.IOException;
 
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.LeafCollector;
 import org.apache.lucene.search.TimeLimitingCollector;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
-import org.apache.lucene.search.TimeLimitingCollector.TimeExceededException;
 
 public class IntervalLimitedCollector extends LimitedHitCollector {
   private final long maxTime;
@@ -63,15 +63,10 @@ public class IntervalLimitedCollector extends LimitedHitCollector {
   }
 
   @Override
-  public void collect(int docNum) throws IOException {
-    try {
-       thc.getLeafCollector(leafReaderContext).collect(docNum);
-    } catch (TimeExceededException tee) {
-      // re-throw
-      throw new LimitedException(TYPE_TIME, maxTime, tee.getTimeElapsed(), tee.getLastDocCollected());
-    }
+  public LeafCollector getLeafCollector(LeafReaderContext leafReaderContext) throws IOException {
+    return thc.getLeafCollector(leafReaderContext);
   }
-
+  
   @Override
   public void reset() {
     lastDoc = 0;

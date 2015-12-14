@@ -5,25 +5,41 @@ package org.getopt.luke;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.LeafCollector;
+import org.apache.lucene.search.Scorer;
 
 class AllHitsCollector extends AccessibleHitCollector {
   private ArrayList<AllHit> hits = new ArrayList<AllHit>();
   
   public AllHitsCollector() {
   }
-  
+   
   @Override
-  public void collect(int doc) {
-    float score = 1.0f;
-    if (shouldScore) {
-      try {
-        score = scorer.score();
-      } catch (IOException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
+  public LeafCollector getLeafCollector(LeafReaderContext leafReaderContext) throws IOException {
+    this.docBase = leafReaderContext.docBase;
+    return new LeafCollector() {
+      private Scorer scorer;
+
+      @Override
+      public void setScorer(Scorer scorer) throws IOException {
+        this.scorer = scorer;
       }
-    }
-    hits.add(new AllHit(docBase + doc, score));
+
+      @Override
+      public void collect(int doc) throws IOException {
+        float score = 1.0f;
+        if (shouldScore) {
+          try {
+            score = scorer.score();
+          } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+          }
+        }
+        hits.add(new AllHit(docBase + doc, score));
+      }
+    };
   }
   
   @Override

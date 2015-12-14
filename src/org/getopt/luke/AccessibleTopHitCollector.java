@@ -1,19 +1,18 @@
 package org.getopt.luke;
 
 import java.io.IOException;
-
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.LeafCollector;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopScoreDocCollector;
 
 public class AccessibleTopHitCollector extends AccessibleHitCollector {
-  private TopScoreDocCollector tdc;  
-  private LeafReaderContext leafContext = null;
+  private TopScoreDocCollector tdc;    
   private TopDocs topDocs = null;
   private final int size;
     
   public AccessibleTopHitCollector(int size) {      
-    tdc = TopScoreDocCollector.create(size);        
+    tdc = TopScoreDocCollector.create(size);            
     this.size = size;
   }
 
@@ -37,16 +36,16 @@ public class AccessibleTopHitCollector extends AccessibleHitCollector {
   public int getTotalHits() {
     return tdc.getTotalHits();
   }
-
-  @Override
-  public void collect(int doc) throws IOException {      
-      tdc.getLeafCollector(leafContext).collect(doc);    
-  }
-
+ 
   @Override
   public void reset() {
     tdc = TopScoreDocCollector.create(size);
     topDocs = null;
+  }
+  
+  @Override
+  public LeafCollector getLeafCollector(LeafReaderContext leafReaderContext) throws IOException {
+    return tdc.getLeafCollector(leafReaderContext);
   }
 
     @Override

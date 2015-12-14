@@ -1,7 +1,7 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="5.3.1"/>        
+	<property name="build.ver" value="5.4.0"/>        
         <property name="lucene.version" value="${build.ver}"/>
         <property name="elasticsearch.version" value="1.7.2"/>
 	<property name="dist.dir" value="dist"/>
