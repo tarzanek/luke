@@ -48,7 +48,7 @@ dependency on old lucene (4.x)  so below will be usefull once elasticsearch is o
 <property name="file.reference.solr-solrj.jar" value="${solrlibdir}/${solr-solrj.jar}"/>
 <property name="file.reference.elasticsearch.jar" value="${libdir}/${elasticsearch.jar}"/>
 
-    <property name="mvn.repository" value="http://repo1.maven.org/maven2/"/>
+    <property name="mvn.repository" value="http://repo1.maven.org/maven2"/>
 
     <path id="plainlib.search.path">        
         <pathelement path="${libdir}"/>
