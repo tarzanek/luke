@@ -1,9 +1,9 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="5.4.1"/>
+	<property name="build.ver" value="5.5.0"/>
         <property name="lucene.version" value="${build.ver}"/>
-        <property name="elasticsearch.version" value="1.7.2"/>
+        <property name="elasticsearch.version" value="2.2.0"/>
 	<property name="dist.dir" value="dist"/>
 	<property name="merge.dir" value="${build.dir}/merge"/>
         <property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
@@ -290,14 +290,14 @@ dependency on old lucene (4.x)  so below will be usefull once elasticsearch is o
                     <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.DocValuesFormat"/>
                     <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.DocValuesFormat"/>                    
                 </concat> -->
-                <!-- <concat destfile="${merge.dir}/org.apache.lucene.codecs.PostingsFormat">
+                <concat destfile="${merge.dir}/org.apache.lucene.codecs.PostingsFormat">
                     <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.PostingsFormat"/>
-                    <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.PostingsFormat"/> -->                
-                <concat destfile="${build.dir}/META-INF/services/org.apache.lucene.codecs.PostingsFormat" append="true">org.elasticsearch.index.codec.postingsformat.Elasticsearch090PostingsFormat
-
-                </concat>
-                <!-- org.elasticsearch.index.codec.postingsformat.BloomFilterPostingsFormat <- needs FilterAtomicReader" and "AtomicReader" from "lucene-core-4.10.4.jar" see issue #4 -->
-                <!-- org.elasticsearch.search.suggest.completion.Completion090PostingsFormat <- needs lucene 4.x binaries (suggest jar) -->
+                    <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.PostingsFormat"/>
+                </concat>                    
+<!--                <concat destfile="${build.dir}/META-INF/services/org.apache.lucene.codecs.PostingsFormat" append="true">org.elasticsearch.index.codec.postingsformat.Elasticsearch090PostingsFormat
+ -->
+                <!-- org.elasticsearch.index.codec.postingsformat.BloomFilterPostingsFormat -->
+                <!-- org.elasticsearch.search.suggest.completion.Completion090PostingsFormat -->
                 <!-- <copy todir="${build.dir}/META-INF/services/">
 			<fileset dir="${merge.dir}/">
 				<include name="org.apache.lucene.codecs.Codec"/>
