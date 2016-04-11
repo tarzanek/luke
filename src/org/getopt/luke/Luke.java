@@ -69,7 +69,7 @@ import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.NumericUtils;
+import org.apache.lucene.util.LegacyNumericUtils;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.Transition;
@@ -3267,7 +3267,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
     } else if (enc.equals("cbLong")) {
       try {
-        long num = NumericUtils.prefixCodedToLong(new BytesRef(f.stringValue()));
+        long num = LegacyNumericUtils.prefixCodedToLong(new BytesRef(f.stringValue()));
         value = String.valueOf(num);
         len = 1;
       } catch (Exception e) {

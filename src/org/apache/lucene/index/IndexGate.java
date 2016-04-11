@@ -207,9 +207,9 @@ public class IndexGate {
           if (indexFormat == CodecUtil.CODEC_MAGIC) {
             res.genericName = "Lucene 4.x or 5.x";
             res.capabilities = "flexible, codec-specific";
-            int actualVersion = SegmentInfos.VERSION_40;
+            int actualVersion = SegmentInfos.VERSION_50;
             try {
-              actualVersion = CodecUtil.checkHeaderNoMagic(in, "segments", SegmentInfos.VERSION_40, Integer.MAX_VALUE);
+              actualVersion = CodecUtil.checkHeaderNoMagic(in, "segments", SegmentInfos.VERSION_50, Integer.MAX_VALUE);
               if (actualVersion > SegmentInfos.VERSION_CURRENT) {
                 res.capabilities += " (WARNING: newer version of Lucene than this tool)";
               }
@@ -257,7 +257,7 @@ public class IndexGate {
     infos=SegmentInfos.readLatestCommit(dir);
     IndexWriterConfig cfg = new IndexWriterConfig(new WhitespaceAnalyzer());
     IndexWriter iw = new IndexWriter(dir, cfg);
-    long timeout = cfg.getWriteLockTimeout();
+    long timeout = 0; //TODO detect in some other way if we want sleepinglockwrapper than from cfg.getDefaultWriteLockTimeout
     final Directory lockDir;
     if (timeout == 0) {
       // user doesn't want sleep/retries

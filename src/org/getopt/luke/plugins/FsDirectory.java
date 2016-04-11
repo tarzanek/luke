@@ -19,6 +19,9 @@ package org.getopt.luke.plugins;
 
 
 import java.io.*;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.OpenOption;
+import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Random;
 
@@ -43,6 +46,27 @@ public class FsDirectory extends BaseDirectory {
   private FileSystem fs;
   private Path directory;
   private int ioFileBufferSize;
+  protected static final Random tempFileRandom;
+  
+  static {    
+    int seed;    
+    seed = (int) System.currentTimeMillis();    
+    tempFileRandom = new Random(seed);
+  }
+
+    @Override
+  public IndexOutput createTempOutput(String prefix, String suffix, IOContext context) throws IOException {
+    ensureOpen();
+    while (true) {
+      String name = prefix + tempFileRandom.nextInt(Integer.MAX_VALUE) + "." + suffix;
+      IndexOutput out;
+      try {
+        return new DfsIndexOutput(new Path(name), StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
+      } catch (FileAlreadyExistsException faee) {
+        // Retry with next random name
+      }
+    }
+  }
   
   public static class NullReporter implements IOReporter {
     @Override
@@ -154,7 +178,7 @@ public class FsDirectory extends BaseDirectory {
     if (fs.exists(file) && !fs.delete(file, false))      // delete existing, if any
       throw new IOException("Cannot overwrite: " + file);
 
-    return new DfsIndexOutput(file, this.ioFileBufferSize);
+    return new DfsIndexOutput(file);
   }
 
 
@@ -289,8 +313,12 @@ public class FsDirectory extends BaseDirectory {
     private RandomAccessFile local;
     private File localFile;
 
-    public DfsIndexOutput(Path path, int ioFileBufferSize) throws IOException {
-      super(path.getName(),new FileOutputStream(new File(path.toUri())), ioFileBufferSize);
+    public DfsIndexOutput(Path path) throws IOException {
+      this(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+    }    
+    
+    public DfsIndexOutput(Path path, OpenOption... options) throws IOException {
+      super(path.getName(),path.getName(),new FileOutputStream(new File(path.toUri())), ioFileBufferSize);
       // create a temporary local file and set it to delete on exit
       String randStr = Integer.toString(new Random().nextInt(Integer.MAX_VALUE));
       localFile = File.createTempFile("index_" + randStr, ".tmp");

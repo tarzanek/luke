@@ -1,7 +1,7 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="5.5.0"/>
+	<property name="build.ver" value="6.0.0"/>
         <property name="lucene.version" value="${build.ver}"/>
         <property name="elasticsearch.version" value="2.2.0"/>
 	<property name="dist.dir" value="dist"/>
@@ -282,14 +282,14 @@ dependency on old lucene (4.x)  so below will be usefull once elasticsearch is o
 				<include name="META-INF/**"/>
 			</patternset>
 		</unjar>
-                <!--<concat destfile="${merge.dir}/org.apache.lucene.codecs.Codec">                    
+                <concat destfile="${merge.dir}/org.apache.lucene.codecs.Codec">                    
                     <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.Codec"/>
                     <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.Codec"/>
                 </concat>
                 <concat destfile="${merge.dir}/org.apache.lucene.codecs.DocValuesFormat">                    
                     <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.DocValuesFormat"/>
                     <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.DocValuesFormat"/>                    
-                </concat> -->
+                </concat>
                 <concat destfile="${merge.dir}/org.apache.lucene.codecs.PostingsFormat">
                     <filelist dir="${build.dir}/META-INF/services/" files="org.apache.lucene.codecs.PostingsFormat"/>
                     <filelist dir="${merge.dir}/META-INF/services/" files="org.apache.lucene.codecs.PostingsFormat"/>

@@ -11,7 +11,7 @@ import java.util.Set;
 import org.apache.lucene.document.DateTools.Resolution;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.FieldType.NumericType;
+import org.apache.lucene.document.FieldType.LegacyNumericType;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.CompositeReader;
 import org.apache.lucene.index.DocValues;
@@ -287,7 +287,7 @@ public class Util {
     else flags.append("----");
     if (numeric != null) {
       flags.append("#");
-      NumericType nt = t.numericType();
+      LegacyNumericType nt = t.numericType();
       if (nt != null) {
         flags.append(nt.toString().charAt(0));
         int prec = t.numericPrecisionStep();
