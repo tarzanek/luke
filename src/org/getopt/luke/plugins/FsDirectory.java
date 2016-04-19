@@ -24,6 +24,7 @@ import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
 
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
@@ -35,6 +36,7 @@ import org.apache.log4j.LogManager;
 import org.apache.lucene.store.*;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.lucene.index.IndexFileNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,27 +47,14 @@ public class FsDirectory extends BaseDirectory {
 
   private FileSystem fs;
   private Path directory;
-  private int ioFileBufferSize;
-  protected static final Random tempFileRandom;
+  private int ioFileBufferSize;  
   
-  static {    
-    int seed;    
-    seed = (int) System.currentTimeMillis();    
-    tempFileRandom = new Random(seed);
-  }
-
-    @Override
-  public IndexOutput createTempOutput(String prefix, String suffix, IOContext context) throws IOException {
-    ensureOpen();
-    while (true) {
-      String name = prefix + tempFileRandom.nextInt(Integer.MAX_VALUE) + "." + suffix;
-      IndexOutput out;
-      try {
-        return new DfsIndexOutput(new Path(name), StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW);
-      } catch (FileAlreadyExistsException faee) {
-        // Retry with next random name
-      }
-    }
+   private final AtomicLong nextTempFileCounter = new AtomicLong();
+  @Override
+  public IndexOutput createTempOutput(String prefix, String suffix, IOContext ioContext) throws IOException {
+    String name = IndexFileNames.segmentFileName(prefix, suffix + "_" + Long.toString(nextTempFileCounter.getAndIncrement(), Character.MAX_RADIX), "tmp");
+    Path file = new Path(directory, name);
+    return new DfsIndexOutput(file, this.ioFileBufferSize);
   }
   
   public static class NullReporter implements IOReporter {
@@ -178,7 +167,7 @@ public class FsDirectory extends BaseDirectory {
     if (fs.exists(file) && !fs.delete(file, false))      // delete existing, if any
       throw new IOException("Cannot overwrite: " + file);
 
-    return new DfsIndexOutput(file);
+    return new DfsIndexOutput(file,this.ioFileBufferSize);
   }
 
 
@@ -216,7 +205,7 @@ public class FsDirectory extends BaseDirectory {
 
     private final Descriptor descriptor;
     private final long length;
-    private boolean isClone;
+    private boolean isClone;    
     private final IOReporter reporter;
     private final String name;
     private final String keyPrefix;
@@ -224,7 +213,7 @@ public class FsDirectory extends BaseDirectory {
     public DfsIndexInput(Path path, int ioFileBufferSize, IOReporter reporter) throws IOException {
       super(path.getName(), ioFileBufferSize);
       descriptor = new Descriptor(path,ioFileBufferSize);
-      length = fs.getFileStatus(path).getLen();
+      length = fs.getFileStatus(path).getLen();      
       this.reporter = reporter;
       this.name = path.getName();
       keyPrefix = path.toString() + ":";
@@ -311,14 +300,10 @@ public class FsDirectory extends BaseDirectory {
   private class DfsIndexOutput extends OutputStreamIndexOutput {
     private FSDataOutputStream out;
     private RandomAccessFile local;
-    private File localFile;
-
-    public DfsIndexOutput(Path path) throws IOException {
-      this(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-    }    
+    private File localFile;    
     
-    public DfsIndexOutput(Path path, OpenOption... options) throws IOException {
-      super(path.getName(),path.getName(),new FileOutputStream(new File(path.toUri())), ioFileBufferSize);
+    public DfsIndexOutput(Path path, int ioFileBufferSize) throws IOException {
+      super(path.getName(), path.getName(), new FileOutputStream(new File(path.toUri())), ioFileBufferSize);      
       // create a temporary local file and set it to delete on exit
       String randStr = Integer.toString(new Random().nextInt(Integer.MAX_VALUE));
       localFile = File.createTempFile("index_" + randStr, ".tmp");

@@ -3,7 +3,16 @@ package org.getopt.luke;
 import java.util.*;
 
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.*;
+import org.apache.lucene.index.CompositeReader;
+import org.apache.lucene.index.Fields;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.PostingsEnum;
+import org.apache.lucene.index.SlowCompositeReaderWrapper;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.Bits;
 
 /**
@@ -20,7 +29,7 @@ import org.apache.lucene.util.Bits;
 public class DocReconstructor extends Observable {
   private ProgressNotification progress = new ProgressNotification();
   private String[] fieldNames = null;
-  private LeafReader reader = null;
+  private IndexReader reader = null;  
   private int numTerms;
   private Bits live;
   
@@ -47,7 +56,7 @@ public class DocReconstructor extends Observable {
       throw new Exception("IndexReader cannot be null.");
     }
     if (reader instanceof CompositeReader) {
-      this.reader = SlowCompositeReaderWrapper.wrap((CompositeReader)reader);
+      this.reader = reader;
     } else if (reader instanceof LeafReader) {
       this.reader = (LeafReader)reader;
     } else {
@@ -121,11 +130,13 @@ public class DocReconstructor extends Observable {
             gsa = new GrowableStringArray();
             res.getReconstructedFields().put(fieldNames[i], gsa);
           }
-          for (IntPair ip : vectors) {
-            for (int m = 0; m < ip.positions.length; m++) {
-              gsa.append(ip.positions[m], "|", ip.text);
+            for (IntPair ip : vectors) {
+                if (ip.positions != null) {
+                    for (int m = 0; m < ip.positions.length; m++) {
+                        gsa.append(ip.positions[m], "|", ip.text);
+                    }
+                }
             }
-          }
           fields.remove(fieldNames[i]); // got what we wanted
         }
       }
@@ -164,7 +175,9 @@ public class DocReconstructor extends Observable {
         }
         for (int k = 0; k < pe.freq(); k++) {
           int pos = pe.nextPosition();
-          gsa.append(pos, "|", term);
+          if (pos > -1) {
+           gsa.append(pos, "|", term);
+          }
         }
       }
     }

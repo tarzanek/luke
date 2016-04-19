@@ -20,6 +20,7 @@ import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.SlowCompositeReaderWrapper;
 import org.apache.lucene.search.similarities.TFIDFSimilarity;
@@ -182,14 +183,14 @@ public class Util {
   }
   
   public static Collection<String> fieldNames(IndexReader r, boolean indexedOnly) throws IOException {
-    LeafReader reader;
+    FieldInfos infos;
     if (r instanceof CompositeReader) {
-      reader = SlowCompositeReaderWrapper.wrap((CompositeReader)r);
+      infos = MultiFields.getMergedFieldInfos(r);
     } else {
-      reader = (LeafReader)r;
+        LeafReader reader = (LeafReader)r;
+        infos = reader.getFieldInfos();
     }
-    Set<String> res = new HashSet<String>();
-    FieldInfos infos = reader.getFieldInfos();
+    Set<String> res = new HashSet<String>();    
     for (FieldInfo info : infos) {
       if (indexedOnly && info.getIndexOptions() != IndexOptions.NONE) {
         res.add(info.name);
@@ -326,6 +327,16 @@ public class Util {
       flags.append(dvToString(info.getDocValuesType()));
     } else {
       flags.append("----");
+    }
+    if (info.getPointDimensionCount() > 0) {
+      int dim = info.getPointDimensionCount();
+      int nbytes = info.getPointNumBytes();
+      flags.append("T");
+      flags.append(String.valueOf(nbytes));
+      flags.append("/");
+      flags.append(String.valueOf(dim));
+    } else {
+      flags.append("----");      
     }    
     return flags.toString();
   }
@@ -341,6 +352,9 @@ public class Util {
       break;
     case SORTED:
       fl = "sort";
+      break;
+    case SORTED_NUMERIC:      
+      fl = "srtnum";
       break;
     case SORTED_SET:
       fl = "sortset";

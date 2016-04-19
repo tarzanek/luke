@@ -75,6 +75,7 @@ import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.Transition;
 import org.apache.lucene.queryparser.xml.CoreParser;
 import org.apache.lucene.queryparser.xml.CorePlusExtensionsParser;
+import org.apache.lucene.util.Bits;
 import org.getopt.luke.DocReconstructor.Reconstructed;
 import org.getopt.luke.decoders.BinaryDecoder;
 import org.getopt.luke.decoders.DateDecoder;
@@ -106,8 +107,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   
   private Directory dir = null;
   String pName = null;
-  private IndexReader ir = null;
-  private LeafReader ar = null;
+  private IndexReader ir = null;  
   private IndexSearcher is = null;
   private boolean slowAccess = false;
   private List<String> fn = null;
@@ -167,8 +167,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private static final String MSG_READONLY = "FAILED: Read-Only index.";
   private static final String MSG_EMPTY_INDEX = "Index is empty.";
   private static final String MSG_CONV_ERROR = "Some values could not be properly represented in this format. " + 
-                      "They are marked in grey and presented as a hex dump.";
-  private static final String MSG_LUCENE3828 = "Sorry. This functionality doesn't work with Lucene trunk. See LUCENE-3828 for more details.";
+                      "They are marked in grey and presented as a hex dump.";  
 
   /** Default constructor, loads preferences, initializes plugins and GUI. */ 
   public Luke() {
@@ -705,7 +704,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
       try {
         if (is != null) is = null;
         ir.close();
-        if (ar != null) ar.close();
         if (dir != null) dir.close();
       } catch (Exception e) {
         e.printStackTrace();
@@ -713,7 +711,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
     }
     ir = null;
-    ar = null;
     dir = null;
     is = null;
     removeAll();
@@ -864,7 +861,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
     if (dir != null) {
       try {
         if (ir != null) ir.close();
-        if (ar != null) ar.close();
       } catch (Exception e) {}
       ;
       try {
@@ -881,7 +877,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
                 try {
                     d.obtainLock(IndexWriter.WRITE_LOCK_NAME).close();
                 } catch (LockObtainFailedException failed) {
-                    errorMsg("Index is locked. Try 'Force unlock' when opening."+failed.getMessage());
+                    errorMsg("Index is still locked. Error when opening: "+failed.getMessage());
                     d.close();
                     d = null;
                     return;
@@ -910,7 +906,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
                     try {
                         d1.obtainLock(IndexWriter.WRITE_LOCK_NAME).close();
                     } catch (LockObtainFailedException failed) {
-                        errorMsg("Index is locked. Try 'Force unlock' when opening: "+failed.getMessage());
+                        errorMsg("Index is still locked. Error when opening: "+failed.getMessage());
                         d1.close();
                         d1 = null;
                         return;
@@ -1132,18 +1128,16 @@ public class Luke extends Thinlet implements ClipboardOwner {
       setString(iDocs, "text", String.valueOf(ir.maxDoc() - 1));
       Object iFields = find(pOver, "iFields");
       fn = idxInfo.getFieldNames();
-      if (fn.size() == 0) {
+      if (fn.isEmpty()) {
         showStatus("Empty index.");
       }
       showFiles(dir, null);
       if (ir instanceof CompositeReader) {
-        ar = SlowCompositeReaderWrapper.wrap((CompositeReader)ir);
+        infos = MultiFields.getMergedFieldInfos(ir);        
       } else if (ir instanceof LeafReader) {
-        ar = (LeafReader)ir;
-      }
-      if (ar != null) {
-        infos = ar.getFieldInfos();
-      }
+        LeafReader lr = (LeafReader)ir;
+        infos = lr.getFieldInfos();
+      }      
       showCommits();
       final Object fList = find(pOver, "fList");
       final Object defFld = find("defFld");
@@ -1867,7 +1861,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus("Not possible with " + ir.getClass().getSimpleName());
       return;
     }
-    errorMsg("Not supported in Lucene 4 API");
+    errorMsg("Not supported in Lucene 5 API");
     /*
     try {
       ir.undeleteAll();
@@ -1918,11 +1912,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       if (ir != null) {
         ir.close();
         ir = null;
-      }
-      if (ar != null) {
-        ar.close();
-        ar = null;
-      }
+      }      
       if (dir != null) {
         dir.close();
         dir = null;
@@ -2151,10 +2141,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       }
       if (ir != null) {
         ir.close();
-      }
-      if (ar != null) {
-        ar.close();
-      }
+      }      
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -2395,7 +2382,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
         try {
           if (is != null) is = null;
           if (ir != null) ir.close();
-          if (ar != null) ar.close();
           IndexDeletionPolicy policy;
           if (keep) {
             policy = new KeepAllIndexDeletionPolicy();
@@ -2499,7 +2485,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         return;
       }
       setString(docNum, "text", String.valueOf(iNum));
-      org.apache.lucene.util.Bits live = ar.getLiveDocs();
+      Bits live = MultiFields.getLiveDocs(ir);
       if (live == null || live.get(iNum)) {
         SlowThread st = new SlowThread(this) {
           public void execute() {
@@ -2597,10 +2583,13 @@ public class Luke extends Thinlet implements ClipboardOwner {
               Object cbOTF = find(editfield, "cbOTF");
               Object stored = find(editfield, "stored");
               Object restored = find(editfield, "restored");
-              if (ar != null) {
-		FieldInfos fis=ar.getFieldInfos();
-		FieldInfo fi = fis.fieldInfo(key);
-                setBoolean(cbONorms, "selected", !fi.hasNorms());
+              if (ir != null) {
+		if (ir instanceof CompositeReader) {
+                  setBoolean(cbONorms, "selected", MultiDocValues.getNormValues(ir, key) != null);
+                } else if (ir instanceof LeafReader) {
+                  LeafReader lr = (LeafReader)ir;
+                  setBoolean(cbONorms, "selected", lr.getNormValues(key) != null);
+                }
               }
               Field f = null;
               if (fields != null && fields.length > i) {
@@ -2750,10 +2739,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     boolean res = false;
     String msg = null;
     try {
-      ir.close();
-      if (ar != null) {
-        ar.close();
-      }
+      ir.close();      
       writer = createIndexWriter();
       writer.addDocument(doc);
       res = true;
@@ -2922,7 +2908,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     String flags = Util.fieldFlags(f, infos.fieldInfo(fName));
     boolean hasVectors = false;
     try {
-      hasVectors = ar.getTermVector(docid, fName) != null;
+      hasVectors = ir.getTermVector(docid, fName) != null;
     } catch (Exception e) {
       // ignore
     }
@@ -2941,8 +2927,8 @@ public class Luke extends Thinlet implements ClipboardOwner {
     FieldInfo info = infos.fieldInfo(fName);
     if (f != null) {      
       try {
-        if (ar != null && info.hasNorms()) {
-          NumericDocValues norms = ar.getNormValues(fName);
+        if (info != null && info.hasNorms()) {
+          NumericDocValues norms = MultiDocValues.getNormValues(ir, fName);
           String val = Util.normsToString(norms, fName, docid, sim);
           setString(cell, "text", val);
         } else {
@@ -2990,7 +2976,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   public void showTV(Object table) {
     final Object row = getSelectedItem(table);
     if (row == null) return;
-    if (ar == null) {
+    if (ir == null) {
       showStatus(MSG_NOINDEX);
       return;
     }
@@ -3003,7 +2989,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       public void execute() {
         try {
           String fName = (String) getProperty(row, "fName");
-          Terms tfv = ar.getTermVector(DocId.intValue(), fName);
+          Terms tfv = ir.getTermVector(DocId.intValue(), fName);
           if (tfv == null) {
             showStatus("Term Vector not available in field " + fName + " for this doc.");
             return;
@@ -3140,9 +3126,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
     setString(doc, "text", String.valueOf(docNum.intValue()));
     setString(fld, "text", f.name());
     putProperty(dialog, "similarity", s);
-    if (ar != null) {
+    if (ir != null) {
      try {         
-       NumericDocValues nnorms = ar.getNormValues(f.name());       
+       NumericDocValues nnorms = MultiDocValues.getNormValues(ir, f.name());       
        byte curBVal=0;
        if (nnorms!=null) {curBVal=(byte)nnorms.get(docNum.intValue());}       
        float curFVal = Util.decodeNormValue(curBVal, f.name(), s);
@@ -3642,16 +3628,11 @@ public class Luke extends Thinlet implements ClipboardOwner {
     if (ir == null) {
       showStatus(MSG_NOINDEX);
       return;
-    }
-    if (ar == null) {
-      errorMsg(MSG_LUCENE3828);
-      return;
-    }
+    }    
     SlowThread st = new SlowThread(this) {
       public void execute() {
-        try {
-          //DocsEnum td = ar.termDocsEnum(ar.getLiveDocs(), t.field(), new BytesRef(t.text()), 0);
-          PostingsEnum td = ar.postings(t);
+        try {          
+          PostingsEnum td = MultiFields.getTermPositionsEnum(ir, t.field(), t.bytes());
           if (td == null) {
             showStatus("No such term: " + t);
             return;
@@ -3724,10 +3705,6 @@ public class Luke extends Thinlet implements ClipboardOwner {
       showStatus(MSG_NOINDEX);
       return;
     }
-    if (ar == null) {
-      errorMsg(MSG_LUCENE3828);
-      return;
-    }
     SlowThread st = new SlowThread(this) {
       public void execute() {
         
@@ -3752,7 +3729,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
             flags |= PostingsEnum.OFFSETS;
           }
           //DocsAndPositionsEnum td = ar.termPositionsEnum(ar.getLiveDocs(), t.field(), t.bytes(), flags);
-          PostingsEnum td = ar.postings(t);
+          PostingsEnum td = MultiFields.getTermPositionsEnum(ir, t.field(), t.bytes());          
           if (td == null) {
             showStatus("No position information available for this term.");
             return;
@@ -4498,7 +4475,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
   private void addTermsEnum(Object parent, Class<? extends Query> clz, String field, Query instance) throws Exception {
     Method m = clz.getDeclaredMethod("getTermsEnum", Terms.class, AttributeSource.class);
     m.setAccessible(true);
-    Terms terms = ar.terms(field);
+    Terms terms = MultiFields.getTerms(ir, field);
     TermsEnum fte = (TermsEnum)m.invoke(instance, terms, new AttributeSource());
     Object n1 = create("node");
     String clazz = fte.getClass().getName();
@@ -5193,11 +5170,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
     if (ir != null) try {
       ir.close();
     } catch (Exception e) {}
-    ;
-    if (ar != null) try {
-      ar.close();
-    } catch (Exception e) {}
-    ;
+    ;    
     if (dir != null) try {
       dir.close();
     } catch (Exception e) {}

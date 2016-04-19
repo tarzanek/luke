@@ -205,7 +205,7 @@ public class IndexGate {
         try {
           int indexFormat = in.readInt();
           if (indexFormat == CodecUtil.CODEC_MAGIC) {
-            res.genericName = "Lucene 4.x or 5.x";
+            res.genericName = "Lucene 5.x or 6.x";
             res.capabilities = "flexible, codec-specific";
             int actualVersion = SegmentInfos.VERSION_50;
             try {
@@ -223,9 +223,9 @@ public class IndexGate {
             res.genericName = "Lucene ver.: " + sversion;
             res.version = String.valueOf(actualVersion);            
           } else {
-            res.genericName = "Lucene 3.x or prior";
+            res.genericName = "Lucene 4.x or prior";
             detectOldFormats(res, indexFormat);
-            if (res.version.compareTo("3") < 0) {
+            if (res.version.compareTo("4") < 0) {
               res.capabilities = res.capabilities + " (UNSUPPORTED)";
             }
           }

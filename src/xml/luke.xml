@@ -188,15 +188,19 @@
 						<label text="  S - Stored;" font="10"/>
 						<label text="  V - Term Vector" font="10"/>
 						<label text="  B - Binary;" font="10"/>
-                        <label text="Ntxx - Norms (type/precision);" font="10"/>
+                                                <label text="  N - Norms (type/precision);" font="10"/>
 						<label text="  #txx - Numeric (type/precision);" font="10"/>
-						<label text="  Dtxx - DocValues (type/precision)" font="10"/>
+						<label text="" font="10"/>
++						<label text="  Dtxxxxx - DocValues (type/precision);" font="10"/>
++						<label text="  Tx/x - PointValues (numBytes/dimension);" font="10"/>
++						<label text="" font="10"/>
++						<label text="" font="10"/>
 					</panel>
 				</panel>
 				<table name="docTable" halign="fill" selection="multiple" weightx="1" valign="fill" weighty="1">
 					<header>
 						<column text=" Field"/>
-						<column text="IdfpoPSVBNtxx#txxDtxx" alignment="center" width="150" font="Courier"/>
+						<column text="IdfpoPSVBN#txxDtxxxxxTx/x" alignment="center" width="160" font="Courier"/>
 						<column text="Norm" width="50" alignment="center"/>
 						<column text=" Value"/>
 					</header>
