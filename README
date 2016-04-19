@@ -1,16 +1,16 @@
 luke
 ====
 
-fork of http://luke.googlecode.com/svn/ to support 5.x, 4.x lucene
+fork of http://luke.googlecode.com/svn/ to support 6.x, 5.x lucene
 (and maybe all newer)
 and elastic search indices
 fixes are usually quick and dirty, so need review
 I just fix what I use (e.g. no hadoop updates, ... )
 
-I am using Netbeans (latest) + latest JDK7/8 (Suns/Oracles)
+I am using Netbeans (latest) + latest JDK8 (Suns/Oracles)
 from nb I can run compile & then I run target "dist" on top of build.xml 
 to get the binaries built
 
-NOTE: since 4.10.2 dependency jars get downloaded upon FIRST build
+NOTE: dependency jars get downloaded upon FIRST build
 (so repo doesn't ship them anymore, but they get fetched 
 from maven repos using ant)
