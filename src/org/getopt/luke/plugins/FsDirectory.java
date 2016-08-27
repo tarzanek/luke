@@ -56,6 +56,22 @@ public class FsDirectory extends BaseDirectory {
     Path file = new Path(directory, name);
     return new DfsIndexOutput(file, this.ioFileBufferSize);
   }
+
+    @Override
+    public void rename(String from, String to) throws IOException {
+        // DFS is currently broken when target already exists,
+    // so we explicitly delete the target first.
+    Path target = new Path(directory, to);
+    if (fs.exists(target)) {
+      fs.delete(target, false);
+    }
+    fs.rename(new Path(directory, from), target);        
+    }
+
+    @Override
+    public void syncMetaData() throws IOException {
+        //empty, needs to be implemented if needed
+    }
   
   public static class NullReporter implements IOReporter {
     @Override
@@ -148,17 +164,6 @@ public class FsDirectory extends BaseDirectory {
   public void deleteFile(String name) throws IOException {
     if (!fs.delete(new Path(directory, name), false))
       throw new IOException("Cannot delete " + name);
-  }
-
-  @Override
-  public void renameFile(String from, String to) throws IOException {
-    // DFS is currently broken when target already exists,
-    // so we explicitly delete the target first.
-    Path target = new Path(directory, to);
-    if (fs.exists(target)) {
-      fs.delete(target, false);
-    }
-    fs.rename(new Path(directory, from), target);
   }
 
   @Override
