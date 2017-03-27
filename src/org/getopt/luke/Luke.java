@@ -69,7 +69,7 @@ import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.LegacyNumericUtils;
+import org.apache.lucene.util.LegacyNumericUtils; //Please use PointValues instead.
 import org.apache.lucene.util.Version;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.Transition;
@@ -2731,7 +2731,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         } catch (Exception e) {
           e.printStackTrace();
         }
-        f.setBoost(boost);
+        f.setBoost(boost); //Index-time boosts are deprecated, please index index-time scoring factors into a doc value field and combine them with the score at query time using eg. FunctionScoreQuery.
       }
       doc.add(f);
     }

@@ -287,7 +287,7 @@ public class Util {
     else flags.append("----");
     if (numeric != null) {
       flags.append("#");
-      LegacyNumericType nt = t.numericType();
+      LegacyNumericType nt = t.numericType(); //TODO switch to PointValues instead
       if (nt != null) {
         flags.append(nt.toString().charAt(0));
         int prec = t.numericPrecisionStep();
