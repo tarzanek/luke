@@ -1,9 +1,9 @@
 <project name="Luke" default="dist">
 	<defaultexcludes add="**/CVS"/>
 	<property name="build.dir" value="build"/>
-	<property name="build.ver" value="6.5.1"/>
+	<property name="build.ver" value="6.6.0"/>
         <property name="lucene.version" value="${build.ver}"/>
-        <property name="elasticsearch.version" value="5.3.1"/>
+        <property name="elasticsearch.version" value="5.4.1"/>
 	<property name="dist.dir" value="dist"/>
 	<property name="merge.dir" value="${build.dir}/merge"/>
         <property name="jarfile" value="${build.dir}/luke-${build.ver}.jar"/>
