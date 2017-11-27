@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <panel name="editfield"	columns="1" gap="2" left="4" right="2">
 	<panel gap="2" weightx="1" halign="fill">
-		<label text="Boost:"/>
-		<textfield name="fBoost" columns="6"/>
+<!--		<label text="Boost:"/>
+		<textfield name="fBoost" columns="6"/>-->
 		<label text=" " weightx="1" halign="fill"/>
 		<button font="10" icon="/img/delete.gif" height="16" width="90" text="Delete Field" action="actionEditDeleteField(editfield)"/>
 	</panel>

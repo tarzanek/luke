@@ -11,7 +11,7 @@ import java.util.Set;
 import org.apache.lucene.document.DateTools.Resolution;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.FieldType.LegacyNumericType;
+//import org.apache.lucene.document.FieldType.LegacyNumericType; // TODO
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.CompositeReader;
 import org.apache.lucene.index.DocValues;
@@ -20,9 +20,10 @@ import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableFieldType;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.NumericDocValues;
-import org.apache.lucene.search.similarities.TFIDFSimilarity;
+//import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
 
@@ -199,53 +200,54 @@ public class Util {
     }
     return res;
   }
-  
-  public static String normsToString(NumericDocValues norms, String fName, int docid, TFIDFSimilarity sim) {
-    if (norms == null) {
-      return "-?-";
-    }    
-    if (sim != null) {        
-        try {
-          return String.valueOf(decodeNormValue((byte)norms.get(docid), fName, sim));
-    } catch (Exception e) {
-        e.printStackTrace();
-    }    
-    }
-    if (norms!=DocValues.emptyNumeric()) { return String.valueOf(norms.get(docid)); }
-    return "???unknown type";
-  }
-  
-  public static float decodeNormValue(long v, String fieldName, TFIDFSimilarity sim) throws Exception {
-    try {
-      return sim.decodeNormValue(v);
-    } catch (Exception e) {
-      throw new Exception("ERROR decoding norm for field "  + fieldName + ":" + e.toString());
-    }
-  }
-  
-  public static long encodeNormValue(float v, String fieldName, TFIDFSimilarity sim) throws Exception {
-    try {
-      return sim.encodeNormValue(v);
-    } catch (Exception e) {
-      throw new Exception("ERROR encoding norm for field "  + fieldName + ":" + e.toString());
-    }    
-  }
-
+//  
+//  public static String normsToString(NumericDocValues norms, String fName, int docid, TFIDFSimilarity sim) {
+//    if (norms == null) {
+//      return "-?-";
+//    }    
+//    if (sim != null) {        
+//        try {
+//          return String.valueOf(decodeNormValue((byte)norms.get(docid), fName, sim));
+//    } catch (Exception e) {
+//        e.printStackTrace();
+//    }    
+//    }
+//    if (norms!=DocValues.emptyNumeric()) { return String.valueOf(norms.get(docid)); }
+//    return "???unknown type";
+//  }
+//  
+//  public static float decodeNormValue(long v, String fieldName, TFIDFSimilarity sim) throws Exception {
+//    try {
+//      return sim.decodeNormValue(v);
+//    } catch (Exception e) {
+//      throw new Exception("ERROR decoding norm for field "  + fieldName + ":" + e.toString());
+//    }
+//  }
+//  
+//  public static long encodeNormValue(float v, String fieldName, TFIDFSimilarity sim) throws Exception {
+//    try {
+//      return sim.encodeNormValue(v);
+//    } catch (Exception e) {
+//      throw new Exception("ERROR encoding norm for field "  + fieldName + ":" + e.toString());
+//    }    
+//  }
+//
 
   // IdfpoPSVBNtxx#txxDtxx
   public static String fieldFlags(Field fld, FieldInfo info) {
-    FieldType t = null;
+      IndexableFieldType t = null;
     BytesRef binary = null;
     Number numeric = null;
     if (fld == null) {
-      t = new FieldType();      
-      t.setStored(false);
-      t.setStoreTermVectors(false);
-      t.setOmitNorms(true);
-      t.setStoreTermVectorOffsets(false);
-      t.setStoreTermVectorPositions(false);
-      t.setTokenized(false);
-      t.setNumericType(null);
+      FieldType ft = new FieldType();      
+      ft.setStored(false);
+      ft.setStoreTermVectors(false);
+      ft.setOmitNorms(true);
+      ft.setStoreTermVectorOffsets(false);
+      ft.setStoreTermVectorPositions(false);
+      ft.setTokenized(false);
+//      t.setNumericType(null);
+      t=ft;
     } else {
       t = fld.fieldType();
       binary = fld.binaryValue();
@@ -287,16 +289,16 @@ public class Util {
     else flags.append("----");
     if (numeric != null) {
       flags.append("#");
-      LegacyNumericType nt = t.numericType(); //TODO switch to PointValues instead
-      if (nt != null) {
-        flags.append(nt.toString().charAt(0));
-        int prec = t.numericPrecisionStep();
-        String p = Integer.toHexString(prec);
-        if (p.length() == 1) {
-          p = "0" + p;
-        }
-        flags.append(p);
-      } else {
+//      LegacyNumericType nt = t.numericType(); //TODO switch to PointValues instead
+//      if (nt != null) {
+//        flags.append(nt.toString().charAt(0));
+//        int prec = t.numericPrecisionStep();
+//        String p = Integer.toHexString(prec);
+//        if (p.length() == 1) {
+//          p = "0" + p;
+//        }
+//        flags.append(p);
+//      } else {
         // try faking it
         if (numeric instanceof Integer) {
           flags.append("i32");
@@ -317,7 +319,7 @@ public class Util {
         } else {
           flags.append("???");
         }
-      }
+//      }
     } else {
       flags.append("----");
     }

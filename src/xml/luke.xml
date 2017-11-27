@@ -207,7 +207,7 @@
 					<popupmenu>
 						<menuitem text="Field's Term Vector" action="showTV(docTable)"/>
                                                 <menuitem text="Show Full Text" action="showTField(docTable)"/>
-                                                <menuitem text="Set norm" action="actionExamineNorm(docTable)"/>
+                                                <!--<menuitem text="Set norm" action="actionExamineNorm(docTable)"/>-->
 						<menuitem text="Save binary field" action="saveField(docTable)"/>
 					</popupmenu>
 				</table>
@@ -215,7 +215,7 @@
 				    <label text="Selected field: "/>
 					<button text="TV" tooltip="Show Term Vector of selected field" action="showTV(docTable)"/>
                                         <button text="Show" tooltip="Show full text of selected field" action="showTField(docTable)"/>
-                                        <button text="Examine norm" tooltip="Examine norm value of selected field" action="actionExamineNorm(docTable)"/>
+                                        <!--<button text="Examine norm" tooltip="Examine norm value of selected field" action="actionExamineNorm(docTable)"/>-->
 					<button text="Save" tooltip="Save binary value of selected field" action="saveField(docTable)"/>
 					<label text=" " weightx="1" halign="fill"/>
 					<label text="Copy text to Clipboard:"/>

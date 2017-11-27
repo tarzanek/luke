@@ -185,13 +185,12 @@ public class XMLExporter extends Observable {
         if (dv != null) {
           // export raw value - we don't know what similarity was used
           String type = dv.toString();
-          if (type.contains("INT")) {
-            bw.write("' norm='" + dv.get(docNum));
-          } else if (type.startsWith("FLOAT")) {
-            bw.write("' norm='" + dv.get(docNum));
-          } else if (type.startsWith("BYTES")) {
-             bw.write("' norm='" + dv.get(docNum));
-             bw.write("' norm='" + dv.get(docNum));
+          if (type.contains("INT") && dv.advanceExact(docNum)) {
+            bw.write("' norm='" + dv.longValue());
+          } else if (type.startsWith("FLOAT") && dv.advanceExact(docNum)) {
+            bw.write("' norm='" + dv.longValue());
+          } else if (type.startsWith("BYTES") && dv.advanceExact(docNum)) {
+             bw.write("' norm='" + dv.longValue());
             bw.write("' norm='" + Util.bytesToHex(bytes, false));
           }
           break;

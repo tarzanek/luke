@@ -207,9 +207,9 @@ public class IndexGate {
           if (indexFormat == CodecUtil.CODEC_MAGIC) {
             res.genericName = "Lucene 5.x or 6.x";
             res.capabilities = "flexible, codec-specific";
-            int actualVersion = SegmentInfos.VERSION_50;
+            int actualVersion = SegmentInfos.VERSION_53;
             try {
-              actualVersion = CodecUtil.checkHeaderNoMagic(in, "segments", SegmentInfos.VERSION_50, Integer.MAX_VALUE);
+              actualVersion = CodecUtil.checkHeaderNoMagic(in, "segments", SegmentInfos.VERSION_53, Integer.MAX_VALUE);
               if (actualVersion > SegmentInfos.VERSION_CURRENT) {
                 res.capabilities += " (WARNING: newer version of Lucene than this tool)";
               }
@@ -221,7 +221,8 @@ public class IndexGate {
             Version ver=infos.getMinSegmentLuceneVersion();
             String sversion=ver!=null?ver.toString():"Error reading min segment version";
             res.genericName = "Lucene ver.: " + sversion;
-            res.version = String.valueOf(actualVersion);            
+            res.version = String.valueOf(actualVersion); 
+            res.indexCreatedVersionMajor = actualVersion; 
           } else {
             res.genericName = "Lucene 4.x or prior";
             detectOldFormats(res, indexFormat);
@@ -239,7 +240,7 @@ public class IndexGate {
   }
   
   public static boolean preferCompoundFormat(Directory dir) throws Exception {
-    SegmentInfos infos = new SegmentInfos();
+    SegmentInfos infos;
     infos=SegmentInfos.readLatestCommit(dir);
     int compound = 0, nonCompound = 0;
     for (int i = 0; i < infos.size(); i++) {
@@ -253,7 +254,7 @@ public class IndexGate {
   }
   
   public static void deletePendingFiles(Directory dir, IndexDeletionPolicy policy) throws Exception {
-    SegmentInfos infos = new SegmentInfos();
+    SegmentInfos infos;
     infos=SegmentInfos.readLatestCommit(dir);
     IndexWriterConfig cfg = new IndexWriterConfig(new WhitespaceAnalyzer());
     IndexWriter iw = new IndexWriter(dir, cfg);
@@ -313,5 +314,6 @@ public class IndexGate {
     public String genericName = "N/A";
     public String capabilities = "N/A";
     public String version = "N/A";
+    public int indexCreatedVersionMajor;
   }
 }
