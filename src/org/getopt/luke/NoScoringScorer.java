@@ -24,12 +24,6 @@ public class NoScoringScorer extends Scorer {
     }
 
     @Override
-    public int freq() throws IOException {
-        // TODO Auto-generated method stub
-        return 1;
-    }
-
-    @Override
     public DocIdSetIterator iterator() {
         return new DocIdSetIterator() {
             @Override
