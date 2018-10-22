@@ -1540,7 +1540,9 @@ public class Luke extends Thinlet implements ClipboardOwner {
     // fieldInfos
     try {
       IndexGate.FormatDetails formatDetails = IndexGate.getIndexFormat(dir);
-      SegmentReader sr = new SegmentReader(si, formatDetails.indexCreatedVersionMajor, IOContext.READ);
+//      SegmentReader sr = new SegmentReader(si, formatDetails.indexCreatedVersionMajor, IOContext.READ);
+      DirectoryReader ir = StandardDirectoryReader.open(si.info.dir);
+      SegmentReader sr = (SegmentReader) ir.leaves().get(0).reader();
       FieldInfos fis = sr.getFieldInfos();
       map = new LinkedHashMap<String,String>();
       List<String> flds = new ArrayList<String>(fis.size());
@@ -1990,15 +1992,15 @@ public class Luke extends Thinlet implements ClipboardOwner {
             setBoolean(fixPanel, "visible", true);
             repaint(dialog);
             statMsg = "BAD: ";
-            if (status.cantOpenSegments) {
-              statMsg += "cantOpenSegments ";
-            }
+//            if (status.cantOpenSegments) {
+//              statMsg += "cantOpenSegments ";
+//            }
             if (status.missingSegments) {
               statMsg += "missingSegments ";
             }
-            if (status.missingSegmentVersion) {
-              statMsg += "missingSegVersion ";
-            }
+//            if (status.missingSegmentVersion) {
+//              statMsg += "missingSegVersion ";
+//            }
             if (status.numBadSegments > 0) {
               statMsg += "numBadSegments=" + status.numBadSegments + " ";
             }
@@ -4317,7 +4319,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       MultiTermQuery mq = (MultiTermQuery)q;
       Set<Term> terms = new HashSet<Term>();
       try {
-       EMPTY_INDEXSEARCHER.createNormalizedWeight(mq, false).extractTerms(terms);
+       EMPTY_INDEXSEARCHER.createWeight(mq, false, 1).extractTerms(terms);
       } catch (IOException e) {
           e.printStackTrace();
         // empty terms in case of error
@@ -4381,7 +4383,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
         setString(n, "text", "class=" + q.getClass().getName() + ", " + getString(n, "text") + ", toString=" + q.toString(defField));
         HashSet<Term> terms = new HashSet<Term>();
         try {
-         EMPTY_INDEXSEARCHER.createNormalizedWeight(sq, false).extractTerms(terms);
+         EMPTY_INDEXSEARCHER.createWeight(sq, false, 1).extractTerms(terms);
         } catch (IOException e) {
           e.printStackTrace();
         // empty terms in case of error
@@ -4439,7 +4441,7 @@ public class Luke extends Thinlet implements ClipboardOwner {
       String defField = getDefaultField(find("srchOptTabs"));
       Set<Term> terms = new HashSet<Term>();
       try {
-       EMPTY_INDEXSEARCHER.createNormalizedWeight(q, false).extractTerms(terms);
+       EMPTY_INDEXSEARCHER.createWeight(q, false, 1).extractTerms(terms);
       } catch (IOException e) {
           e.printStackTrace();
         // empty terms in case of error
